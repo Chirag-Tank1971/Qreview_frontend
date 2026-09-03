@@ -1,0 +1,757 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  EmployeeReview,
+  ReviewPeriod,
+  ReviewSummaryStats,
+  Department,
+  Cycle,
+  Employee,
+  User,
+  ReviewStatus,
+} from '../types';
+import { api } from '../services/api';
+import { ReviewScoringModal } from './ReviewScoringModal';
+import { BatchGenerateReviewsModal } from './BatchGenerateReviewsModal';
+import {
+  Sparkles,
+  Search,
+  Filter,
+  Users,
+  Award,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  RotateCw,
+  Building2,
+  Layers,
+  ArrowUpDown,
+  Download,
+  FileCheck,
+  AlertCircle,
+  Eye,
+  Edit3,
+  Lock,
+  ChevronRight,
+  TrendingUp,
+  BarChart3,
+  UserCheck,
+} from 'lucide-react';
+
+export interface ReviewViewConfig {
+  status?: string;
+  periodId?: string;
+  departmentId?: string;
+  cycleId?: string;
+  reviewId?: string;
+  myReportsOnly?: boolean;
+}
+
+interface QuarterlyReviewViewProps {
+  currentUser: User | null;
+  departments: Department[];
+  cycles: Cycle[];
+  employees: Employee[];
+  initialConfig?: ReviewViewConfig | null;
+  onClearInitialConfig?: () => void;
+}
+
+export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
+  currentUser,
+  departments,
+  cycles,
+  employees,
+  initialConfig,
+  onClearInitialConfig,
+}) => {
+  const [reviews, setReviews] = useState<EmployeeReview[]>([]);
+  const [periods, setPeriods] = useState<ReviewPeriod[]>([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const [stats, setStats] = useState<ReviewSummaryStats | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [filterDepartmentId, setFilterDepartmentId] = useState<string>('ALL');
+  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [appraisalDueOnly, setAppraisalDueOnly] = useState<boolean>(false);
+  const [myReportsOnly, setMyReportsOnly] = useState<boolean>(false);
+
+  // Modals
+  const [activeReviewForScoring, setActiveReviewForScoring] = useState<EmployeeReview | null>(null);
+  const [isScoringModalOpen, setIsScoringModalOpen] = useState<boolean>(false);
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState<boolean>(false);
+  const handledReviewIdRef = useRef<string | null>(null);
+
+  // Synchronize initialConfig
+  useEffect(() => {
+    if (initialConfig) {
+      if (initialConfig.status) {
+        let normalized = initialConfig.status;
+        if (normalized === 'SELF_ASSESSED') normalized = 'MANAGER_PENDING';
+        const validStatuses = ['ALL', 'MANAGER_PENDING', 'MANAGER_COMPLETED', 'HR_PENDING', 'HR_COMPLETED', 'CLOSED', 'RETURNED', 'ASSIGNED', 'DRAFT'];
+        if (!validStatuses.includes(normalized)) normalized = 'ALL';
+        setFilterStatus(normalized);
+      }
+      if (initialConfig.periodId) setSelectedPeriodId(initialConfig.periodId);
+      if (initialConfig.departmentId) setFilterDepartmentId(initialConfig.departmentId);
+      if (initialConfig.myReportsOnly !== undefined) setMyReportsOnly(initialConfig.myReportsOnly);
+      if (initialConfig.reviewId && initialConfig.reviewId !== handledReviewIdRef.current) {
+        handledReviewIdRef.current = initialConfig.reviewId;
+        api.getReviews().then((res) => {
+          const match = res?.find((r) => r.id === initialConfig.reviewId);
+          if (match) {
+            setActiveReviewForScoring(match);
+            setIsScoringModalOpen(true);
+          }
+        }).catch((err) => console.warn('Could not auto-open review', err));
+      }
+      onClearInitialConfig?.();
+    }
+  }, [initialConfig, onClearInitialConfig]);
+
+  const isSuperAdminOrHr = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'HR' || currentUser?.role === 'HOD';
+
+  // Load Review Periods on Mount or when currentUser changes
+  useEffect(() => {
+    loadReviewPeriods();
+  }, [currentUser]);
+
+  const loadReviewPeriods = async () => {
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      const data = await api.getReviewPeriods();
+      const periodList = data || [];
+      setPeriods(periodList);
+      if (periodList.length > 0) {
+        // If current selectedPeriodId exists in new list, retain it; otherwise select active or first
+        const validExisting = periodList.find((p) => p.id === selectedPeriodId);
+        if (validExisting) {
+          loadReviewsAndStats(selectedPeriodId);
+        } else {
+          const active = periodList.find((p) => p.status === 'ACTIVE') || periodList[0];
+          setSelectedPeriodId(active.id);
+          loadReviewsAndStats(active.id);
+        }
+      } else {
+        setReviews([]);
+        setStats(null);
+        setLoading(false);
+      }
+    } catch (err: any) {
+      console.error('Failed to load review periods:', err);
+      setErrorMessage(err.message || 'Failed to load review periods. Please retry.');
+      setLoading(false);
+    }
+  };
+
+  // Load Reviews and Stats whenever period or filters change
+  useEffect(() => {
+    if (selectedPeriodId) {
+      loadReviewsAndStats(selectedPeriodId);
+    }
+  }, [selectedPeriodId, filterDepartmentId, filterStatus, myReportsOnly]);
+
+  const loadReviewsAndStats = async (periodIdToFetch?: string) => {
+    const targetPeriodId = periodIdToFetch || selectedPeriodId;
+    if (!targetPeriodId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      const [reviewsData, statsData] = await Promise.all([
+        api.getReviews({
+          periodId: targetPeriodId,
+          departmentId: filterDepartmentId !== 'ALL' ? filterDepartmentId : undefined,
+          status: filterStatus !== 'ALL' ? filterStatus : undefined,
+          onlyMine: myReportsOnly,
+        }),
+        api.getReviewStats({
+          periodId: targetPeriodId,
+          departmentId: filterDepartmentId !== 'ALL' ? filterDepartmentId : undefined,
+        }),
+      ]);
+
+      setReviews(reviewsData || []);
+      setStats(statsData || null);
+    } catch (err: any) {
+      console.error('Failed to load review cohort:', err);
+      setErrorMessage(err.message || 'Failed to load review records.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filtered reviews in memory for search & appraisal due toggle
+  const displayedReviews = useMemo(() => {
+    return reviews.filter((r) => {
+      if (appraisalDueOnly && !r.isAppraisalMonthDue) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesName = r.employeeName.toLowerCase().includes(q);
+        const matchesCode = r.employeeCode.toLowerCase().includes(q);
+        const matchesDept = r.departmentName.toLowerCase().includes(q);
+        const matchesDesig = r.designationName.toLowerCase().includes(q);
+        const matchesMgr = r.managerName.toLowerCase().includes(q);
+        if (!matchesName && !matchesCode && !matchesDept && !matchesDesig && !matchesMgr) return false;
+      }
+      return true;
+    });
+  }, [reviews, searchQuery, appraisalDueOnly]);
+
+  const selectedPeriod = periods.find((p) => p.id === selectedPeriodId);
+
+  const handleOpenScoring = (review: EmployeeReview) => {
+    setActiveReviewForScoring(review);
+    setIsScoringModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsScoringModalOpen(false);
+    setActiveReviewForScoring(null);
+    onClearInitialConfig?.();
+  };
+
+  const handleModalSaved = () => {
+    setIsScoringModalOpen(false);
+    setActiveReviewForScoring(null);
+    onClearInitialConfig?.();
+    loadReviewsAndStats();
+  };
+
+  const handleExportCSV = () => {
+    if (reviews.length === 0) return;
+    const headers = [
+      'Review ID',
+      'Employee Code',
+      'Employee Name',
+      'Department',
+      'Designation',
+      'Cycle',
+      'Appraisal Due',
+      'Manager',
+      'Final Score',
+      'Status',
+      'Last Updated',
+    ];
+
+    const rows = reviews.map((r) => [
+      r.id,
+      r.employeeCode,
+      `"${r.employeeName}"`,
+      `"${r.departmentName}"`,
+      `"${r.designationName}"`,
+      r.cycleCode,
+      r.isAppraisalMonthDue ? 'YES' : 'NO',
+      `"${r.managerName}"`,
+      r.finalScore || 0,
+      r.status,
+      new Date(r.updatedAt || r.createdAt).toLocaleDateString(),
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Quarterly_Reviews_${selectedPeriod?.name || 'Cohort'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Helper for status badge styling
+  const getStatusBadge = (status: ReviewStatus, managerName?: string) => {
+    switch (status) {
+      case 'DRAFT':
+      case 'ASSIGNED':
+        return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">Draft</span>;
+      case 'MANAGER_PENDING':
+        return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 flex items-center space-x-1"><Clock className="w-3 h-3" /><span>Mgr Pending</span></span>;
+      case 'MANAGER_COMPLETED':
+        return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 flex items-center space-x-1"><CheckCircle2 className="w-3 h-3" /><span>Mgr Completed</span></span>;
+      case 'HR_PENDING':
+      case 'HR_COMPLETED':
+        return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 flex items-center space-x-1"><UserCheck className="w-3 h-3" /><span>HR Review</span></span>;
+      case 'RETURNED':
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 text-rose-800 border border-rose-200 w-max">
+              Returned
+            </span>
+            {managerName && <span className="text-[9px] text-slate-500 font-medium px-1">to {managerName.split(' ')[0]}</span>}
+          </div>
+        );
+      case 'CLOSED':
+        return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center space-x-1"><Lock className="w-3 h-3" /><span>Closed</span></span>;
+      default:
+        return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">{status}</span>;
+    }
+  };
+
+  // Helper for score badge
+  const getScoreBadge = (score?: number) => {
+    if (!score || score === 0) {
+      return <span className="text-xs text-slate-400 font-medium">Pending Rating</span>;
+    }
+    let color = 'bg-slate-100 text-slate-800 border-slate-300';
+    if (score >= 4.5) color = 'bg-emerald-50 text-emerald-800 border-emerald-300';
+    else if (score >= 3.5) color = 'bg-indigo-50 text-indigo-800 border-indigo-300';
+    else if (score >= 2.5) color = 'bg-blue-50 text-blue-800 border-blue-300';
+    else color = 'bg-rose-50 text-rose-800 border-rose-300';
+
+    return (
+      <div className="flex items-center space-x-1.5">
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${color}`}>
+          {score.toFixed(2)} / 5.0
+        </span>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      
+      {/* Error Banner */}
+      {errorMessage && (
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-center justify-between text-xs text-rose-800">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+          <button
+            onClick={() => loadReviewPeriods()}
+            className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-md font-medium text-xs shadow-2xs transition-colors"
+          >
+            Retry Loading
+          </button>
+        </div>
+      )}
+
+      {/* 1. TOP BAR: PERIOD SELECTOR & PRIMARY ACTIONS */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center space-x-2">
+            <Calendar className="w-5 h-5 text-indigo-600" />
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Review Period</span>
+          </div>
+
+          <select
+            value={selectedPeriodId}
+            onChange={(e) => setSelectedPeriodId(e.target.value)}
+            disabled={periods.length === 0}
+            className="text-sm font-bold text-slate-900 bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+          >
+            {periods.length === 0 ? (
+              <option value="">No Active Periods</option>
+            ) : (
+              periods.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} {p.status === 'ACTIVE' ? '🟢 (ACTIVE)' : `(${p.status})`}
+                </option>
+              ))
+            )}
+          </select>
+
+          {selectedPeriod && (
+            <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
+              selectedPeriod.status === 'ACTIVE'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-slate-100 text-slate-600 border-slate-200'
+            }`}>
+              {selectedPeriod.status}
+            </span>
+          )}
+        </div>
+
+        {/* ACTIONS */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={() => loadReviewPeriods()}
+            title="Refresh cohort and periods"
+            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
+          >
+            <RotateCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+
+          <button
+            onClick={handleExportCSV}
+            disabled={reviews.length === 0}
+            className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg shadow-2xs transition-colors flex items-center space-x-1.5 disabled:opacity-50"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <span>Export CSV</span>
+          </button>
+
+          {isSuperAdminOrHr && (
+            <button
+              onClick={() => setIsBatchModalOpen(true)}
+              className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors flex items-center space-x-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Initiate Batch Reviews</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 2. STATS & ANALYTICS CARDS */}
+      {stats && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Total Cohort Reviews */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <span>Cohort Reviews</span>
+              <Users className="w-4 h-4 text-indigo-500" />
+            </div>
+            <div className="mt-2 flex items-baseline space-x-2">
+              <span className="text-2xl font-bold text-slate-900">{stats.total}</span>
+              <span className="text-xs text-slate-500">records</span>
+            </div>
+            <div className="mt-2 flex items-center text-[11px] text-slate-500 space-x-2">
+              <span className="text-amber-600 font-medium">{stats.managerPending} pending mgr</span>
+              <span>•</span>
+              <span className="text-emerald-600 font-medium">{stats.closed} closed</span>
+            </div>
+          </div>
+
+          {/* Card 2: Evaluation Progress */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <span>Manager Completion</span>
+              <CheckCircle2 className="w-4 h-4 text-blue-500" />
+            </div>
+            <div className="mt-2 flex items-baseline space-x-2">
+              <span className="text-2xl font-bold text-slate-900">{stats.completionRate}%</span>
+              <span className="text-xs text-slate-500">completed</span>
+            </div>
+            <div className="mt-2 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="bg-blue-600 h-1.5 rounded-full transition-all duration-500"
+                style={{ width: `${stats.completionRate}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Card 3: Average Cohort Score */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <span>Avg Weighted Score</span>
+              <Award className="w-4 h-4 text-emerald-500" />
+            </div>
+            <div className="mt-2 flex items-baseline space-x-2">
+              <span className="text-2xl font-bold text-slate-900">
+                {stats.averageScore > 0 ? stats.averageScore.toFixed(2) : '—'}
+              </span>
+              <span className="text-xs text-slate-400">/ 5.00</span>
+            </div>
+            <div className="mt-2 text-[11px] text-slate-500">
+              {stats.distribution.outstanding} Outstanding • {stats.distribution.exceeds} Exceeds
+            </div>
+          </div>
+
+          {/* Card 4: Appraisal Triggers */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <span>Appraisal Month Due</span>
+              <Sparkles className="w-4 h-4 text-amber-500" />
+            </div>
+            <div className="mt-2 flex items-baseline space-x-2">
+              <span className="text-2xl font-bold text-slate-900">
+                {reviews.filter((r) => r.isAppraisalMonthDue).length}
+              </span>
+              <span className="text-xs text-amber-700 font-medium">cohort employees</span>
+            </div>
+            <div className="mt-2 text-[11px] text-slate-500">
+              Annual cycle appraisal calibration active
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. FILTERS & SEARCH BAR */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          
+          {/* SEARCH */}
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by employee name, code, designation, manager..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full text-xs pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:border-indigo-500 focus:bg-white transition-colors"
+            />
+          </div>
+
+          {/* DEPARTMENT FILTER */}
+          <div className="flex items-center space-x-1.5">
+            <span className="text-xs text-slate-500 font-medium">Dept:</span>
+            <select
+              value={filterDepartmentId}
+              onChange={(e) => setFilterDepartmentId(e.target.value)}
+              className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-indigo-500"
+            >
+              <option value="ALL">All Departments</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* STATUS FILTER */}
+          <div className="flex items-center space-x-1.5">
+            <span className="text-xs text-slate-500 font-medium">Status:</span>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-indigo-500"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="MANAGER_PENDING">Manager Pending</option>
+              <option value="MANAGER_COMPLETED">Manager Completed</option>
+              <option value="HR_PENDING">HR Pending</option>
+              <option value="HR_COMPLETED">HR Completed</option>
+              <option value="ASSIGNED">Assigned</option>
+              <option value="RETURNED">Returned</option>
+              <option value="CLOSED">Closed & Locked</option>
+              <option value="DRAFT">Draft</option>
+            </select>
+          </div>
+
+          {/* QUICK TOGGLES */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setAppraisalDueOnly(!appraisalDueOnly)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors flex items-center space-x-1 ${
+                appraisalDueOnly
+                  ? 'bg-amber-100 border-amber-300 text-amber-900 shadow-xs'
+                  : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <span>Appraisal Due Only</span>
+            </button>
+
+            {currentUser?.role === 'MANAGER' && (
+              <button
+                onClick={() => setMyReportsOnly(!myReportsOnly)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                  myReportsOnly
+                    ? 'bg-indigo-100 border-indigo-300 text-indigo-900 shadow-xs'
+                    : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                My Direct Reports
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* RESULTS COUNT */}
+        <div className="text-[11px] text-slate-500 flex items-center justify-between border-t border-slate-100 pt-2">
+          <div className="flex items-center space-x-2">
+            <span>
+              Showing <strong className="text-slate-800">{displayedReviews.length}</strong> of{' '}
+              <strong className="text-slate-800">{reviews.length}</strong> reviews
+            </span>
+            {(filterStatus !== 'ALL' || filterDepartmentId !== 'ALL' || appraisalDueOnly || searchQuery.trim() || myReportsOnly) && (
+              <button
+                onClick={() => {
+                  setFilterStatus('ALL');
+                  setFilterDepartmentId('ALL');
+                  setAppraisalDueOnly(false);
+                  setMyReportsOnly(false);
+                  setSearchQuery('');
+                }}
+                className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium underline"
+              >
+                Reset filters
+              </button>
+            )}
+          </div>
+          {appraisalDueOnly && (
+            <span className="text-amber-700 font-medium">Filtering for Cycle appraisal due cohort</span>
+          )}
+        </div>
+      </div>
+
+      {/* 4. REVIEWS DATA TABLE */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        {loading ? (
+          <div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center space-y-3">
+            <RotateCw className="w-6 h-6 animate-spin text-indigo-600" />
+            <span className="text-xs font-medium">Loading quarterly review records...</span>
+          </div>
+        ) : displayedReviews.length === 0 ? (
+          <div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center space-y-3">
+            <FileCheck className="w-10 h-10 text-slate-300" />
+            <span className="text-sm font-semibold text-slate-700">No quarterly reviews found</span>
+            <p className="text-xs text-slate-500 max-w-sm">
+              {filterStatus !== 'ALL' || filterDepartmentId !== 'ALL' || appraisalDueOnly || searchQuery.trim() || myReportsOnly
+                ? 'No review sheets match your current search or filters for this period.'
+                : 'No review sheets exist for this period. Initiate a new batch for this period to generate reviews.'}
+            </p>
+            {(filterStatus !== 'ALL' || filterDepartmentId !== 'ALL' || appraisalDueOnly || searchQuery.trim() || myReportsOnly) && (
+              <button
+                onClick={() => {
+                  setFilterStatus('ALL');
+                  setFilterDepartmentId('ALL');
+                  setAppraisalDueOnly(false);
+                  setMyReportsOnly(false);
+                  setSearchQuery('');
+                }}
+                className="mt-1 px-3.5 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg shadow-2xs transition-colors"
+              >
+                Clear All Filters
+              </button>
+            )}
+            {isSuperAdminOrHr && !searchQuery && filterStatus === 'ALL' && (
+              <button
+                onClick={() => setIsBatchModalOpen(true)}
+                className="mt-2 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+              >
+                Generate Reviews Now
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200">
+                <tr>
+                  <th className="py-3 px-4">Employee</th>
+                  <th className="py-3 px-4">Department & Role</th>
+                  <th className="py-3 px-4">Appraisal Cycle</th>
+                  <th className="py-3 px-4">KRA Snapshot</th>
+                  <th className="py-3 px-4">Weighted Score</th>
+                  <th className="py-3 px-4">Review Status</th>
+                  <th className="py-3 px-4">Manager</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {displayedReviews.map((r) => (
+                  <tr
+                    key={r.id}
+                    className="hover:bg-slate-50/60 transition-colors group cursor-pointer"
+                    onClick={() => handleOpenScoring(r)}
+                  >
+                    {/* Employee Info */}
+                    <td className="py-3 px-4">
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-2xs shrink-0"
+                          style={{ backgroundColor: r.cycleColor || '#1e3a8a' }}
+                        >
+                          {r.employeeName.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-1.5">
+                            <span className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                              {r.employeeName}
+                            </span>
+                            {r.isAppraisalMonthDue && (
+                              <span
+                                title="Appraisal Due this Quarter"
+                                className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"
+                              />
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-400 font-mono">{r.employeeCode}</span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Department & Designation */}
+                    <td className="py-3 px-4">
+                      <div className="text-slate-800 font-medium">{r.designationName}</div>
+                      <div className="text-[11px] text-slate-500">{r.departmentName}</div>
+                    </td>
+
+                    {/* Appraisal Cycle */}
+                    <td className="py-3 px-4">
+                      <div className="flex items-center space-x-1.5">
+                        <span
+                          className="w-5 h-5 rounded-md text-white font-bold flex items-center justify-center text-[10px]"
+                          style={{ backgroundColor: r.cycleColor || '#1e3a8a' }}
+                        >
+                          {r.cycleCode}
+                        </span>
+                        <span className="text-slate-700 font-medium">Cycle {r.cycleCode}</span>
+                      </div>
+                      {r.isAppraisalMonthDue && (
+                        <span className="inline-block mt-0.5 text-[10px] text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                          Appraisal Due
+                        </span>
+                      )}
+                    </td>
+
+                    {/* KRA Snapshot */}
+                    <td className="py-3 px-4">
+                      <span className="inline-flex items-center space-x-1 text-slate-700 font-medium bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                        <span>{r.kraSnapshot?.length || 0} KRAs locked</span>
+                      </span>
+                    </td>
+
+                    {/* Final Weighted Score */}
+                    <td className="py-3 px-4">{getScoreBadge(r.finalScore)}</td>
+
+                    {/* Status */}
+                    <td className="py-3 px-4">{getStatusBadge(r.status, r.managerName)}</td>
+
+                    {/* Manager */}
+                    <td className="py-3 px-4">
+                      <span className="text-slate-700 font-medium">{r.managerName}</span>
+                    </td>
+
+                    {/* Action Button */}
+                    <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => handleOpenScoring(r)}
+                        className="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-colors inline-flex items-center space-x-1"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Score / View</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 5. MODALS */}
+      {isScoringModalOpen && activeReviewForScoring && (
+        <ReviewScoringModal
+          review={activeReviewForScoring}
+          currentUser={currentUser}
+          isOpen={isScoringModalOpen}
+          onClose={handleModalClose}
+          onSaved={handleModalSaved}
+        />
+      )}
+
+      {isBatchModalOpen && (
+        <BatchGenerateReviewsModal
+          isOpen={isBatchModalOpen}
+          onClose={() => setIsBatchModalOpen(false)}
+          onGenerated={() => {
+            setIsBatchModalOpen(false);
+            loadReviewsAndStats();
+          }}
+          periods={periods}
+          departments={departments}
+          cycles={cycles}
+          employees={employees}
+        />
+      )}
+
+    </div>
+  );
+};
