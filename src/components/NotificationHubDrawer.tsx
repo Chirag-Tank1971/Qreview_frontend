@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Bell,
   CheckCircle2,
@@ -394,52 +395,67 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  // Close drawer on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-hidden flex justify-end bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
+  if (!isOpen) return null;
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[9999] overflow-hidden flex justify-end bg-slate-950/40 dark:bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150"
+      onClick={onClose}
+    >
       <div
-        className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-200 animate-in slide-in-from-right duration-200"
+        className="w-full max-w-md bg-white dark:bg-slate-900 h-screen shadow-2xl flex flex-col border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-950/50">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
               <Bell className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-slate-900">Workflow Notifications Hub</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Workflow Notifications Hub</h3>
                 {unreadCount > 0 && (
                   <span className="px-2 py-0.2 bg-rose-600 text-white rounded-full text-[10px] font-bold">
                     {unreadCount} new
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 Automated 8-Cycle appraisal alerts, HOD calibrations, and budget cap triggers
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Toolbar */}
-        <div className="px-5 py-2.5 bg-slate-100/60 border-b border-slate-200 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-1.5 text-slate-600 font-medium">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Logged in as: <strong className="text-slate-900">{currentUser?.name}</strong></span>
+        <div className="px-5 py-2.5 bg-slate-100/60 dark:bg-slate-950/30 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span>Logged in as: <strong className="text-slate-900 dark:text-white">{currentUser?.name}</strong></span>
           </div>
           {unreadCount > 0 && (
             <button
               onClick={handleMarkAllRead}
-              className="text-indigo-600 hover:text-indigo-800 font-semibold text-[11px] hover:underline cursor-pointer"
+              className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold text-[11px] hover:underline cursor-pointer"
             >
               Mark all as read
             </button>
@@ -447,16 +463,16 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
         </div>
 
         {/* Notifications List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 divide-y divide-slate-100">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 divide-y divide-slate-100 dark:divide-slate-800">
           {loading ? (
-            <div className="py-12 text-center text-xs text-slate-400">
+            <div className="py-12 text-center text-xs text-slate-400 dark:text-slate-500">
               Loading automated workflow alerts...
             </div>
           ) : notifications.length === 0 ? (
             <div className="py-12 text-center space-y-2">
               <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
-              <p className="text-xs font-semibold text-slate-700">All caught up!</p>
-              <p className="text-[11px] text-slate-400">No pending workflow actions for your role.</p>
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">All caught up!</p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">No pending workflow actions for your role.</p>
             </div>
           ) : (
             notifications.map((notif) => {
@@ -466,23 +482,23 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
                   key={notif.id}
                   className={`pt-3 first:pt-0 p-3.5 rounded-xl transition-all border ${
                     notif.isRead
-                      ? 'bg-white border-slate-100 text-slate-600'
-                      : 'bg-indigo-50/40 border-indigo-100 text-slate-900 shadow-2xs'
+                      ? 'bg-white dark:bg-slate-800/60 border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-300'
+                      : 'bg-indigo-50/40 dark:bg-indigo-950/40 border-indigo-100 dark:border-indigo-900/60 text-slate-900 dark:text-white shadow-2xs'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2.5">
-                      <div className="p-1.5 rounded-lg bg-white border border-slate-200 shadow-2xs mt-0.5">
+                      <div className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs mt-0.5">
                         {getIconForType(notif.type)}
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold text-slate-900">{notif.title}</span>
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">{notif.title}</span>
                           {getPriorityBadge(notif.priority)}
                         </div>
-                        <p className="text-xs text-slate-600 leading-relaxed">{notif.message}</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{notif.message}</p>
                         <div className="flex items-center gap-2 pt-1">
-                          <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1 font-mono">
                             <Clock className="w-3 h-3" />
                             {new Date(notif.createdAt).toLocaleTimeString([], {
                               hour: '2-digit',
@@ -497,7 +513,7 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
                       {!notif.isRead && (
                         <button
                           onClick={() => handleMarkAsRead(notif.id)}
-                          className="text-[10px] text-indigo-600 hover:text-indigo-900 font-semibold px-2 py-1 bg-white border border-indigo-200 rounded-md shadow-2xs hover:bg-indigo-50 cursor-pointer"
+                          className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-200 font-semibold px-2 py-1 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800 rounded-md shadow-2xs hover:bg-indigo-50 dark:hover:bg-indigo-950/60 cursor-pointer"
                           title="Mark as read"
                         >
                           Mark Read
@@ -505,7 +521,7 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
                       )}
                       <button
                         onClick={(e) => handleRemoveNotification(notif.id, e)}
-                        className="text-[10px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1 rounded-md border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
+                        className="text-[10px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 p-1 rounded-md border border-transparent hover:border-rose-200 dark:hover:border-rose-900/50 transition-colors cursor-pointer"
                         title="Remove / Done"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -514,9 +530,9 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
                   </div>
 
                   {/* Direct Action Link & Destination Badge */}
-                  <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] gap-2">
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] gap-2">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-slate-400 font-medium shrink-0">Target:</span>
+                      <span className="text-slate-400 dark:text-slate-500 font-medium shrink-0">Target:</span>
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] font-semibold border truncate ${target.badgeColor}`}
                         title={target.sectionLabel}
@@ -528,7 +544,7 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
                       <button
                         id={`btn-open-workflow-${notif.id}`}
                         onClick={() => handleOpenWorkflow(notif)}
-                        className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-bold px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-200/60 transition-colors shrink-0 cursor-pointer shadow-2xs"
+                        className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-bold px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100/80 dark:hover:bg-indigo-900/60 border border-indigo-200/60 dark:border-indigo-800 transition-colors shrink-0 cursor-pointer shadow-2xs"
                       >
                         <span>Open Workflow</span>
                         <ChevronRight className="w-3.5 h-3.5" />
@@ -542,11 +558,12 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
         </div>
 
         {/* Footer info */}
-        <div className="p-4 border-t border-slate-200 bg-slate-50 text-[11px] text-slate-500 flex items-center justify-between">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
           <span>Automated Notifications & Workflow Actions</span>
-          <span className="font-mono text-[10px] text-emerald-600 font-bold">● Active Engine</span>
+          <span className="font-mono text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">● Active Engine</span>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

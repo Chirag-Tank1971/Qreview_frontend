@@ -8,10 +8,12 @@ import {
   Employee,
   User,
   ReviewStatus,
+  EmployeeStatus,
 } from '../types';
 import { api } from '../services/api';
 import { ReviewScoringModal } from './ReviewScoringModal';
 import { BatchGenerateReviewsModal } from './BatchGenerateReviewsModal';
+import { toast } from '../context/ToastContext';
 import {
   Sparkles,
   Search,
@@ -35,6 +37,12 @@ import {
   TrendingUp,
   BarChart3,
   UserCheck,
+  LayoutGrid,
+  List,
+  Settings2,
+  ShieldAlert,
+  Play,
+  AlertTriangle,
 } from 'lucide-react';
 
 export interface ReviewViewConfig {
@@ -74,11 +82,15 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [appraisalDueOnly, setAppraisalDueOnly] = useState<boolean>(false);
   const [myReportsOnly, setMyReportsOnly] = useState<boolean>(false);
+  const [hideInactive, setHideInactive] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
 
   // Modals
   const [activeReviewForScoring, setActiveReviewForScoring] = useState<EmployeeReview | null>(null);
   const [isScoringModalOpen, setIsScoringModalOpen] = useState<boolean>(false);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState<boolean>(false);
+  const [isPeriodModalOpen, setIsPeriodModalOpen] = useState<boolean>(false);
+  const [updatingPeriodId, setUpdatingPeriodId] = useState<string | null>(null);
   const handledReviewIdRef = useRef<string | null>(null);
 
   // Synchronize initialConfig
@@ -128,9 +140,10 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
         if (validExisting) {
           loadReviewsAndStats(selectedPeriodId);
         } else {
-          const active = periodList.find((p) => p.status === 'ACTIVE') || periodList[0];
-          setSelectedPeriodId(active.id);
-          loadReviewsAndStats(active.id);
+          const active = periodList.find((p) => p.status === 'ACTIVE');
+          const fallback = active ? active.id : periodList[0].id;
+          setSelectedPeriodId(fallback);
+          loadReviewsAndStats(fallback);
         }
       } else {
         setReviews([]);
@@ -186,6 +199,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   // Filtered reviews in memory for search & appraisal due toggle
   const displayedReviews = useMemo(() => {
     return reviews.filter((r) => {
+      if (hideInactive && r.employeeStatus === 'INACTIVE') return false;
       if (appraisalDueOnly && !r.isAppraisalMonthDue) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -198,13 +212,27 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       }
       return true;
     });
-  }, [reviews, searchQuery, appraisalDueOnly]);
+  }, [reviews, searchQuery, appraisalDueOnly, hideInactive]);
 
   const selectedPeriod = periods.find((p) => p.id === selectedPeriodId);
 
   const handleOpenScoring = (review: EmployeeReview) => {
     setActiveReviewForScoring(review);
     setIsScoringModalOpen(true);
+  };
+
+  const handleUpdatePeriodStatus = async (periodId: string, newStatus: 'ACTIVE' | 'LOCKED' | 'UPCOMING') => {
+    setUpdatingPeriodId(periodId);
+    try {
+      await api.updateReviewPeriod(periodId, { status: newStatus });
+      toast.success(`Period status updated to ${newStatus}`);
+      await loadReviewPeriods();
+    } catch (err: any) {
+      console.error('Failed to update period status:', err);
+      toast.error(err.message || 'Failed to update period status');
+    } finally {
+      setUpdatingPeriodId(null);
+    }
   };
 
   const handleModalClose = () => {
@@ -258,6 +286,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    toast.success(`Exported ${reviews.length} reviews to CSV.`, 'Export Complete');
   };
 
   // Helper for status badge styling
@@ -286,6 +315,36 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
         return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center space-x-1"><Lock className="w-3 h-3" /><span>Closed</span></span>;
       default:
         return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">{status}</span>;
+    }
+  };
+
+  // Helper for employee employment status badge
+  const getEmployeeStatusBadge = (empStatus?: EmployeeStatus) => {
+    if (!empStatus || empStatus === 'ACTIVE') return null;
+    switch (empStatus) {
+      case 'INACTIVE':
+        return (
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 tracking-wide flex items-center gap-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+            <span>INACTIVE</span>
+          </span>
+        );
+      case 'NOTICE':
+        return (
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 tracking-wide flex items-center gap-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span>NOTICE</span>
+          </span>
+        );
+      case 'PROBATION':
+        return (
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 tracking-wide flex items-center gap-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+            <span>PROBATION</span>
+          </span>
+        );
+      default:
+        return null;
     }
   };
 
@@ -329,24 +388,24 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       )}
 
       {/* 1. TOP BAR: PERIOD SELECTOR & PRIMARY ACTIONS */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center space-x-2">
-            <Calendar className="w-5 h-5 text-indigo-600" />
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Review Period</span>
+            <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Review Period</span>
           </div>
 
           <select
             value={selectedPeriodId}
             onChange={(e) => setSelectedPeriodId(e.target.value)}
             disabled={periods.length === 0}
-            className="text-sm font-bold text-slate-900 bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
+            className="text-sm font-bold text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
           >
             {periods.length === 0 ? (
               <option value="">No Active Periods</option>
             ) : (
               periods.map((p) => (
-                <option key={p.id} value={p.id}>
+                <option key={p.id} value={p.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                   {p.name} {p.status === 'ACTIVE' ? '🟢 (ACTIVE)' : `(${p.status})`}
                 </option>
               ))
@@ -354,13 +413,24 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
           </select>
 
           {selectedPeriod && (
-            <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
-              selectedPeriod.status === 'ACTIVE'
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : 'bg-slate-100 text-slate-600 border-slate-200'
-            }`}>
-              {selectedPeriod.status}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
+                selectedPeriod.status === 'ACTIVE'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                  : selectedPeriod.status === 'LOCKED'
+                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+              }`}>
+                {selectedPeriod.status}
+              </span>
+
+              {selectedPeriod.dueDate && (
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center space-x-1">
+                  <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                  <span>Evaluation Closes: <strong className="text-slate-800 dark:text-slate-200">{new Date(selectedPeriod.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</strong></span>
+                </span>
+              )}
+            </div>
           )}
         </div>
 
@@ -369,7 +439,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
           <button
             onClick={() => loadReviewPeriods()}
             title="Refresh cohort and periods"
-            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors"
           >
             <RotateCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -377,20 +447,31 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
           <button
             onClick={handleExportCSV}
             disabled={reviews.length === 0}
-            className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg shadow-2xs transition-colors flex items-center space-x-1.5 disabled:opacity-50"
+            className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg shadow-2xs transition-colors flex items-center space-x-1.5 disabled:opacity-50"
           >
-            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <Download className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
             <span>Export CSV</span>
           </button>
 
           {isSuperAdminOrHr && (
-            <button
-              onClick={() => setIsBatchModalOpen(true)}
-              className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors flex items-center space-x-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Initiate Batch Reviews</span>
-            </button>
+            <>
+              <button
+                onClick={() => setIsPeriodModalOpen(true)}
+                title="Manage Review Period Lifecycles"
+                className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg shadow-2xs transition-colors flex items-center space-x-1.5"
+              >
+                <Settings2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                <span>Manage Periods</span>
+              </button>
+
+              <button
+                onClick={() => setIsBatchModalOpen(true)}
+                className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors flex items-center space-x-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Initiate Batch Reviews</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -399,33 +480,33 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       {stats && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Total Cohort Reviews */}
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
               <span>Cohort Reviews</span>
               <Users className="w-4 h-4 text-indigo-500" />
             </div>
             <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-slate-900">{stats.total}</span>
-              <span className="text-xs text-slate-500">records</span>
+              <span className="text-2xl font-bold text-slate-900 dark:text-white">{stats.total}</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">records</span>
             </div>
-            <div className="mt-2 flex items-center text-[11px] text-slate-500 space-x-2">
-              <span className="text-amber-600 font-medium">{stats.managerPending} pending mgr</span>
+            <div className="mt-2 flex items-center text-[11px] text-slate-500 dark:text-slate-400 space-x-2">
+              <span className="text-amber-600 dark:text-amber-400 font-medium">{stats.managerPending} pending mgr</span>
               <span>•</span>
-              <span className="text-emerald-600 font-medium">{stats.closed} closed</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">{stats.closed} closed</span>
             </div>
           </div>
 
           {/* Card 2: Evaluation Progress */}
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
               <span>Manager Completion</span>
               <CheckCircle2 className="w-4 h-4 text-blue-500" />
             </div>
             <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-slate-900">{stats.completionRate}%</span>
-              <span className="text-xs text-slate-500">completed</span>
+              <span className="text-2xl font-bold text-slate-900 dark:text-white">{stats.completionRate}%</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">completed</span>
             </div>
-            <div className="mt-2 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+            <div className="mt-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
               <div
                 className="bg-blue-600 h-1.5 rounded-full transition-all duration-500"
                 style={{ width: `${stats.completionRate}%` }}
@@ -434,35 +515,35 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
           </div>
 
           {/* Card 3: Average Cohort Score */}
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
               <span>Avg Weighted Score</span>
               <Award className="w-4 h-4 text-emerald-500" />
             </div>
             <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-slate-900">
+              <span className="text-2xl font-bold text-slate-900 dark:text-white">
                 {stats.averageScore > 0 ? stats.averageScore.toFixed(2) : '—'}
               </span>
-              <span className="text-xs text-slate-400">/ 5.00</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">/ 5.00</span>
             </div>
-            <div className="mt-2 text-[11px] text-slate-500">
+            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
               {stats.distribution.outstanding} Outstanding • {stats.distribution.exceeds} Exceeds
             </div>
           </div>
 
           {/* Card 4: Appraisal Triggers */}
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
               <span>Appraisal Month Due</span>
               <Sparkles className="w-4 h-4 text-amber-500" />
             </div>
             <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-slate-900">
+              <span className="text-2xl font-bold text-slate-900 dark:text-white">
                 {reviews.filter((r) => r.isAppraisalMonthDue).length}
               </span>
-              <span className="text-xs text-amber-700 font-medium">cohort employees</span>
+              <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">cohort employees</span>
             </div>
-            <div className="mt-2 text-[11px] text-slate-500">
+            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
               Annual cycle appraisal calibration active
             </div>
           </div>
@@ -470,7 +551,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       )}
 
       {/* 3. FILTERS & SEARCH BAR */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-3">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           
           {/* SEARCH */}
@@ -481,21 +562,21 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               placeholder="Search by employee name, code, designation, manager..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full text-xs pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:border-indigo-500 focus:bg-white transition-colors"
+              className="w-full text-xs pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 transition-colors"
             />
           </div>
 
           {/* DEPARTMENT FILTER */}
           <div className="flex items-center space-x-1.5">
-            <span className="text-xs text-slate-500 font-medium">Dept:</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Dept:</span>
             <select
               value={filterDepartmentId}
               onChange={(e) => setFilterDepartmentId(e.target.value)}
-              className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-indigo-500"
+              className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2.5 py-1.5 focus:border-indigo-500"
             >
-              <option value="ALL">All Departments</option>
+              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Departments</option>
               {departments.map((d) => (
-                <option key={d.id} value={d.id}>
+                <option key={d.id} value={d.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                   {d.name}
                 </option>
               ))}
@@ -504,21 +585,21 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
 
           {/* STATUS FILTER */}
           <div className="flex items-center space-x-1.5">
-            <span className="text-xs text-slate-500 font-medium">Status:</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Status:</span>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:border-indigo-500"
+              className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2.5 py-1.5 focus:border-indigo-500"
             >
-              <option value="ALL">All Statuses</option>
-              <option value="MANAGER_PENDING">Manager Pending</option>
-              <option value="MANAGER_COMPLETED">Manager Completed</option>
-              <option value="HR_PENDING">HR Pending</option>
-              <option value="HR_COMPLETED">HR Completed</option>
-              <option value="ASSIGNED">Assigned</option>
-              <option value="RETURNED">Returned</option>
-              <option value="CLOSED">Closed & Locked</option>
-              <option value="DRAFT">Draft</option>
+              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Statuses</option>
+              <option value="MANAGER_PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Manager Pending</option>
+              <option value="MANAGER_COMPLETED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Manager Completed</option>
+              <option value="HR_PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR Pending</option>
+              <option value="HR_COMPLETED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR Completed</option>
+              <option value="ASSIGNED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Assigned</option>
+              <option value="RETURNED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Returned</option>
+              <option value="CLOSED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Closed & Locked</option>
+              <option value="DRAFT" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Draft</option>
             </select>
           </div>
 
@@ -526,85 +607,127 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setAppraisalDueOnly(!appraisalDueOnly)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors flex items-center space-x-1 ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors flex items-center space-x-1 cursor-pointer ${
                 appraisalDueOnly
-                  ? 'bg-amber-100 border-amber-300 text-amber-900 shadow-xs'
-                  : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+                  ? 'bg-amber-100 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-300 shadow-xs'
+                  : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
               <span>Appraisal Due Only</span>
             </button>
 
             {currentUser?.role === 'MANAGER' && (
               <button
                 onClick={() => setMyReportsOnly(!myReportsOnly)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
                   myReportsOnly
-                    ? 'bg-indigo-100 border-indigo-300 text-indigo-900 shadow-xs'
-                    : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50'
+                    ? 'bg-indigo-100 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-800 text-indigo-900 dark:text-indigo-300 shadow-xs'
+                    : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                 }`}
               >
                 My Direct Reports
               </button>
             )}
+
+            <button
+              onClick={() => setHideInactive(!hideInactive)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors flex items-center space-x-1 cursor-pointer ${
+                hideInactive
+                  ? 'bg-slate-200 dark:bg-slate-700 border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white shadow-xs'
+                  : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+              }`}
+              title="Filter out inactive or offboarded employees"
+            >
+              <span>Hide Inactive</span>
+            </button>
           </div>
         </div>
 
-        {/* RESULTS COUNT */}
-        <div className="text-[11px] text-slate-500 flex items-center justify-between border-t border-slate-100 pt-2">
+        {/* RESULTS COUNT & VIEW TOGGLE */}
+        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-2 flex-wrap gap-2">
           <div className="flex items-center space-x-2">
             <span>
-              Showing <strong className="text-slate-800">{displayedReviews.length}</strong> of{' '}
-              <strong className="text-slate-800">{reviews.length}</strong> reviews
+              Showing <strong className="text-slate-800 dark:text-slate-200">{displayedReviews.length}</strong> of{' '}
+              <strong className="text-slate-800 dark:text-slate-200">{reviews.length}</strong> reviews
             </span>
-            {(filterStatus !== 'ALL' || filterDepartmentId !== 'ALL' || appraisalDueOnly || searchQuery.trim() || myReportsOnly) && (
+            {(filterStatus !== 'ALL' || filterDepartmentId !== 'ALL' || appraisalDueOnly || searchQuery.trim() || myReportsOnly || hideInactive) && (
               <button
                 onClick={() => {
                   setFilterStatus('ALL');
                   setFilterDepartmentId('ALL');
                   setAppraisalDueOnly(false);
                   setMyReportsOnly(false);
+                  setHideInactive(false);
                   setSearchQuery('');
                 }}
-                className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium underline"
+                className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium underline cursor-pointer"
               >
                 Reset filters
               </button>
             )}
+            {appraisalDueOnly && (
+              <span className="text-amber-700 dark:text-amber-400 font-medium ml-2">Filtering for Cycle appraisal due cohort</span>
+            )}
           </div>
-          {appraisalDueOnly && (
-            <span className="text-amber-700 font-medium">Filtering for Cycle appraisal due cohort</span>
-          )}
+
+          {/* View Mode Switcher */}
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
+                viewMode === 'cards'
+                  ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-indigo-300 shadow-2xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              title="Card View"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Cards</span>
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
+                viewMode === 'table'
+                  ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-indigo-300 shadow-2xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              title="Table View"
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>Table</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* 4. REVIEWS DATA TABLE */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center space-y-3">
-            <RotateCw className="w-6 h-6 animate-spin text-indigo-600" />
+          <div className="p-12 text-center text-slate-400 dark:text-slate-500 flex flex-col items-center justify-center space-y-3">
+            <RotateCw className="w-6 h-6 animate-spin text-indigo-600 dark:text-indigo-400" />
             <span className="text-xs font-medium">Loading quarterly review records...</span>
           </div>
         ) : displayedReviews.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center space-y-3">
-            <FileCheck className="w-10 h-10 text-slate-300" />
-            <span className="text-sm font-semibold text-slate-700">No quarterly reviews found</span>
-            <p className="text-xs text-slate-500 max-w-sm">
-              {filterStatus !== 'ALL' || filterDepartmentId !== 'ALL' || appraisalDueOnly || searchQuery.trim() || myReportsOnly
+          <div className="p-12 text-center text-slate-400 dark:text-slate-500 flex flex-col items-center justify-center space-y-3">
+            <FileCheck className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+            <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">No quarterly reviews found</span>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
+              {filterStatus !== 'ALL' || filterDepartmentId !== 'ALL' || appraisalDueOnly || searchQuery.trim() || myReportsOnly || hideInactive
                 ? 'No review sheets match your current search or filters for this period.'
                 : 'No review sheets exist for this period. Initiate a new batch for this period to generate reviews.'}
             </p>
-            {(filterStatus !== 'ALL' || filterDepartmentId !== 'ALL' || appraisalDueOnly || searchQuery.trim() || myReportsOnly) && (
+            {(filterStatus !== 'ALL' || filterDepartmentId !== 'ALL' || appraisalDueOnly || searchQuery.trim() || myReportsOnly || hideInactive) && (
               <button
                 onClick={() => {
                   setFilterStatus('ALL');
                   setFilterDepartmentId('ALL');
                   setAppraisalDueOnly(false);
                   setMyReportsOnly(false);
+                  setHideInactive(false);
                   setSearchQuery('');
                 }}
-                className="mt-1 px-3.5 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg shadow-2xs transition-colors"
+                className="mt-1 px-3.5 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 rounded-lg shadow-2xs transition-colors cursor-pointer"
               >
                 Clear All Filters
               </button>
@@ -612,16 +735,142 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
             {isSuperAdminOrHr && !searchQuery && filterStatus === 'ALL' && (
               <button
                 onClick={() => setIsBatchModalOpen(true)}
-                className="mt-2 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+                className="mt-2 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm cursor-pointer"
               >
                 Generate Reviews Now
               </button>
             )}
           </div>
+        ) : viewMode === 'cards' ? (
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/50 dark:bg-slate-950/40">
+            {displayedReviews.map((r) => {
+              const isPendingMyAction = currentUser?.role === 'MANAGER' && r.status === 'MANAGER_PENDING';
+              return (
+                <div
+                  key={r.id}
+                  onClick={() => handleOpenScoring(r)}
+                  className={`bg-white dark:bg-slate-900 rounded-2xl border p-5 shadow-2xs hover:shadow-md transition-all duration-150 cursor-pointer flex flex-col justify-between space-y-4 group ${
+                    isPendingMyAction ? 'border-indigo-300 dark:border-indigo-600 ring-2 ring-indigo-500/10 dark:ring-indigo-500/20' : 'border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                  }`}
+                >
+                  {/* Top: Identity & Status */}
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-xs shrink-0"
+                          style={{ backgroundColor: r.cycleColor || '#4f46e5' }}
+                        >
+                          {r.employeeName.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                              {r.employeeName}
+                            </h4>
+                            {getEmployeeStatusBadge(r.employeeStatus)}
+                            {r.isAppraisalMonthDue && (
+                              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Appraisal Due this Quarter" />
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                            {r.employeeCode} • {r.designationName}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="shrink-0">{getStatusBadge(r.status, r.managerName)}</span>
+                    </div>
+
+                    {/* Department & Cycle */}
+                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+                      <span className="flex items-center gap-1">
+                        <Building2 className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                        <span>{r.departmentName}</span>
+                      </span>
+                      <span className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: r.cycleColor || '#4f46e5' }} />
+                        <span>Cycle {r.cycleCode}</span>
+                      </span>
+                    </div>
+
+                    {/* Scores & Progress */}
+                    <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 border border-slate-100 dark:border-slate-800 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider block">
+                            Weighted Score
+                          </span>
+                          <div className="mt-0.5">{getScoreBadge(r.finalScore)}</div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider block">
+                            Scored KRAs
+                          </span>
+                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            {r.kraScores?.length || 0} / {r.kraSnapshot?.length || 0}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Score bar */}
+                      <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            r.status === 'COMPLETED'
+                              ? 'bg-emerald-500'
+                              : r.status === 'HOD_APPROVED'
+                              ? 'bg-blue-500'
+                              : r.status === 'MANAGER_SUBMITTED'
+                              ? 'bg-amber-500'
+                              : 'bg-indigo-500'
+                          }`}
+                          style={{
+                            width: `${
+                              r.kraSnapshot?.length
+                                ? Math.round(((r.kraScores?.length || 0) / r.kraSnapshot.length) * 100)
+                                : 0
+                            }%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action button */}
+                  <div onClick={(e) => e.stopPropagation()}>
+                    {r.employeeStatus === 'INACTIVE' ? (
+                      <div className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800/70 text-slate-500 dark:text-slate-400 border border-slate-200/80 dark:border-slate-800 cursor-not-allowed">
+                        <span>Offboarded / Inactive</span>
+                        <button
+                          onClick={() => handleOpenScoring(r)}
+                          className="ml-2 underline text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 text-[11px] cursor-pointer"
+                        >
+                          View History
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleOpenScoring(r)}
+                        className={`w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                          isPendingMyAction
+                            ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>{isPendingMyAction ? 'Score Review Now' : 'Open Review Sheet'}</span>
+                        <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200">
+              <thead className="bg-slate-50/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
                 <tr>
                   <th className="py-3 px-4">Employee</th>
                   <th className="py-3 px-4">Department & Role</th>
@@ -633,11 +882,11 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {displayedReviews.map((r) => (
                   <tr
                     key={r.id}
-                    className="hover:bg-slate-50/60 transition-colors group cursor-pointer"
+                    className="hover:bg-slate-50/60 dark:hover:bg-slate-800/50 transition-colors group cursor-pointer"
                     onClick={() => handleOpenScoring(r)}
                   >
                     {/* Employee Info */}
@@ -650,10 +899,11 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                           {r.employeeName.charAt(0)}
                         </div>
                         <div>
-                          <div className="flex items-center space-x-1.5">
-                            <span className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                          <div className="flex items-center space-x-1.5 flex-wrap">
+                            <span className="font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                               {r.employeeName}
                             </span>
+                            {getEmployeeStatusBadge(r.employeeStatus)}
                             {r.isAppraisalMonthDue && (
                               <span
                                 title="Appraisal Due this Quarter"
@@ -661,15 +911,15 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                               />
                             )}
                           </div>
-                          <span className="text-[11px] text-slate-400 font-mono">{r.employeeCode}</span>
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{r.employeeCode}</span>
                         </div>
                       </div>
                     </td>
 
                     {/* Department & Designation */}
                     <td className="py-3 px-4">
-                      <div className="text-slate-800 font-medium">{r.designationName}</div>
-                      <div className="text-[11px] text-slate-500">{r.departmentName}</div>
+                      <div className="text-slate-800 dark:text-slate-200 font-medium">{r.designationName}</div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">{r.departmentName}</div>
                     </td>
 
                     {/* Appraisal Cycle */}
@@ -681,10 +931,10 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                         >
                           {r.cycleCode}
                         </span>
-                        <span className="text-slate-700 font-medium">Cycle {r.cycleCode}</span>
+                        <span className="text-slate-700 dark:text-slate-300 font-medium">Cycle {r.cycleCode}</span>
                       </div>
                       {r.isAppraisalMonthDue && (
-                        <span className="inline-block mt-0.5 text-[10px] text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                        <span className="inline-block mt-0.5 text-[10px] text-amber-700 dark:text-amber-300 font-semibold bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-800">
                           Appraisal Due
                         </span>
                       )}
@@ -692,7 +942,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
 
                     {/* KRA Snapshot */}
                     <td className="py-3 px-4">
-                      <span className="inline-flex items-center space-x-1 text-slate-700 font-medium bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                      <span className="inline-flex items-center space-x-1 text-slate-700 dark:text-slate-300 font-medium bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
                         <span>{r.kraSnapshot?.length || 0} KRAs locked</span>
                       </span>
                     </td>
@@ -705,18 +955,27 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
 
                     {/* Manager */}
                     <td className="py-3 px-4">
-                      <span className="text-slate-700 font-medium">{r.managerName}</span>
+                      <span className="text-slate-700 dark:text-slate-300 font-medium">{r.managerName}</span>
                     </td>
 
                     {/* Action Button */}
                     <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => handleOpenScoring(r)}
-                        className="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-colors inline-flex items-center space-x-1"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>Score / View</span>
-                      </button>
+                      {r.employeeStatus === 'INACTIVE' ? (
+                        <button
+                          onClick={() => handleOpenScoring(r)}
+                          className="px-3 py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors inline-flex items-center space-x-1 cursor-pointer"
+                        >
+                          <span>View History</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleOpenScoring(r)}
+                          className="px-3 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 rounded-lg border border-indigo-200 dark:border-indigo-800 transition-colors inline-flex items-center space-x-1 cursor-pointer"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Score / View</span>
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -750,6 +1009,132 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
           cycles={cycles}
           employees={employees}
         />
+      )}
+
+      {/* 6. PERIOD LIFECYCLE MANAGEMENT MODAL (HR / SUPER ADMIN) */}
+      {isPeriodModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/50 rounded-xl text-indigo-600 dark:text-indigo-400">
+                  <Settings2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Review Period Lifecycle Control
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Activate the current quarter, lock historical periods, or stage upcoming evaluation cycles.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsPeriodModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              {periods.map((period) => {
+                const isCurrentSelected = period.id === selectedPeriodId;
+                const isUpdating = updatingPeriodId === period.id;
+
+                return (
+                  <div
+                    key={period.id}
+                    className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 ${
+                      period.status === 'ACTIVE'
+                        ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/80 shadow-xs'
+                        : period.status === 'LOCKED'
+                        ? 'bg-amber-50/30 dark:bg-amber-950/10 border-amber-200/80 dark:border-amber-800/40'
+                        : 'bg-slate-50 dark:bg-slate-850/50 border-slate-200 dark:border-slate-800'
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">
+                          {period.name}
+                        </span>
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                          period.status === 'ACTIVE'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                            : period.status === 'LOCKED'
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                            : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+                        }`}>
+                          {period.status}
+                        </span>
+                        {isCurrentSelected && (
+                          <span className="text-[10px] bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded font-medium border border-indigo-200 dark:border-indigo-800">
+                            Viewing
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span>Span: {period.startDate} to {period.endDate}</span>
+                        <span>•</span>
+                        <span>Due: {period.dueDate}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-center">
+                      {period.status !== 'ACTIVE' && (
+                        <button
+                          disabled={isUpdating}
+                          onClick={() => handleUpdatePeriodStatus(period.id, 'ACTIVE')}
+                          className="px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 rounded-lg border border-emerald-300 dark:border-emerald-800 transition-colors flex items-center space-x-1 disabled:opacity-50"
+                        >
+                          <Play className="w-3.5 h-3.5" />
+                          <span>Make Active</span>
+                        </button>
+                      )}
+
+                      {period.status !== 'LOCKED' && (
+                        <button
+                          disabled={isUpdating}
+                          onClick={() => handleUpdatePeriodStatus(period.id, 'LOCKED')}
+                          className="px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 hover:bg-amber-200 dark:hover:bg-amber-900/80 rounded-lg border border-amber-300 dark:border-amber-800 transition-colors flex items-center space-x-1 disabled:opacity-50"
+                        >
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>Lock Period</span>
+                        </button>
+                      )}
+
+                      {period.status !== 'UPCOMING' && (
+                        <button
+                          disabled={isUpdating}
+                          onClick={() => handleUpdatePeriodStatus(period.id, 'UPCOMING')}
+                          className="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg border border-slate-300 dark:border-slate-700 transition-colors disabled:opacity-50"
+                        >
+                          Set Upcoming
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-850 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-start space-x-3 text-xs text-slate-600 dark:text-slate-400">
+              <AlertCircle className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+              <p>
+                <strong>Enterprise Policy:</strong> When setting a period to <strong>ACTIVE</strong>, any currently active period is automatically safely transitioned to <strong>LOCKED</strong>. All existing employee evaluation submissions and manager appraisals remain permanently archived.
+              </p>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setIsPeriodModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg shadow-2xs transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

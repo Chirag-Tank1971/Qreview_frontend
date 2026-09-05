@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Download,
@@ -17,6 +18,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { Appraisal, Cycle, Department } from '../types';
+import { toast } from '../context/ToastContext';
 import {
   DEFAULT_LETTER_SETTINGS,
   LetterSettings,
@@ -60,6 +62,21 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
   const [exportProgress, setExportProgress] = useState<{ current: number; total: number } | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isExportingZip) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = origOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isExportingZip, onClose]);
 
   // Filter appraisals based on controls
   const filteredAppraisals = appraisals.filter((a) => {
@@ -116,7 +133,9 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
   // Handler: Batch ZIP download
   const handleDownloadZip = async () => {
     if (selectedAppraisalsList.length === 0) {
-      setErrorMessage('Please select at least one employee appraisal to export.');
+      const msg = 'Please select at least one employee appraisal to export.';
+      setErrorMessage(msg);
+      toast.warning(msg, 'No Selection');
       return;
     }
 
@@ -124,17 +143,20 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
     setExportProgress({ current: 0, total: selectedAppraisalsList.length });
     setErrorMessage(null);
     setSuccessMessage(null);
+    toast.info(`Generating ${selectedAppraisalsList.length} appraisal letters in ZIP archive...`, 'Packaging ZIP');
 
     try {
       await exportAppraisalsToZip(selectedAppraisalsList, settings, (current, total) => {
         setExportProgress({ current, total });
       });
-      setSuccessMessage(
-        `Successfully generated and packaged ${selectedAppraisalsList.length} appraisal letters with payroll CSV into ZIP!`
-      );
+      const succMsg = `Successfully generated and packaged ${selectedAppraisalsList.length} appraisal letters with payroll CSV into ZIP!`;
+      setSuccessMessage(succMsg);
+      toast.success(succMsg, 'Batch Export Complete');
     } catch (err: any) {
       console.error('Batch export failed:', err);
-      setErrorMessage(err.message || 'Failed to generate batch ZIP. Please try again.');
+      const errMsg = err.message || 'Failed to generate batch ZIP. Please try again.';
+      setErrorMessage(errMsg);
+      toast.error(errMsg, 'Export Failed');
     } finally {
       setIsExportingZip(false);
       setExportProgress(null);
@@ -144,11 +166,15 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
   // Handler: Payroll CSV
   const handleDownloadCsv = () => {
     if (selectedAppraisalsList.length === 0) {
-      setErrorMessage('Please select at least one record to export.');
+      const msg = 'Please select at least one record to export.';
+      setErrorMessage(msg);
+      toast.warning(msg, 'No Selection');
       return;
     }
     downloadPayrollCsv(selectedAppraisalsList);
-    setSuccessMessage(`Exported payroll reconciliation CSV with ${selectedAppraisalsList.length} records.`);
+    const succMsg = `Exported payroll reconciliation CSV with ${selectedAppraisalsList.length} records.`;
+    setSuccessMessage(succMsg);
+    toast.success(succMsg, 'Payroll CSV Ready');
   };
 
   // Handler: Multi-page Print
@@ -252,16 +278,16 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
     }
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9990] overflow-y-auto bg-slate-950/70 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isExportingZip) {
           onClose();
         }
       }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 my-auto animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 my-auto animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="px-6 py-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between border-b border-slate-800">
           <div className="flex items-center gap-2.5">
@@ -293,14 +319,14 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
 
         {/* Status Alerts */}
         {successMessage && (
-          <div className="mx-6 mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center justify-between gap-2">
+          <div className="mx-6 mt-4 p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-xl text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span>{successMessage}</span>
             </div>
             <button
               onClick={() => setSuccessMessage(null)}
-              className="text-emerald-600 hover:text-emerald-900 font-bold"
+              className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-900 dark:hover:text-emerald-200 font-bold"
             >
               ×
             </button>
@@ -308,92 +334,92 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
         )}
 
         {errorMessage && (
-          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 flex items-center justify-between gap-2">
+          <div className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 rounded-xl text-xs text-red-800 dark:text-red-300 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+              <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
               <span>{errorMessage}</span>
             </div>
-            <button onClick={() => setErrorMessage(null)} className="text-red-600 hover:text-red-900 font-bold">
+            <button onClick={() => setErrorMessage(null)} className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-200 font-bold">
               ×
             </button>
           </div>
         )}
 
         {/* Main Body */}
-        <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto text-slate-800 text-xs">
+        <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto text-slate-800 dark:text-slate-200 text-xs">
           {/* Summary Metric Strip */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3 bg-indigo-50/60 border border-indigo-100 rounded-xl">
-              <span className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wider block">
+            <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-xl">
+              <span className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider block">
                 Selected for Export
               </span>
-              <div className="text-xl font-extrabold text-indigo-950 font-mono mt-0.5">
+              <div className="text-xl font-extrabold text-indigo-950 dark:text-white font-mono mt-0.5">
                 {selectedAppraisalsList.length}{' '}
-                <span className="text-xs font-normal text-slate-500">/ {filteredAppraisals.length}</span>
+                <span className="text-xs font-normal text-slate-500 dark:text-slate-400">/ {filteredAppraisals.length}</span>
               </div>
             </div>
 
-            <div className="p-3 bg-emerald-50/60 border border-emerald-100 rounded-xl">
-              <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider block">
+            <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 rounded-xl">
+              <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider block">
                 Avg Increment
               </span>
-              <div className="text-xl font-extrabold text-emerald-700 font-mono mt-0.5">+{avgIncrement}%</div>
+              <div className="text-xl font-extrabold text-emerald-700 dark:text-emerald-400 font-mono mt-0.5">+{avgIncrement}%</div>
             </div>
 
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-              <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider block">
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl">
+              <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
                 Annual Payroll Impact
               </span>
-              <div className="text-lg font-bold text-slate-900 font-mono mt-0.5">
+              <div className="text-lg font-bold text-slate-900 dark:text-white font-mono mt-0.5">
                 +₹{(totalBudgetImpact / 100000).toFixed(2)} Lakhs
               </div>
             </div>
 
-            <div className="p-3 bg-amber-50/60 border border-amber-100 rounded-xl">
-              <span className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider block">
+            <div className="p-3 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/50 rounded-xl">
+              <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wider block">
                 Promotions
               </span>
-              <div className="text-xl font-extrabold text-amber-800 font-mono mt-0.5">
+              <div className="text-xl font-extrabold text-amber-800 dark:text-amber-400 font-mono mt-0.5">
                 {promotionCount}{' '}
-                <span className="text-xs font-normal text-amber-600">employees</span>
+                <span className="text-xs font-normal text-amber-600 dark:text-amber-400">employees</span>
               </div>
             </div>
           </div>
 
           {/* Filtering & Controls Bar */}
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+          <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3">
                 {/* Status Filter */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
                     Workflow Status
                   </label>
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500"
+                    className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500"
                   >
-                    <option value="LOCKED_OR_APPROVED">Locked & HR Approved (Ready for Letters)</option>
-                    <option value="LOCKED_ONLY">Locked & Released Only</option>
-                    <option value="HR_APPROVED_ONLY">HR Approved Only</option>
-                    <option value="ALL">All Appraisals (Including Pending)</option>
+                    <option value="LOCKED_OR_APPROVED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Locked & HR Approved (Ready for Letters)</option>
+                    <option value="LOCKED_ONLY" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Locked & Released Only</option>
+                    <option value="HR_APPROVED_ONLY" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">HR Approved Only</option>
+                    <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All Appraisals (Including Pending)</option>
                   </select>
                 </div>
 
                 {/* Department Filter */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
                     Department
                   </label>
                   <select
                     value={filterDept}
                     onChange={(e) => setFilterDept(e.target.value)}
-                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500"
+                    className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500"
                   >
-                    <option value="ALL">All Departments</option>
+                    <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All Departments</option>
                     {departments.map((d) => (
-                      <option key={d.id} value={d.id}>
+                      <option key={d.id} value={d.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                         {d.name}
                       </option>
                     ))}
@@ -402,17 +428,17 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
 
                 {/* Cycle Filter */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
                     Cohort Cycle
                   </label>
                   <select
                     value={filterCycle}
                     onChange={(e) => setFilterCycle(e.target.value)}
-                    className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500"
+                    className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500"
                   >
-                    <option value="ALL">All 8 Cycles (A - H)</option>
+                    <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All 8 Cycles (A - H)</option>
                     {cycles.map((c) => (
-                      <option key={c.id} value={c.id}>
+                      <option key={c.id} value={c.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                         {c.name} (Month {c.appraisalMonth})
                       </option>
                     ))}
@@ -424,10 +450,10 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
               <button
                 type="button"
                 onClick={() => setShowSettings(!showSettings)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors self-end ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors self-end cursor-pointer ${
                   showSettings
                     ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750'
                 }`}
               >
                 <Sliders className="w-3.5 h-3.5" />
@@ -437,68 +463,68 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
 
             {/* Template Settings Form (Collapsible) */}
             {showSettings && (
-              <div className="p-4 bg-white rounded-xl border border-indigo-200 space-y-3 mt-3 animate-in fade-in duration-150">
-                <div className="font-bold text-xs text-indigo-950 flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4 text-indigo-600" />
+              <div className="p-4 bg-white dark:bg-slate-850 rounded-xl border border-indigo-200 dark:border-indigo-800 space-y-3 mt-3 animate-in fade-in duration-150">
+                <div className="font-bold text-xs text-indigo-950 dark:text-indigo-300 flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   <span>Corporate Letterhead & Signatory Customization</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">Company / Entity Name</label>
+                    <label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Company / Entity Name</label>
                     <input
                       type="text"
                       value={settings.companyName}
                       onChange={(e) => setSettings({ ...settings, companyName: e.target.value })}
-                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">Division / Org Header</label>
+                    <label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Division / Org Header</label>
                     <input
                       type="text"
                       value={settings.divisionName}
                       onChange={(e) => setSettings({ ...settings, divisionName: e.target.value })}
-                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">Authorized Signatory Name</label>
+                    <label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Authorized Signatory Name</label>
                     <input
                       type="text"
                       value={settings.signatoryName}
                       onChange={(e) => setSettings({ ...settings, signatoryName: e.target.value })}
-                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg text-xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">Signatory Title</label>
+                    <label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Signatory Title</label>
                     <input
                       type="text"
                       value={settings.signatoryTitle}
                       onChange={(e) => setSettings({ ...settings, signatoryTitle: e.target.value })}
-                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg text-xs"
                     />
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4 pt-1">
-                  <label className="flex items-center gap-2 cursor-pointer text-slate-700 font-medium text-xs">
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-700 dark:text-slate-300 font-medium text-xs">
                     <input
                       type="checkbox"
                       checked={settings.includeBreakdown}
                       onChange={(e) => setSettings({ ...settings, includeBreakdown: e.target.checked })}
-                      className="rounded text-indigo-600"
+                      className="rounded text-indigo-600 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                     />
                     <span>Include 5-Component CTC Breakdown (Basic, HRA, Special Allowance, PF)</span>
                   </label>
 
-                  <label className="flex items-center gap-2 cursor-pointer text-slate-700 font-medium text-xs">
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-700 dark:text-slate-300 font-medium text-xs">
                     <input
                       type="checkbox"
                       checked={settings.includeQuarterlyHistory}
                       onChange={(e) => setSettings({ ...settings, includeQuarterlyHistory: e.target.checked })}
-                      className="rounded text-indigo-600"
+                      className="rounded text-indigo-600 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                     />
                     <span>Include Rolling 4-Quarter Review Scorecard</span>
                   </label>
@@ -509,47 +535,47 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
 
           {/* Progress Indicator when Generating ZIP */}
           {isExportingZip && exportProgress && (
-            <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl space-y-2 text-center animate-in fade-in">
-              <div className="flex items-center justify-center gap-2 text-indigo-900 font-bold text-xs">
-                <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+            <div className="p-4 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 rounded-xl space-y-2 text-center animate-in fade-in">
+              <div className="flex items-center justify-center gap-2 text-indigo-900 dark:text-indigo-200 font-bold text-xs">
+                <Loader2 className="w-4 h-4 animate-spin text-indigo-600 dark:text-indigo-400" />
                 <span>
                   Generating High-Res PDF Letters: {exportProgress.current} / {exportProgress.total} completed...
                 </span>
               </div>
-              <div className="w-full bg-indigo-200 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-indigo-200 dark:bg-indigo-900/60 h-2 rounded-full overflow-hidden">
                 <div
-                  className="bg-indigo-600 h-full transition-all duration-300"
+                  className="bg-indigo-600 dark:bg-indigo-500 h-full transition-all duration-300"
                   style={{ width: `${(exportProgress.current / exportProgress.total) * 100}%` }}
                 />
               </div>
-              <p className="text-[10px] text-indigo-700">
+              <p className="text-[10px] text-indigo-700 dark:text-indigo-300">
                 Packaging formatted PDF documents and payroll CSV into .zip archive.
               </p>
             </div>
           )}
 
           {/* Table of Appraisals with Checkboxes */}
-          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-            <div className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs">
+            <div className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={filteredAppraisals.length > 0 && selectedAppraisalsList.length === filteredAppraisals.length}
                   onChange={toggleSelectAll}
-                  className="rounded text-indigo-600 w-4 h-4"
+                  className="rounded text-indigo-600 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 w-4 h-4"
                 />
-                <span className="font-bold text-xs text-slate-800">
+                <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
                   Select All Filtered ({selectedAppraisalsList.length} / {filteredAppraisals.length} selected)
                 </span>
               </div>
-              <span className="text-[11px] text-slate-500 font-mono">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                 Cohort: {filterCycle === 'ALL' ? 'All Cycles' : filterCycle}
               </span>
             </div>
 
-            <div className="max-h-60 overflow-y-auto divide-y divide-slate-100">
+            <div className="max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
               {filteredAppraisals.length === 0 ? (
-                <div className="p-8 text-center text-slate-400">
+                <div className="p-8 text-center text-slate-400 dark:text-slate-500">
                   No appraisal records match your selected filters.
                 </div>
               ) : (
@@ -566,7 +592,7 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
                       key={appraisal.id}
                       onClick={() => toggleSelectOne(appraisal.id)}
                       className={`px-4 py-2.5 flex items-center justify-between gap-3 cursor-pointer transition-colors ${
-                        isChecked ? 'bg-indigo-50/40 hover:bg-indigo-50/70' : 'hover:bg-slate-50'
+                        isChecked ? 'bg-indigo-50/40 dark:bg-indigo-950/30 hover:bg-indigo-50/70 dark:hover:bg-indigo-950/50' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -574,21 +600,21 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => {}}
-                          className="rounded text-indigo-600 w-4 h-4 shrink-0"
+                          className="rounded text-indigo-600 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 w-4 h-4 shrink-0"
                         />
                         <div className="min-w-0">
-                          <div className="font-semibold text-slate-900 truncate flex items-center gap-1.5">
+                          <div className="font-semibold text-slate-900 dark:text-white truncate flex items-center gap-1.5">
                             <span>{appraisal.employeeName}</span>
-                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
+                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                               {appraisal.employeeCode}
                             </span>
                             {appraisal.promotionRecommended && (
-                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold">
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-bold">
                                 Promoted
                               </span>
                             )}
                           </div>
-                          <div className="text-[10px] text-slate-500 flex items-center gap-1.5 truncate">
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 truncate">
                             <span>{appraisal.departmentName}</span>
                             <span>•</span>
                             <span>{appraisal.designationName}</span>
@@ -602,10 +628,10 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
 
                       <div className="flex items-center gap-4 shrink-0 text-right">
                         <div>
-                          <div className="font-mono font-bold text-slate-900">
+                          <div className="font-mono font-bold text-slate-900 dark:text-white">
                             ₹{revisedCtc.toLocaleString()}
                           </div>
-                          <div className="text-[10px] font-mono text-emerald-600 font-bold">
+                          <div className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
                             +{incPct}% (₹{currentCtc.toLocaleString()} prev)
                           </div>
                         </div>
@@ -613,10 +639,10 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
                         <span
                           className={`text-[9px] px-2 py-0.5 rounded-full font-bold border shrink-0 ${
                             appraisal.status === 'LOCKED'
-                              ? 'bg-slate-900 text-white border-slate-900'
+                              ? 'bg-slate-900 dark:bg-slate-700 text-white border-slate-900 dark:border-slate-600'
                               : appraisal.status === 'HR_APPROVED'
-                              ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                              : 'bg-slate-100 text-slate-700 border-slate-200'
+                              ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                           }`}
                         >
                           {appraisal.status}
@@ -631,9 +657,9 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-xs text-slate-500">
-            <strong>{selectedAppraisalsList.length}</strong> of <strong>{appraisals.length}</strong> employee letters selected
+        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
+            <strong className="text-slate-800 dark:text-slate-200">{selectedAppraisalsList.length}</strong> of <strong className="text-slate-800 dark:text-slate-200">{appraisals.length}</strong> employee letters selected
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -642,10 +668,10 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
               type="button"
               disabled={selectedAppraisalsList.length === 0 || isExportingZip}
               onClick={handleDownloadCsv}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
               title="Download detailed payroll reconciliation CSV"
             >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>Export Payroll CSV</span>
             </button>
 
@@ -654,10 +680,10 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
               type="button"
               disabled={selectedAppraisalsList.length === 0 || isExportingZip}
               onClick={handlePrintAll}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
               title="Print all selected letters with page breaks"
             >
-              <Printer className="w-4 h-4 text-slate-600" />
+              <Printer className="w-4 h-4 text-slate-600 dark:text-slate-400" />
               <span>Print All ({selectedAppraisalsList.length})</span>
             </button>
 
@@ -680,6 +706,7 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

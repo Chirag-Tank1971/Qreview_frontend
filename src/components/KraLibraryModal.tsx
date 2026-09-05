@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Kra, Department } from '../types';
+import { toast } from '../context/ToastContext';
 import { Target, Plus, Search, Filter, CheckCircle2, ShieldCheck, HelpCircle, Edit2, Layers, Tag } from 'lucide-react';
 
 interface KraLibraryModalProps {
@@ -32,6 +34,21 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
   const [formDeptId, setFormDeptId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+
+  useEffect(() => {
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = origOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
 
   const categories = Array.from(new Set(kras.map((k) => k.category).filter(Boolean)));
 
@@ -78,6 +95,7 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
     e.preventDefault();
     if (!formTitle.trim()) {
       setFormError('Title is required');
+      toast.warning('Title is required for standard KRA', 'Validation');
       return;
     }
     try {
@@ -92,32 +110,40 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
         targetUnit: formTargetUnit.trim() || undefined,
         departmentId: formDeptId || undefined,
       });
+      toast.success(`KRA "${formTitle.trim()}" saved to library.`, 'KRA Saved');
       setIsCreating(false);
       setEditingKra(null);
     } catch (err: any) {
-      setFormError(err.message || 'Failed to save KRA item');
+      const errMsg = err.message || 'Failed to save KRA item';
+      setFormError(errMsg);
+      toast.error(errMsg, 'KRA Error');
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/40 dark:bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/60">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-indigo-950/50 border border-blue-100 dark:border-indigo-850 flex items-center justify-center text-blue-600 dark:text-indigo-400 shadow-xs">
               <Target className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-semibold text-slate-800">Master KRA Library</h3>
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                <h3 className="text-base font-semibold text-slate-800 dark:text-white">Master KRA Library</h3>
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 dark:bg-indigo-950/40 text-blue-700 dark:text-indigo-300 border border-blue-100 dark:border-indigo-850">
                   {kras.length} items cataloged
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Standardized organizational Key Result Areas used to construct evaluation templates
               </p>
             </div>
@@ -127,7 +153,7 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
               <button
                 id="btn-add-kra-library"
                 onClick={handleStartCreate}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add Standard KRA
@@ -135,7 +161,7 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
             )}
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             >
               ✕
             </button>
@@ -146,29 +172,29 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6">
           {isCreating ? (
             /* Creation / Edit Form */
-            <form onSubmit={handleSubmitForm} className="space-y-4 max-w-2xl mx-auto bg-slate-50/70 p-5 rounded-xl border border-slate-200">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                <h4 className="text-sm font-semibold text-slate-800">
+            <form onSubmit={handleSubmitForm} className="space-y-4 max-w-2xl mx-auto bg-slate-50/70 dark:bg-slate-800/60 p-5 rounded-xl border border-slate-200 dark:border-slate-750">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-700">
+                <h4 className="text-sm font-semibold text-slate-800 dark:text-white">
                   {editingKra ? `Edit KRA: ${editingKra.title}` : 'Add Standard KRA to Library'}
                 </h4>
                 <button
                   type="button"
                   onClick={() => setIsCreating(false)}
-                  className="text-xs text-slate-500 hover:text-slate-700 font-medium"
+                  className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
               </div>
 
               {formError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 rounded-lg text-xs text-red-700 dark:text-red-300">
                   {formError}
                 </div>
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     KRA Title <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -177,12 +203,12 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
                     placeholder="e.g. Sprint Feature Delivery & Execution"
-                    className="w-full text-xs px-3 py-2 bg-white rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full text-xs px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Description & Objectives
                   </label>
                   <textarea
@@ -190,12 +216,12 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
                     value={formDesc}
                     onChange={(e) => setFormDesc(e.target.value)}
                     placeholder="Describe the scope, objectives, and expected impact of this KRA..."
-                    className="w-full text-xs px-3 py-2 bg-white rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full text-xs px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Evaluation Category <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -205,7 +231,7 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
                     onChange={(e) => setFormCategory(e.target.value)}
                     list="category-suggestions"
                     placeholder="e.g. Delivery & Execution"
-                    className="w-full text-xs px-3 py-2 bg-white rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full text-xs px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                   <datalist id="category-suggestions">
                     <option value="Delivery & Execution" />
@@ -219,23 +245,23 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Metric Measurement Type <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={formMetricType}
                     onChange={(e) => setFormMetricType(e.target.value as any)}
-                    className="w-full text-xs px-3 py-2 bg-white rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full text-xs px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   >
-                    <option value="PERCENTAGE">Percentage (% Completed / Attained)</option>
-                    <option value="TARGET_NUMERIC">Quantitative Metric (Number / Value / SLA)</option>
-                    <option value="RATING_SCALE">Qualitative Scale (1 - 5 Scoring Rubric)</option>
-                    <option value="MILESTONE">Milestone / Deliverable SLA</option>
+                    <option value="PERCENTAGE" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Percentage (% Completed / Attained)</option>
+                    <option value="TARGET_NUMERIC" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Quantitative Metric (Number / Value / SLA)</option>
+                    <option value="RATING_SCALE" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Qualitative Scale (1 - 5 Scoring Rubric)</option>
+                    <option value="MILESTONE" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Milestone / Deliverable SLA</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Target Measurement Unit
                   </label>
                   <input
@@ -243,22 +269,22 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
                     value={formTargetUnit}
                     onChange={(e) => setFormTargetUnit(e.target.value)}
                     placeholder="e.g. %, ms, PRs/quarter, $ ARR"
-                    className="w-full text-xs px-3 py-2 bg-white rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full text-xs px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Associated Department (Optional)
                   </label>
                   <select
                     value={formDeptId}
                     onChange={(e) => setFormDeptId(e.target.value)}
-                    className="w-full text-xs px-3 py-2 bg-white rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full text-xs px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   >
-                    <option value="">All Departments (Universal KRA)</option>
+                    <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All Departments (Universal KRA)</option>
                     {departments.map((dept) => (
-                      <option key={dept.id} value={dept.id}>
+                      <option key={dept.id} value={dept.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                         {dept.name} ({dept.code})
                       </option>
                     ))}
@@ -266,18 +292,18 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
                 <button
                   type="button"
                   onClick={() => setIsCreating(false)}
-                  className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                  className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors disabled:opacity-50"
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {submitting ? 'Saving...' : editingKra ? 'Update KRA' : 'Save KRA'}
                 </button>
@@ -295,7 +321,7 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search KRAs by title, category, keywords..."
-                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:bg-white dark:focus:bg-slate-800"
                   />
                 </div>
 
@@ -304,11 +330,11 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-hidden focus:bg-white"
+                    className="text-xs px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-medium focus:outline-hidden focus:bg-white dark:focus:bg-slate-800"
                   >
-                    <option value="ALL">All Categories</option>
+                    <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All Categories</option>
                     {categories.map((c) => (
-                      <option key={c} value={c}>
+                      <option key={c} value={c} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                         {c}
                       </option>
                     ))}
@@ -317,11 +343,11 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
                   <select
                     value={selectedDept}
                     onChange={(e) => setSelectedDept(e.target.value)}
-                    className="text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-hidden focus:bg-white"
+                    className="text-xs px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-medium focus:outline-hidden focus:bg-white dark:focus:bg-slate-800"
                   >
-                    <option value="ALL">All Departments</option>
+                    <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All Departments</option>
                     {departments.map((d) => (
-                      <option key={d.id} value={d.id}>
+                      <option key={d.id} value={d.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                         {d.code} - {d.name}
                       </option>
                     ))}
@@ -332,42 +358,42 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
               {/* KRA Items Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {filteredKras.length === 0 ? (
-                  <div className="col-span-2 text-center py-10 text-slate-400 text-xs">
+                  <div className="col-span-2 text-center py-10 text-slate-400 dark:text-slate-500 text-xs">
                     No KRAs found matching your search and filter criteria.
                   </div>
                 ) : (
                   filteredKras.map((kra) => (
                     <div
                       key={kra.id}
-                      className="p-3.5 rounded-xl border border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-xs transition-all flex flex-col justify-between group"
+                      className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-750 bg-white dark:bg-slate-850 hover:border-slate-300 dark:hover:border-slate-650 hover:shadow-xs transition-all flex flex-col justify-between group"
                     >
                       <div>
                         <div className="flex items-start justify-between gap-2 mb-1.5">
-                          <span className="text-xs font-semibold text-slate-800 line-clamp-1">
+                          <span className="text-xs font-semibold text-slate-800 dark:text-slate-100 line-clamp-1">
                             {kra.title}
                           </span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 dark:bg-slate-750 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
                             {kra.category}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 line-clamp-2 mb-2 leading-relaxed">
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mb-2 leading-relaxed">
                           {kra.description}
                         </p>
                       </div>
 
-                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                         <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1 font-mono text-[10px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
+                          <span className="inline-flex items-center gap-1 font-mono text-[10px] text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-800/50">
                             {kra.metricType}
                           </span>
                           {kra.targetUnit && (
-                            <span className="text-slate-400">Unit: {kra.targetUnit}</span>
+                            <span className="text-slate-400 dark:text-slate-500">Unit: {kra.targetUnit}</span>
                           )}
                         </div>
                         {canEdit && (
                           <button
                             onClick={() => handleStartEdit(kra)}
-                            className="opacity-0 group-hover:opacity-100 text-blue-600 hover:text-blue-800 p-1 rounded transition-opacity"
+                            className="opacity-0 group-hover:opacity-100 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 p-1 rounded transition-opacity cursor-pointer"
                             title="Edit KRA"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -383,19 +409,20 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+        <div className="px-6 py-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <span>Standard KRAs enforce organizational measurement alignment</span>
           </div>
           <button
             onClick={onClose}
-            className="px-3 py-1 bg-white border border-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors shadow-2xs"
+            className="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors shadow-2xs cursor-pointer"
           >
             Close
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

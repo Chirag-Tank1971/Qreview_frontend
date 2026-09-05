@@ -25,6 +25,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { api } from '../services/api';
+import { toast } from '../context/ToastContext';
 import {
   BulkDatasetType,
   BulkTemplateColumn,
@@ -203,8 +204,13 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
     try {
       const report = await api.validateBulkRows(type, rows, allowUpdateExisting);
       setValidationReport(report);
+      if (report.errorCount > 0) {
+        toast.warning(`Validated with ${report.errorCount} errors and ${report.validCount} valid rows.`, 'Validation Results');
+      } else {
+        toast.success(`All ${report.totalRows} rows validated successfully!`, 'Validation Passed');
+      }
     } catch (err: any) {
-      alert(`Validation error: ${err.message}`);
+      toast.error(`Validation error: ${err.message}`, 'Validation Error');
     } finally {
       setIsValidating(false);
     }
@@ -240,6 +246,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
       XLSX.utils.book_append_sheet(wb, ws, 'Template');
       XLSX.writeFile(wb, `${baseName}.xlsx`);
     }
+    toast.info(`Downloaded ${baseName} sample template.`, 'Sample Downloaded');
   };
 
   const handleExecuteImport = async () => {
@@ -257,9 +264,10 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
       });
 
       setImportResult(result);
+      toast.success(`Imported ${result.successCount} ${selectedDataset} records successfully!`, 'Import Completed');
       if (onDataImported) onDataImported();
     } catch (err: any) {
-      alert(`Import Failed: ${err.message}`);
+      toast.error(`Import Failed: ${err.message}`, 'Import Error');
     } finally {
       setIsImporting(false);
     }
@@ -279,7 +287,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
 
       const records = res.data || [];
       if (records.length === 0) {
-        alert('No matching records found for the selected filters.');
+        toast.warning('No matching records found for the selected filters.', 'No Records');
         setIsExporting(false);
         return;
       }
@@ -314,10 +322,12 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
         XLSX.writeFile(wb, `${filename}.xlsx`);
       }
 
-      setExportSuccessMsg(`Successfully generated & downloaded ${records.length} records!`);
+      const msg = `Successfully generated & downloaded ${records.length} records!`;
+      setExportSuccessMsg(msg);
+      toast.success(msg, 'Export Successful');
       setTimeout(() => setExportSuccessMsg(null), 4000);
     } catch (err: any) {
-      alert(`Export Failed: ${err.message}`);
+      toast.error(`Export Failed: ${err.message}`, 'Export Error');
     } finally {
       setIsExporting(false);
     }
@@ -374,32 +384,32 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs relative overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800">
                 Bulk Engine
               </span>
-              <span className="text-xs text-slate-400 font-medium">Enterprise Data Exchange</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">Enterprise Data Exchange</span>
             </div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
-              <FileSpreadsheet className="w-7 h-7 text-indigo-600" />
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
+              <FileSpreadsheet className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
               Bulk Excel / CSV Import & Export Hub
             </h1>
-            <p className="text-sm text-slate-500 mt-1 max-w-2xl">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
               High-throughput batch ingest engine with client-side parsing, schema verification, master referential checks, and one-click database synchronizations.
             </p>
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex items-center bg-slate-100/80 p-1.5 rounded-xl border border-slate-200/60 shrink-0">
+          <div className="flex items-center bg-slate-100/80 dark:bg-slate-800/80 p-1.5 rounded-xl border border-slate-200/60 dark:border-slate-700 shrink-0">
             <button
               onClick={() => setActiveTab('IMPORT')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'IMPORT'
-                  ? 'bg-white text-indigo-700 shadow-xs border border-slate-200/60'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-xs border border-slate-200/60 dark:border-slate-650'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Upload className="w-4 h-4" />
@@ -409,8 +419,8 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
               onClick={() => setActiveTab('EXPORT')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'EXPORT'
-                  ? 'bg-white text-indigo-700 shadow-xs border border-slate-200/60'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-xs border border-slate-200/60 dark:border-slate-650'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Download className="w-4 h-4" />
@@ -420,8 +430,8 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
               onClick={() => setActiveTab('HISTORY')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'HISTORY'
-                  ? 'bg-white text-indigo-700 shadow-xs border border-slate-200/60'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-xs border border-slate-200/60 dark:border-slate-650'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <History className="w-4 h-4" />
@@ -439,8 +449,8 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
           {/* Dataset Selector Cards */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <Database className="w-4 h-4 text-indigo-600" />
+              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                <Database className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                 Select Ingestion Dataset
               </h2>
               <span className="text-xs text-slate-400 font-medium">Step 1 of 3</span>
@@ -456,15 +466,15 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                     onClick={() => setSelectedDataset(card.id)}
                     className={`p-4 rounded-xl text-left border transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between ${
                       isSelected
-                        ? 'bg-white border-indigo-600 ring-2 ring-indigo-500/20 shadow-sm'
-                        : 'bg-white border-slate-200/80 hover:border-slate-300 hover:bg-slate-50/50'
+                        ? 'bg-white dark:bg-slate-850 border-indigo-600 dark:border-indigo-500 ring-2 ring-indigo-500/20 shadow-sm'
+                        : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50/50 dark:hover:bg-slate-800/40'
                     }`}
                   >
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <div
                           className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                            isSelected ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600'
+                            isSelected ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                           }`}
                         >
                           <IconComponent className="w-5 h-5" />
@@ -472,24 +482,24 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                             isSelected
-                              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                              : 'bg-slate-100 text-slate-600'
+                              ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                           }`}
                         >
                           {card.badge}
                         </span>
                       </div>
-                      <h3 className="font-bold text-slate-900 text-sm">{card.title}</h3>
-                      <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                      <h3 className="font-bold text-slate-900 dark:text-white text-sm">{card.title}</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                         {card.description}
                       </p>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                      <span className={`font-semibold ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`}>
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                      <span className={`font-semibold ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`}>
                         {isSelected ? 'Active Dataset' : 'Select'}
                       </span>
-                      {isSelected && <Check className="w-4 h-4 text-indigo-600 font-black" />}
+                      {isSelected && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400 font-black" />}
                     </div>
                   </button>
                 );
@@ -500,15 +510,15 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
           {/* Upload & Template Downloader Zone */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left: Drag & Drop Zone */}
-            <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs">
+            <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <Upload className="w-5 h-5 text-indigo-600" />
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Upload className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                     Upload Spreadsheet Data File
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Supports Microsoft Excel (<code className="text-indigo-600 font-mono">.xlsx</code>, <code className="text-indigo-600 font-mono">.xls</code>) or standard comma-separated (<code className="text-indigo-600 font-mono">.csv</code>).
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Supports Microsoft Excel (<code className="text-indigo-600 dark:text-indigo-400 font-mono">.xlsx</code>, <code className="text-indigo-600 dark:text-indigo-400 font-mono">.xls</code>) or standard comma-separated (<code className="text-indigo-600 dark:text-indigo-400 font-mono">.csv</code>).
                   </p>
                 </div>
               </div>
@@ -530,10 +540,10 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                 onClick={() => fileInputRef.current?.click()}
                 className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
                   dragActive
-                    ? 'border-indigo-600 bg-indigo-50/50 scale-[0.99]'
+                    ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30 scale-[0.99]'
                     : fileName
-                    ? 'border-emerald-400 bg-emerald-50/30'
-                    : 'border-slate-200 hover:border-indigo-400 hover:bg-slate-50/60'
+                    ? 'border-emerald-400 dark:border-emerald-600 bg-emerald-50/30 dark:bg-emerald-950/20'
+                    : 'border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-slate-50/60 dark:hover:bg-slate-800/40'
                 }`}
               >
                 <input
@@ -548,26 +558,26 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                   }}
                 />
 
-                <div className="w-14 h-14 bg-indigo-50 border border-indigo-200/80 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-2xs">
+                <div className="w-14 h-14 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-2xs">
                   <FileSpreadsheet className="w-7 h-7" />
                 </div>
 
                 {fileName ? (
                   <div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 mb-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 mb-2">
                       <CheckCircle2 className="w-3.5 h-3.5" /> File Loaded
                     </span>
-                    <p className="font-bold text-slate-900 text-base">{fileName}</p>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="font-bold text-slate-900 dark:text-white text-base">{fileName}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                       {parsedRows.length} rows detected • Click to choose a different file
                     </p>
                   </div>
                 ) : (
                   <div>
-                    <p className="font-bold text-slate-800 text-sm">
-                      Drag & Drop your Excel or CSV file here, or <span className="text-indigo-600 underline">Browse Files</span>
+                    <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                      Drag & Drop your Excel or CSV file here, or <span className="text-indigo-600 dark:text-indigo-400 underline">Browse Files</span>
                     </p>
-                    <p className="text-xs text-slate-400 mt-1.5">
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
                       Maximum file size: 25 MB • Recommended up to 5,000 rows per batch
                     </p>
                   </div>
@@ -575,7 +585,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
               </div>
 
               {/* Upload Options Checklist */}
-              <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4 text-xs">
+              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4 text-xs">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -586,7 +596,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                     }}
                     className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
                   />
-                  <span className="font-medium text-slate-700">
+                  <span className="font-medium text-slate-700 dark:text-slate-300">
                     Upsert Mode: Update existing records if matching key exists
                   </span>
                 </label>
@@ -598,7 +608,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                     onChange={(e) => setSkipInvalidRows(e.target.checked)}
                     className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
                   />
-                  <span className="font-medium text-slate-700">
+                  <span className="font-medium text-slate-700 dark:text-slate-300">
                     Fault Tolerance: Skip invalid rows and import remaining valid entries
                   </span>
                 </label>
@@ -606,18 +616,18 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
             </div>
 
             {/* Right: Template Schema & Downloader */}
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs flex flex-col justify-between">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-indigo-600" />
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     Template Specifications
                   </h3>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase">
+                  <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase">
                     {templateColumns.length} Columns
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 mb-4">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
                   Download pre-formatted sample templates with pre-configured header columns and dummy rows for instant population.
                 </p>
 
@@ -626,15 +636,15 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                   {templateColumns.map((col) => (
                     <div
                       key={col.key}
-                      className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100 text-xs"
+                      className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-750 text-xs"
                     >
                       <div className="flex items-center gap-1.5 overflow-hidden">
-                        <span className="font-bold text-slate-800 truncate">{col.label}</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{col.label}</span>
                         {col.required && (
-                          <span className="text-[10px] text-rose-500 font-bold shrink-0">*Req</span>
+                          <span className="text-[10px] text-rose-500 dark:text-rose-400 font-bold shrink-0">*Req</span>
                         )}
                       </div>
-                      <span className="text-[10px] font-mono text-slate-400 shrink-0 uppercase">
+                      <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 shrink-0 uppercase">
                         {col.type}
                       </span>
                     </div>
@@ -643,19 +653,19 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
               </div>
 
               {/* Action Buttons */}
-              <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
                 <button
                   onClick={() => handleDownloadSample('xlsx')}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100/80 text-emerald-800 border border-emerald-200/80 font-bold text-xs transition-colors cursor-pointer shadow-2xs"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800 font-bold text-xs transition-colors cursor-pointer shadow-2xs"
                 >
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   Download Excel Template (.xlsx)
                 </button>
                 <button
                   onClick={() => handleDownloadSample('csv')}
-                  className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-colors cursor-pointer"
                 >
-                  <Download className="w-3.5 h-3.5 text-slate-500" />
+                  <Download className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                   Download CSV Template (.csv)
                 </button>
               </div>
@@ -666,42 +676,42 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
           {/* Step 3: Interactive Pre-Commit Validation & Data Table */}
           {/* ================================================================= */}
           {isValidating && (
-            <div className="p-8 bg-white rounded-2xl border border-slate-200 text-center shadow-xs">
-              <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin mx-auto mb-2" />
-              <p className="font-bold text-slate-800 text-sm">Validating records against PMS constraints...</p>
-              <p className="text-xs text-slate-400 mt-1">
+            <div className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-center shadow-xs">
+              <RefreshCw className="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-spin mx-auto mb-2" />
+              <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">Validating records against PMS constraints...</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                 Checking joining cycle dates, manager relationships, email unicity, and rating ranges.
               </p>
             </div>
           )}
 
           {validationReport && !isValidating && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
               {/* Validation Summary Header */}
-              <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-slate-50/50">
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-slate-50/50 dark:bg-slate-850/50">
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                       Validation Report:
                     </span>
-                    <span className="text-xs font-black text-slate-900 bg-white border border-slate-200 px-2.5 py-1 rounded-md">
+                    <span className="text-xs font-black text-slate-900 dark:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-md">
                       {validationReport.totalRows} Total Rows
                     </span>
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    <span className="inline-flex items-center gap-1 text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-md">
+                    <span className="inline-flex items-center gap-1 text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-md">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       {validationReport.validCount} Valid
                     </span>
                     {validationReport.warningCount > 0 && (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-md">
+                      <span className="inline-flex items-center gap-1 text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-2.5 py-1 rounded-md">
                         <AlertTriangle className="w-3.5 h-3.5" />
                         {validationReport.warningCount} Warnings
                       </span>
                     )}
                     {validationReport.errorCount > 0 && (
-                      <span className="inline-flex items-center gap-1 text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 px-2.5 py-1 rounded-md">
+                      <span className="inline-flex items-center gap-1 text-xs font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 px-2.5 py-1 rounded-md">
                         <XCircle className="w-3.5 h-3.5" />
                         {validationReport.errorCount} Errors
                       </span>
@@ -712,11 +722,11 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                 {/* Filter and Commit Action */}
                 <div className="flex items-center gap-3">
                   {/* Status Filter */}
-                  <div className="flex items-center bg-white rounded-lg border border-slate-200 p-1 text-xs font-semibold">
+                  <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-1 text-xs font-semibold">
                     <button
                       onClick={() => setStatusFilter('ALL')}
                       className={`px-2.5 py-1 rounded-md cursor-pointer ${
-                        statusFilter === 'ALL' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'
+                        statusFilter === 'ALL' ? 'bg-slate-900 dark:bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       All ({validationReport.totalRows})
@@ -724,7 +734,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                     <button
                       onClick={() => setStatusFilter('VALID')}
                       className={`px-2.5 py-1 rounded-md cursor-pointer ${
-                        statusFilter === 'VALID' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                        statusFilter === 'VALID' ? 'bg-emerald-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       Valid ({validationReport.validCount})
@@ -733,7 +743,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                       <button
                         onClick={() => setStatusFilter('ERROR')}
                         className={`px-2.5 py-1 rounded-md cursor-pointer ${
-                          statusFilter === 'ERROR' ? 'bg-rose-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                          statusFilter === 'ERROR' ? 'bg-rose-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
                         Errors ({validationReport.errorCount})
@@ -766,7 +776,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
               {/* Data Table Preview */}
               <div className="overflow-x-auto max-h-[420px]">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-100/80 text-slate-600 font-bold border-b border-slate-200 sticky top-0 z-10">
+                  <thead className="bg-slate-100/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
                     <tr>
                       <th className="py-2.5 px-3 w-14">#</th>
                       <th className="py-2.5 px-3 w-28">Status</th>
@@ -779,31 +789,31 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                       <th className="py-2.5 px-3">Validation Details</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-medium">
                     {filteredResults.map((res) => {
                       const isError = res.status === 'ERROR';
                       const isWarning = res.status === 'WARNING';
                       return (
                         <tr
                           key={res.rowNumber}
-                          className={`hover:bg-slate-50/80 transition-colors ${
-                            isError ? 'bg-rose-50/20' : isWarning ? 'bg-amber-50/20' : ''
+                          className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors ${
+                            isError ? 'bg-rose-50/20 dark:bg-rose-950/20' : isWarning ? 'bg-amber-50/20 dark:bg-amber-950/20' : ''
                           }`}
                         >
-                          <td className="py-2.5 px-3 font-mono text-slate-400 font-bold">{res.rowNumber}</td>
+                          <td className="py-2.5 px-3 font-mono text-slate-400 dark:text-slate-500 font-bold">{res.rowNumber}</td>
                           <td className="py-2.5 px-3">
                             {res.status === 'VALID' && (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
                                 <CheckCircle2 className="w-3 h-3" /> Ready
                               </span>
                             )}
                             {res.status === 'WARNING' && (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-md">
                                 <AlertTriangle className="w-3 h-3" /> Notice
                               </span>
                             )}
                             {res.status === 'ERROR' && (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 px-2 py-0.5 rounded-md">
                                 <XCircle className="w-3 h-3" /> Failed
                               </span>
                             )}
@@ -812,35 +822,35 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                             <span
                               className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
                                 res.action === 'INSERT'
-                                  ? 'bg-blue-50 text-blue-700'
+                                  ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
                                   : res.action === 'UPDATE'
-                                  ? 'bg-purple-50 text-purple-700'
-                                  : 'bg-slate-100 text-slate-500'
+                                  ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                               }`}
                             >
                               {res.action}
                             </span>
                           </td>
                           {templateColumns.slice(0, 6).map((c) => (
-                            <td key={c.key} className="py-2.5 px-3 font-medium text-slate-800 truncate max-w-[160px]">
+                            <td key={c.key} className="py-2.5 px-3 font-medium text-slate-800 dark:text-slate-200 truncate max-w-[160px]">
                               {String(res.data[c.key] ?? '-')}
                             </td>
                           ))}
                           <td className="py-2.5 px-3">
                             {res.errors.length > 0 && (
-                              <div className="text-rose-600 font-semibold text-[11px] flex items-center gap-1">
+                              <div className="text-rose-600 dark:text-rose-400 font-semibold text-[11px] flex items-center gap-1">
                                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                                 {res.errors.join(' • ')}
                               </div>
                             )}
                             {res.warnings.length > 0 && (
-                              <div className="text-amber-600 font-medium text-[11px] flex items-center gap-1 mt-0.5">
+                              <div className="text-amber-600 dark:text-amber-400 font-medium text-[11px] flex items-center gap-1 mt-0.5">
                                 <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                                 {res.warnings.join(' • ')}
                               </div>
                             )}
                             {res.isValid && res.warnings.length === 0 && (
-                              <span className="text-slate-400 text-[11px]">All criteria verified</span>
+                              <span className="text-slate-400 dark:text-slate-500 text-[11px]">All criteria verified</span>
                             )}
                           </td>
                         </tr>
@@ -854,16 +864,16 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
 
           {/* Import Result Feedback Banner */}
           {importResult && (
-            <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 shadow-sm">
+            <div className="p-5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 shadow-sm">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
                     <CheckCircle2 className="w-6 h-6" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-emerald-900 text-base">Bulk Ingestion Successfully Committed!</h4>
-                    <p className="text-xs text-emerald-700 mt-0.5">{importResult.message}</p>
-                    <div className="flex items-center gap-4 mt-2 text-xs font-semibold text-emerald-800">
+                    <h4 className="font-bold text-emerald-900 dark:text-emerald-200 text-base">Bulk Ingestion Successfully Committed!</h4>
+                    <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">{importResult.message}</p>
+                    <div className="flex items-center gap-4 mt-2 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
                       <span>✓ {importResult.insertedCount} Records Inserted</span>
                       <span>• {importResult.updatedCount} Records Updated</span>
                       <span>• Batch ID: <code className="font-mono">{importResult.batchId}</code></span>
@@ -872,7 +882,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                 </div>
                 <button
                   onClick={() => setImportResult(null)}
-                  className="text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-white border border-emerald-200 px-3 py-1.5 rounded-lg cursor-pointer"
+                  className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 px-3 py-1.5 rounded-lg cursor-pointer"
                 >
                   Dismiss
                 </button>
@@ -888,10 +898,10 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
       {activeTab === 'EXPORT' && (
         <div className="space-y-6">
           {/* Global Filter Bar */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
-                <Filter className="w-4 h-4 text-indigo-600" />
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                <Filter className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                 Export Filters:
               </div>
 
@@ -899,11 +909,11 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
               <select
                 value={exportCycleId}
                 onChange={(e) => setExportCycleId(e.target.value)}
-                className="text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:ring-1 focus:ring-indigo-500"
+                className="text-xs font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 focus:ring-1 focus:ring-indigo-500"
               >
-                <option value="ALL">All 8 Joining Cycles (A - H)</option>
+                <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All 8 Joining Cycles (A - H)</option>
                 {cycles.map((c) => (
-                  <option key={c.id} value={c.id}>
+                  <option key={c.id} value={c.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                     {c.name.startsWith('Cycle') ? c.name : `Cycle ${c.code} (${c.name})`}
                   </option>
                 ))}
@@ -913,22 +923,22 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
               <select
                 value={exportDeptId}
                 onChange={(e) => setExportDeptId(e.target.value)}
-                className="text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-800 focus:ring-1 focus:ring-indigo-500"
+                className="text-xs font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 focus:ring-1 focus:ring-indigo-500"
               >
-                <option value="ALL">All Departments</option>
+                <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Departments</option>
                 {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
+                  <option key={d.id} value={d.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                     {d.name}
                   </option>
                 ))}
               </select>
 
               {/* Format Selector */}
-              <div className="flex items-center bg-slate-100 rounded-lg p-1 text-xs font-bold">
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1 text-xs font-bold">
                 <button
                   onClick={() => setExportFormat('xlsx')}
                   className={`px-3 py-1 rounded-md cursor-pointer ${
-                    exportFormat === 'xlsx' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-600'
+                    exportFormat === 'xlsx' ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-2xs' : 'text-slate-600 dark:text-slate-400'
                   }`}
                 >
                   Excel (.xlsx)
@@ -936,7 +946,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                 <button
                   onClick={() => setExportFormat('csv')}
                   className={`px-3 py-1 rounded-md cursor-pointer ${
-                    exportFormat === 'csv' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600'
+                    exportFormat === 'csv' ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-2xs' : 'text-slate-600 dark:text-slate-400'
                   }`}
                 >
                   CSV (.csv)
@@ -944,7 +954,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                 <button
                   onClick={() => setExportFormat('json')}
                   className={`px-3 py-1 rounded-md cursor-pointer ${
-                    exportFormat === 'json' ? 'bg-white text-amber-700 shadow-2xs' : 'text-slate-600'
+                    exportFormat === 'json' ? 'bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-2xs' : 'text-slate-600 dark:text-slate-400'
                   }`}
                 >
                   JSON (.json)
@@ -953,7 +963,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
             </div>
 
             {exportSuccessMsg && (
-              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 animate-fadeIn">
+              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-3 py-1.5 rounded-lg flex items-center gap-1.5 animate-fadeIn">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 {exportSuccessMsg}
               </span>
@@ -967,32 +977,32 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
               return (
                 <div
                   key={card.id}
-                  className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs hover:border-indigo-300 transition-all flex flex-col justify-between"
+                  className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs hover:border-indigo-300 dark:hover:border-indigo-700 transition-all flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shadow-2xs">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-2xs">
                         <IconComponent className="w-5 h-5" />
                       </div>
-                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                         {card.badge}
                       </span>
                     </div>
 
-                    <h3 className="font-bold text-slate-900 text-base">{card.title}</h3>
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    <h3 className="font-bold text-slate-900 dark:text-white text-base">{card.title}</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       {card.description} Includes real-time joins with master relationships and audit metadata.
                     </p>
                   </div>
 
-                  <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-xs text-slate-400 font-medium">
-                      Target format: <strong className="text-slate-700 uppercase font-mono">{exportFormat}</strong>
+                  <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+                      Target format: <strong className="text-slate-700 dark:text-slate-300 uppercase font-mono">{exportFormat}</strong>
                     </span>
                     <button
                       onClick={() => handleExportData(card.id)}
                       disabled={isExporting}
-                      className="flex items-center gap-2 py-2 px-4 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                      className="flex items-center gap-2 py-2 px-4 rounded-xl bg-slate-900 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs disabled:opacity-50"
                     >
                       {isExporting ? (
                         <>
@@ -1018,21 +1028,21 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
       {/* TAB 3: BATCH IMPORT HISTORY */}
       {/* ========================================================================= */}
       {activeTab === 'HISTORY' && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
+          <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <History className="w-5 h-5 text-indigo-600" />
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <History className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                 Bulk Ingestion & Exchange Audit Log
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Complete traceability of batch imports, user sessions, file identifiers, and commit statistics.
               </p>
             </div>
             <button
               onClick={loadHistory}
               disabled={isLoadingHistory}
-              className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoadingHistory ? 'animate-spin' : ''}`} />
               Refresh
@@ -1041,7 +1051,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+              <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
                 <tr>
                   <th className="py-3 px-4">Batch ID</th>
                   <th className="py-3 px-4">Action Type</th>
@@ -1051,30 +1061,30 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                   <th className="py-3 px-4">Timestamp</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-medium">
                 {historyLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-slate-400">
+                    <td colSpan={6} className="py-8 text-center text-slate-400 dark:text-slate-500">
                       No bulk import batches recorded in audit trail yet.
                     </td>
                   </tr>
                 ) : (
                   historyLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-indigo-600">{log.batchId}</td>
+                    <tr key={log.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="py-3 px-4 font-mono font-bold text-indigo-600 dark:text-indigo-400">{log.batchId}</td>
                       <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                           {log.action}
                         </span>
                       </td>
-                      <td className="py-3 px-4 font-bold text-slate-900">{log.importedBy}</td>
+                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{log.importedBy}</td>
                       <td className="py-3 px-4">
-                        <span className="text-[10px] font-bold uppercase text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                        <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
                           {log.userRole}
                         </span>
                       </td>
-                      <td className="py-3 px-4 max-w-md text-slate-600">{log.details}</td>
-                      <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
+                      <td className="py-3 px-4 max-w-md text-slate-600 dark:text-slate-300">{log.details}</td>
+                      <td className="py-3 px-4 text-slate-400 dark:text-slate-500 whitespace-nowrap">
                         {new Date(log.createdAt).toLocaleString()}
                       </td>
                     </tr>

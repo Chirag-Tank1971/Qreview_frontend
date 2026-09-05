@@ -1,8 +1,138 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-slate-750: #243044;
+  --color-slate-850: #172033;
+}
+
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-800 antialiased;
+    @apply bg-slate-50 text-slate-900 antialiased transition-colors duration-200;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+
+  body.dark {
+    @apply bg-slate-950 text-slate-100;
+    color-scheme: dark;
+  }
+
+  /* Form controls color contrast safety */
+  input, select, textarea {
+    color: inherit;
+  }
+
+  /* When dark mode is active, ensure inputs & selects have proper dark contrast */
+  .dark select,
+  .dark input,
+  .dark textarea {
+    color-scheme: dark;
+  }
+
+  /* Options inside select dropdowns */
+  option {
+    color: #0f172a;
+    background-color: #ffffff;
+  }
+
+  .dark option {
+    color: #f1f5f9;
+    background-color: #1e293b;
+  }
+
+  /* Failsafe: if an input or select in dark mode is still on a light background, keep text dark */
+  .dark input.bg-slate-50:not([class*="dark:bg"]),
+  .dark select.bg-slate-50:not([class*="dark:bg"]),
+  .dark textarea.bg-slate-50:not([class*="dark:bg"]),
+  .dark input.bg-white:not([class*="dark:bg"]),
+  .dark select.bg-white:not([class*="dark:bg"]),
+  .dark textarea.bg-white:not([class*="dark:bg"]) {
+    color: #0f172a !important;
+  }
+
+  /* Universal dark table styling safety */
+  .dark table {
+    border-color: #1e293b;
+  }
+  .dark th {
+    border-color: #1e293b;
+  }
+  .dark td {
+    border-color: #1e293b;
+  }
+
+  /* Date/Time pickers in dark mode */
+  .dark input[type="date"],
+  .dark input[type="datetime-local"],
+  .dark input[type="time"] {
+    color-scheme: dark;
+  }
+
+  /* Modern sleek scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.6);
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: rgba(71, 85, 105, 0.5);
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.8);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+  }
+
+  .dark * {
+    scrollbar-color: rgba(71, 85, 105, 0.5) transparent;
+  }
+}
+
+/* Glassmorphism & Modern Card Primitives */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.glass-panel-subtle {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.dark .glass-panel-subtle {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.saas-card-hover {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.saas-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.06), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+}
+
+.dark .saas-card-hover:hover {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
 }

@@ -277,19 +277,19 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-bold shadow-2xs">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold shadow-2xs">
             <FileText className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-slate-900">Dedicated Reports Center</h3>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Dedicated Reports Center</h3>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 uppercase">
                 Section 16 Specification
               </span>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Generate, filter, inspect, and export all 9 mandatory organization, review, cycle, and audit compliance reports
             </p>
           </div>
@@ -300,16 +300,16 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           <button
             onClick={fetchReportData}
             disabled={loading}
-            className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+            className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
             title="Refresh Report Data"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-600' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-600 dark:text-indigo-400' : ''}`} />
           </button>
 
           <button
             onClick={exportToCsv}
             disabled={loading || !data}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
           >
             <Download className="w-4 h-4" />
             <span>Export CSV</span>
@@ -326,15 +326,15 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
             <button
               key={item.id}
               onClick={() => setActiveReport(item.id)}
-              className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-2.5 ${
+              className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-2.5 cursor-pointer ${
                 isActive
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                  ? 'bg-slate-900 dark:bg-indigo-600 text-white border-slate-900 dark:border-indigo-600 shadow-xs'
+                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700'
               }`}
             >
               <div className="flex items-center justify-between">
-                <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-400' : 'text-slate-500'}`} />
-                <span className={`text-[9px] font-bold uppercase tracking-wider ${isActive ? 'text-slate-400' : 'text-slate-400'}`}>
+                <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-400 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                <span className={`text-[9px] font-bold uppercase tracking-wider ${isActive ? 'text-slate-400 dark:text-indigo-200' : 'text-slate-400 dark:text-slate-500'}`}>
                   {item.category}
                 </span>
               </div>
@@ -345,10 +345,10 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
       </div>
 
       {/* Dynamic Filters Bar */}
-      <div className="p-3.5 bg-white border border-slate-200 rounded-2xl shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-2.5 flex-1">
-          <div className="flex items-center gap-1.5 font-bold text-slate-700">
-            <Filter className="w-3.5 h-3.5 text-indigo-600" />
+          <div className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300">
+            <Filter className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
             <span>Filters:</span>
           </div>
 
@@ -357,11 +357,11 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
             <select
               value={selectedDept}
               onChange={(e) => setSelectedDept(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
             >
-              <option value="ALL">All Departments</option>
+              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Departments</option>
               {departments.map((d) => (
-                <option key={d.id} value={d.id}>
+                <option key={d.id} value={d.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                   {d.name}
                 </option>
               ))}
@@ -373,11 +373,11 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
             <select
               value={selectedCycle}
               onChange={(e) => setSelectedCycle(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
             >
-              <option value="ALL">All 8 Cycles (A - H)</option>
+              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All 8 Cycles (A - H)</option>
               {cycles.map((c) => (
-                <option key={c.id} value={c.id}>
+                <option key={c.id} value={c.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                   {c.name.startsWith('Cycle') ? c.name : `Cycle ${c.code} (${c.name})`}
                 </option>
               ))}
@@ -389,14 +389,14 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
             >
-              <option value="ALL">All Review Statuses</option>
-              <option value="ASSIGNED">ASSIGNED</option>
-              <option value="MANAGER_PENDING">MANAGER_PENDING</option>
-              <option value="HR_PENDING">HR_PENDING</option>
-              <option value="RETURNED">RETURNED</option>
-              <option value="CLOSED">CLOSED</option>
+              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Review Statuses</option>
+              <option value="ASSIGNED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">ASSIGNED</option>
+              <option value="MANAGER_PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">MANAGER_PENDING</option>
+              <option value="HR_PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR_PENDING</option>
+              <option value="RETURNED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">RETURNED</option>
+              <option value="CLOSED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">CLOSED</option>
             </select>
           )}
 
@@ -405,14 +405,14 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
             <select
               value={selectedAuditModule}
               onChange={(e) => setSelectedAuditModule(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
             >
-              <option value="ALL">All System Modules</option>
-              <option value="REVIEWS">REVIEWS</option>
-              <option value="APPRAISALS">APPRAISALS</option>
-              <option value="KRAS">KRAS</option>
-              <option value="EMPLOYEES">EMPLOYEES</option>
-              <option value="CYCLES">CYCLES</option>
+              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All System Modules</option>
+              <option value="REVIEWS" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">REVIEWS</option>
+              <option value="APPRAISALS" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">APPRAISALS</option>
+              <option value="KRAS" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">KRAS</option>
+              <option value="EMPLOYEES" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">EMPLOYEES</option>
+              <option value="CYCLES" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">CYCLES</option>
             </select>
           )}
 
@@ -421,41 +421,41 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
             >
-              <option value={2026}>FY 2026</option>
-              <option value={2025}>FY 2025</option>
+              <option value={2026} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">FY 2026</option>
+              <option value={2025} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">FY 2025</option>
             </select>
           )}
 
           {/* Search for employee history */}
           {activeReport === 'employee-history' && (
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
               <input
                 type="text"
                 placeholder="Search employee code/name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-48"
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-48"
               />
             </div>
           )}
         </div>
 
-        <span className="text-[11px] text-slate-500 font-mono font-semibold">
-          Active Report: <strong className="text-slate-900">{activeReport.replace('-', ' ').toUpperCase()}</strong>
+        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono font-semibold">
+          Active Report: <strong className="text-slate-900 dark:text-white">{activeReport.replace('-', ' ').toUpperCase()}</strong>
         </span>
       </div>
 
       {/* Loading State */}
       {loading ? (
-        <div className="py-20 text-center text-xs text-slate-400 bg-white rounded-2xl border border-slate-200 space-y-2">
-          <RefreshCw className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
+        <div className="py-20 text-center text-xs text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+          <RefreshCw className="w-6 h-6 animate-spin mx-auto text-indigo-600 dark:text-indigo-400" />
           <p>Compiling specification report rows...</p>
         </div>
       ) : !data ? (
-        <div className="py-20 text-center text-xs text-slate-400 bg-white rounded-2xl border border-slate-200">
+        <div className="py-20 text-center text-xs text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
           No report records found for selected criteria.
         </div>
       ) : (
@@ -468,37 +468,37 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
               {/* Summary KPIs */}
               {data.summary && (
                 <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-                  <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-0.5">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase">Total Reviews</span>
-                    <div className="text-lg font-bold text-slate-900 font-mono">{data.summary.total}</div>
+                  <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-0.5">
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">Total Reviews</span>
+                    <div className="text-lg font-bold text-slate-900 dark:text-white font-mono">{data.summary.total}</div>
                   </div>
-                  <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-0.5">
-                    <span className="text-[10px] text-emerald-600 font-bold uppercase">Completed (Closed)</span>
-                    <div className="text-lg font-bold text-emerald-700 font-mono">{data.summary.completed}</div>
+                  <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-0.5">
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Completed (Closed)</span>
+                    <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400 font-mono">{data.summary.completed}</div>
                   </div>
-                  <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-0.5">
-                    <span className="text-[10px] text-amber-600 font-bold uppercase">Manager Pending</span>
-                    <div className="text-lg font-bold text-amber-700 font-mono">{data.summary.managerPending}</div>
+                  <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-0.5">
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase">Manager Pending</span>
+                    <div className="text-lg font-bold text-amber-700 dark:text-amber-400 font-mono">{data.summary.managerPending}</div>
                   </div>
-                  <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-0.5">
-                    <span className="text-[10px] text-purple-600 font-bold uppercase">HR Pending</span>
-                    <div className="text-lg font-bold text-purple-700 font-mono">{data.summary.hrPending}</div>
+                  <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-0.5">
+                    <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold uppercase">HR Pending</span>
+                    <div className="text-lg font-bold text-purple-700 dark:text-purple-400 font-mono">{data.summary.hrPending}</div>
                   </div>
-                  <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-0.5">
-                    <span className="text-[10px] text-rose-600 font-bold uppercase">Returned Reviews</span>
-                    <div className="text-lg font-bold text-rose-700 font-mono">{data.summary.returned}</div>
+                  <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-0.5">
+                    <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold uppercase">Returned Reviews</span>
+                    <div className="text-lg font-bold text-rose-700 dark:text-rose-400 font-mono">{data.summary.returned}</div>
                   </div>
-                  <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-0.5">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase">Avg Score</span>
-                    <div className="text-lg font-bold text-indigo-700 font-mono">{data.summary.averageScore} / 5.0</div>
+                  <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-0.5">
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">Avg Score</span>
+                    <div className="text-lg font-bold text-indigo-700 dark:text-indigo-400 font-mono">{data.summary.averageScore} / 5.0</div>
                   </div>
                 </div>
               )}
 
-              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                    <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
                       <tr>
                         <th className="px-4 py-3">Employee</th>
                         <th className="px-4 py-3">Department & Role</th>
@@ -509,46 +509,46 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
                         <th className="px-4 py-3 text-right">Final Score</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {data.reportData.map((row: any, idx: number) => (
-                        <tr key={row.id || row.reviewId || row.employeeId || idx} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="px-4 py-3 font-medium text-slate-900">
+                        <tr key={row.id || row.reviewId || row.employeeId || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                          <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
                             <div>{row.employeeName}</div>
-                            <span className="text-[10px] text-slate-400 font-mono">{row.employeeCode}</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{row.employeeCode}</span>
                           </td>
-                          <td className="px-4 py-3 text-slate-600">
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                             <div>{row.departmentName}</div>
-                            <span className="text-[10px] text-slate-400">{row.designationName}</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500">{row.designationName}</span>
                           </td>
-                          <td className="px-4 py-3 text-slate-700 font-medium">{row.managerName}</td>
+                          <td className="px-4 py-3 text-slate-700 dark:text-slate-200 font-medium">{row.managerName}</td>
                           <td className="px-4 py-3">
-                            <span className="px-2 py-0.5 bg-slate-100 text-slate-700 font-mono font-bold rounded">
+                            <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold rounded">
                               Cycle {row.cycleCode}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-slate-600">{row.periodName}</td>
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{row.periodName}</td>
                           <td className="px-4 py-3">
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                                 row.status === 'CLOSED'
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                                   : row.status === 'RETURNED'
-                                  ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                  ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
                                   : row.status === 'HR_PENDING'
-                                  ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                  : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
                               }`}
                             >
                               {row.status}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">
+                          <td className="px-4 py-3 text-right font-mono font-bold text-slate-900 dark:text-white">
                             {row.finalScore > 0 ? (
-                              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded font-semibold border border-indigo-200">
+                              <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded font-semibold border border-indigo-200 dark:border-indigo-800">
                                 {Number(row.finalScore).toFixed(2)}
                               </span>
                             ) : (
-                              <span className="text-slate-400">-</span>
+                              <span className="text-slate-400 dark:text-slate-500">-</span>
                             )}
                           </td>
                         </tr>
@@ -567,29 +567,29 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
             <div className="space-y-4">
               {data.summary && (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-1">
-                    <span className="text-xs text-slate-500 font-semibold">Total Pending Reviews</span>
-                    <div className="text-2xl font-bold text-slate-900 font-mono">{data.summary.totalPending}</div>
+                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Total Pending Reviews</span>
+                    <div className="text-2xl font-bold text-slate-900 dark:text-white font-mono">{data.summary.totalPending}</div>
                   </div>
-                  <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-1">
-                    <span className="text-xs text-amber-600 font-semibold">Pending with Manager</span>
-                    <div className="text-2xl font-bold text-amber-700 font-mono">{data.summary.managerPendingCount}</div>
+                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1">
+                    <span className="text-xs text-amber-600 dark:text-amber-400 font-semibold">Pending with Manager</span>
+                    <div className="text-2xl font-bold text-amber-700 dark:text-amber-400 font-mono">{data.summary.managerPendingCount}</div>
                   </div>
-                  <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-1">
-                    <span className="text-xs text-purple-600 font-semibold">Pending with HR Approval</span>
-                    <div className="text-2xl font-bold text-purple-700 font-mono">{data.summary.hrPendingCount}</div>
+                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1">
+                    <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold">Pending with HR Approval</span>
+                    <div className="text-2xl font-bold text-purple-700 dark:text-purple-400 font-mono">{data.summary.hrPendingCount}</div>
                   </div>
-                  <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-1">
-                    <span className="text-xs text-rose-600 font-semibold">Critical Overdue (&gt; 30 Days)</span>
-                    <div className="text-2xl font-bold text-rose-700 font-mono">{data.summary.criticalOverdueCount}</div>
+                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1">
+                    <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold">Critical Overdue (&gt; 30 Days)</span>
+                    <div className="text-2xl font-bold text-rose-700 dark:text-rose-400 font-mono">{data.summary.criticalOverdueCount}</div>
                   </div>
                 </div>
               )}
 
-              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                    <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
                       <tr>
                         <th className="px-4 py-3">Employee</th>
                         <th className="px-4 py-3">Department</th>
@@ -600,33 +600,33 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
                         <th className="px-4 py-3">Due Date</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {data.reportData.map((row: any, idx: number) => (
-                        <tr key={row.id || row.reviewId || row.employeeId || idx} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="px-4 py-3 font-medium text-slate-900">
+                        <tr key={row.id || row.reviewId || row.employeeId || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                          <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
                             <div>{row.employeeName}</div>
-                            <span className="text-[10px] text-slate-400 font-mono">{row.employeeCode}</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{row.employeeCode}</span>
                           </td>
-                          <td className="px-4 py-3 text-slate-600">{row.departmentName}</td>
-                          <td className="px-4 py-3 font-medium text-slate-800">{row.managerName}</td>
-                          <td className="px-4 py-3 font-semibold text-indigo-700">{row.pendingWith}</td>
+                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{row.departmentName}</td>
+                          <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{row.managerName}</td>
+                          <td className="px-4 py-3 font-semibold text-indigo-700 dark:text-indigo-400">{row.pendingWith}</td>
                           <td className="px-4 py-3 font-mono font-bold">
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] ${
                                 row.daysAging > 30
-                                  ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                  : 'bg-slate-100 text-slate-700'
+                                  ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                               }`}
                             >
                               {row.daysAging} Days
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                               {row.status}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-slate-500 font-mono">{row.dueDate}</td>
+                          <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-mono">{row.dueDate}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -640,10 +640,10 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           {/* 3. EMPLOYEE PERFORMANCE HISTORY REPORT */}
           {/* ========================================================================= */}
           {activeReport === 'employee-history' && data.reportData && (
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                  <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
                     <tr>
                       <th className="px-4 py-3">Employee</th>
                       <th className="px-4 py-3">Department & Role</th>
@@ -657,36 +657,36 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
                       <th className="px-4 py-3">Appraisal Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {data.reportData.map((row: any, idx: number) => (
-                      <tr key={row.employeeId || row.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="px-4 py-3 font-medium text-slate-900">
+                      <tr key={row.employeeId || row.id || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
                           <div>{row.employeeName}</div>
-                          <span className="text-[10px] text-slate-400 font-mono">{row.employeeCode}</span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{row.employeeCode}</span>
                         </td>
-                        <td className="px-4 py-3 text-slate-600">
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                           <div>{row.departmentName}</div>
-                          <span className="text-[10px] text-slate-400">{row.designationName}</span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500">{row.designationName}</span>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 font-mono font-bold rounded">
+                          <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold rounded">
                             Cycle {row.cycleCode}
                           </span>
                         </td>
-                        <td className="px-3 py-3 text-center font-mono font-medium">
+                        <td className="px-3 py-3 text-center font-mono font-medium text-slate-700 dark:text-slate-300">
                           {row.q1Score ? row.q1Score.toFixed(2) : '-'}
                         </td>
-                        <td className="px-3 py-3 text-center font-mono font-medium">
+                        <td className="px-3 py-3 text-center font-mono font-medium text-slate-700 dark:text-slate-300">
                           {row.q2Score ? row.q2Score.toFixed(2) : '-'}
                         </td>
-                        <td className="px-3 py-3 text-center font-mono font-medium">
+                        <td className="px-3 py-3 text-center font-mono font-medium text-slate-700 dark:text-slate-300">
                           {row.q3Score ? row.q3Score.toFixed(2) : '-'}
                         </td>
-                        <td className="px-3 py-3 text-center font-mono font-medium">
+                        <td className="px-3 py-3 text-center font-mono font-medium text-slate-700 dark:text-slate-300">
                           {row.q4Score ? row.q4Score.toFixed(2) : '-'}
                         </td>
-                        <td className="px-4 py-3 text-center font-mono font-bold text-slate-900">
-                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded font-semibold border border-indigo-200">
+                        <td className="px-4 py-3 text-center font-mono font-bold text-slate-900 dark:text-white">
+                          <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded font-semibold border border-indigo-200 dark:border-indigo-800">
                             {(row.averageQuarterlyScore ?? 0).toFixed(2)}
                           </span>
                         </td>
@@ -694,21 +694,21 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                               row.performanceBand === 'OUTSTANDING'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                                 : row.performanceBand === 'EXCEEDS'
-                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
                                 : row.performanceBand === 'MEETS'
-                                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                                : 'bg-slate-100 text-slate-700'
+                                ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                             }`}
                           >
                             {row.performanceBand}
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-semibold text-slate-700">
+                        <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
                           {row.latestAppraisalStatus}
                           {row.approvedIncrement && (
-                            <span className="ml-1.5 text-emerald-600 font-mono font-bold">
+                            <span className="ml-1.5 text-emerald-600 dark:text-emerald-400 font-mono font-bold">
                               (+{row.approvedIncrement}%)
                             </span>
                           )}
@@ -726,10 +726,10 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           {/* ========================================================================= */}
           {activeReport === 'department-performance' && data.reportData && (
             <div className="space-y-4">
-              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                    <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
                       <tr>
                         <th className="px-4 py-3">Department</th>
                         <th className="px-4 py-3">Headcount</th>
@@ -742,20 +742,20 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
                         <th className="px-4 py-3">Needs Imp (&lt;2.8)</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {data.reportData.map((row: any, idx: number) => (
-                        <tr key={row.departmentId || row.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="px-4 py-3 font-bold text-slate-900">{row.departmentName}</td>
-                          <td className="px-4 py-3 font-mono text-slate-700">{row.headcount} emp</td>
-                          <td className="px-4 py-3 font-mono text-slate-700">{row.totalReviews}</td>
-                          <td className="px-4 py-3 font-mono font-bold text-emerald-700">{row.completionRate}%</td>
-                          <td className="px-4 py-3 font-mono font-bold text-indigo-700 text-sm">
+                        <tr key={row.departmentId || row.id || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                          <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{row.departmentName}</td>
+                          <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{row.headcount} emp</td>
+                          <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{row.totalReviews}</td>
+                          <td className="px-4 py-3 font-mono font-bold text-emerald-700 dark:text-emerald-400">{row.completionRate}%</td>
+                          <td className="px-4 py-3 font-mono font-bold text-indigo-700 dark:text-indigo-400 text-sm">
                             {(row.averageScore ?? 0).toFixed(2)}
                           </td>
-                          <td className="px-4 py-3 font-mono text-emerald-600 font-bold">{row.outstandingCount}</td>
-                          <td className="px-4 py-3 font-mono text-blue-600 font-bold">{row.exceedsCount}</td>
-                          <td className="px-4 py-3 font-mono text-indigo-600 font-bold">{row.meetsCount}</td>
-                          <td className="px-4 py-3 font-mono text-amber-600 font-bold">{row.needsImpCount}</td>
+                          <td className="px-4 py-3 font-mono text-emerald-600 dark:text-emerald-400 font-bold">{row.outstandingCount}</td>
+                          <td className="px-4 py-3 font-mono text-blue-600 dark:text-blue-400 font-bold">{row.exceedsCount}</td>
+                          <td className="px-4 py-3 font-mono text-indigo-600 dark:text-indigo-400 font-bold">{row.meetsCount}</td>
+                          <td className="px-4 py-3 font-mono text-amber-600 dark:text-amber-400 font-bold">{row.needsImpCount}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -769,10 +769,10 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           {/* 5. MANAGER-WISE COMPLETION REPORT */}
           {/* ========================================================================= */}
           {activeReport === 'manager-completion' && data.reportData && (
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                  <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
                     <tr>
                       <th className="px-4 py-3">Manager</th>
                       <th className="px-4 py-3">Department</th>
@@ -785,28 +785,28 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
                       <th className="px-4 py-3 text-right">Avg Score Awarded</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {data.reportData.map((row: any, idx: number) => (
-                      <tr key={row.managerId || row.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="px-4 py-3 font-bold text-slate-900">{row.managerName}</td>
-                        <td className="px-4 py-3 text-slate-600">{row.departmentName}</td>
-                        <td className="px-4 py-3 font-mono text-slate-700">{row.totalAssigned}</td>
-                        <td className="px-4 py-3 font-mono text-emerald-700 font-bold">{row.submittedCount}</td>
-                        <td className="px-4 py-3 font-mono text-slate-700">{row.closedCount}</td>
-                        <td className="px-4 py-3 font-mono text-rose-600 font-bold">{row.returnedCount}</td>
-                        <td className="px-4 py-3 font-mono text-amber-600 font-bold">{row.overdueCount}</td>
+                      <tr key={row.managerId || row.id || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{row.managerName}</td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{row.departmentName}</td>
+                        <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{row.totalAssigned}</td>
+                        <td className="px-4 py-3 font-mono text-emerald-700 dark:text-emerald-400 font-bold">{row.submittedCount}</td>
+                        <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{row.closedCount}</td>
+                        <td className="px-4 py-3 font-mono text-rose-600 dark:text-rose-400 font-bold">{row.returnedCount}</td>
+                        <td className="px-4 py-3 font-mono text-amber-600 dark:text-amber-400 font-bold">{row.overdueCount}</td>
                         <td className="px-4 py-3 font-mono font-bold">
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] ${
                               row.completionRate >= 80
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
                             }`}
                           >
                             {row.completionRate}%
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right font-mono font-bold text-indigo-700">
+                        <td className="px-4 py-3 text-right font-mono font-bold text-indigo-700 dark:text-indigo-400">
                           {(row.avgScoreAwarded ?? 0).toFixed(2)}
                         </td>
                       </tr>
@@ -821,10 +821,10 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           {/* 6. 8-CYCLE APPRAISAL DUE REPORT */}
           {/* ========================================================================= */}
           {activeReport === 'appraisal-due' && data.reportData && (
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                  <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
                     <tr>
                       <th className="px-4 py-3">Employee</th>
                       <th className="px-4 py-3">Department & Role</th>
@@ -836,37 +836,37 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
                       <th className="px-4 py-3">Appraisal Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {data.reportData.map((row: any, idx: number) => (
-                      <tr key={row.employeeId || row.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="px-4 py-3 font-medium text-slate-900">
+                      <tr key={row.employeeId || row.id || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
                           <div>{row.employeeName}</div>
-                          <span className="text-[10px] text-slate-400 font-mono">{row.employeeCode}</span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{row.employeeCode}</span>
                         </td>
-                        <td className="px-4 py-3 text-slate-600">
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                           <div>{row.departmentName}</div>
-                          <span className="text-[10px] text-slate-400">{row.designationName}</span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500">{row.designationName}</span>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="font-bold text-slate-900">Cycle {row.cycleCode}</div>
-                          <span className="text-[10px] text-slate-500 font-medium">Month: {row.appraisalMonthName}</span>
+                          <div className="font-bold text-slate-900 dark:text-white">Cycle {row.cycleCode}</div>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Month: {row.appraisalMonthName}</span>
                         </td>
-                        <td className="px-4 py-3 font-mono font-bold text-slate-700">
+                        <td className="px-4 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">
                           ₹{(((row.currentCtc ?? 0) / 100000)).toFixed(2)}L
                         </td>
-                        <td className="px-4 py-3 font-mono font-bold text-indigo-700">
+                        <td className="px-4 py-3 font-mono font-bold text-indigo-700 dark:text-indigo-400">
                           {(row.averageQuarterlyScore ?? 0).toFixed(2)}
                         </td>
-                        <td className="px-4 py-3 font-mono font-bold text-amber-700">+{row.proposedIncrement ?? 0}%</td>
-                        <td className="px-4 py-3 font-mono font-bold text-emerald-700">
+                        <td className="px-4 py-3 font-mono font-bold text-amber-700 dark:text-amber-400">+{row.proposedIncrement ?? 0}%</td>
+                        <td className="px-4 py-3 font-mono font-bold text-emerald-700 dark:text-emerald-400">
                           ₹{(((row.revisedCtc ?? 0) / 100000)).toFixed(2)}L
                         </td>
                         <td className="px-4 py-3">
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                               row.isLocked
-                                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                                : 'bg-slate-100 text-slate-700'
+                                ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                             }`}
                           >
                             {row.appraisalStatus}
@@ -887,32 +887,32 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {data.trends.map((t: any, idx: number) => (
-                  <div key={t.quarter || idx} className="p-4 bg-white border border-slate-200 rounded-2xl shadow-2xs space-y-3">
+                  <div key={t.quarter || idx} className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-bold text-slate-900">{t.quarter}</h4>
-                      <span className="text-xs font-mono font-bold px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-200">
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">{t.quarter}</h4>
+                      <span className="text-xs font-mono font-bold px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded border border-indigo-200 dark:border-indigo-800">
                         {(t.averageScore ?? 0).toFixed(2)} / 5.0
                       </span>
                     </div>
 
-                    <div className="text-xs text-slate-500 font-mono">{t.totalReviews} Total Reviews Conducted</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">{t.totalReviews} Total Reviews Conducted</div>
 
-                    <div className="space-y-1.5 pt-2 border-t border-slate-100 text-[11px]">
+                    <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px]">
                       <div className="flex items-center justify-between">
-                        <span className="text-emerald-700 font-semibold">Outstanding (4.5+)</span>
-                        <strong className="font-mono text-slate-900">{t.distribution.outstanding}</strong>
+                        <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Outstanding (4.5+)</span>
+                        <strong className="font-mono text-slate-900 dark:text-white">{t.distribution.outstanding}</strong>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-blue-700 font-semibold">Exceeds (3.8-4.49)</span>
-                        <strong className="font-mono text-slate-900">{t.distribution.exceeds}</strong>
+                        <span className="text-blue-700 dark:text-blue-400 font-semibold">Exceeds (3.8-4.49)</span>
+                        <strong className="font-mono text-slate-900 dark:text-white">{t.distribution.exceeds}</strong>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-indigo-700 font-semibold">Meets (2.8-3.79)</span>
-                        <strong className="font-mono text-slate-900">{t.distribution.meets}</strong>
+                        <span className="text-indigo-700 dark:text-indigo-400 font-semibold">Meets (2.8-3.79)</span>
+                        <strong className="font-mono text-slate-900 dark:text-white">{t.distribution.meets}</strong>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-amber-700 font-semibold">Needs Improvement (&lt;2.8)</span>
-                        <strong className="font-mono text-slate-900">{t.distribution.needsImp}</strong>
+                        <span className="text-amber-700 dark:text-amber-400 font-semibold">Needs Improvement (&lt;2.8)</span>
+                        <strong className="font-mono text-slate-900 dark:text-white">{t.distribution.needsImp}</strong>
                       </div>
                     </div>
                   </div>
@@ -925,10 +925,10 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           {/* 8. KRA-WISE PERFORMANCE REPORT */}
           {/* ========================================================================= */}
           {activeReport === 'kra-performance' && data.reportData && (
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                  <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
                     <tr>
                       <th className="px-4 py-3">KRA Competency Title</th>
                       <th className="px-4 py-3">Occurrences in Reviews</th>
@@ -937,23 +937,23 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
                       <th className="px-4 py-3">Mastery Classification</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {data.reportData.map((row: any, idx: number) => (
-                      <tr key={row.kraName || row.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="px-4 py-3 font-bold text-slate-900">{row.kraName}</td>
-                        <td className="px-4 py-3 font-mono text-slate-700">{row.occurrencesCount} times</td>
-                        <td className="px-4 py-3 font-mono text-slate-700 font-medium">{row.averageWeightPercent}%</td>
-                        <td className="px-4 py-3 font-mono font-bold text-indigo-700 text-sm">
+                      <tr key={row.kraName || row.id || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{row.kraName}</td>
+                        <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{row.occurrencesCount} times</td>
+                        <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300 font-medium">{row.averageWeightPercent}%</td>
+                        <td className="px-4 py-3 font-mono font-bold text-indigo-700 dark:text-indigo-400 text-sm">
                           {(row.averageRating ?? 0).toFixed(2)} / 5.0
                         </td>
                         <td className="px-4 py-3">
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                               row.masteryLevel === 'HIGH_PROFICIENCY'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                                 : row.masteryLevel === 'COMPETENT'
-                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
                             }`}
                           >
                             {row.masteryLevel.replace('_', ' ')}
@@ -971,10 +971,10 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           {/* 9. SYSTEM COMPLIANCE AUDIT LOG EXPLORER */}
           {/* ========================================================================= */}
           {activeReport === 'audit-trail' && data.logs && (
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs space-y-2">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs space-y-2">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                  <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
                     <tr>
                       <th className="px-4 py-3">Timestamp</th>
                       <th className="px-4 py-3">Module</th>
@@ -984,30 +984,30 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
                       <th className="px-4 py-3">User</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[11px]">
                     {data.logs.map((log: any, idx: number) => (
-                      <tr key={log.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                      <tr key={log.id || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">
                           {new Date(log.createdAt).toLocaleString()}
                         </td>
                         <td className="px-4 py-3">
-                          <span className="px-2 py-0.5 bg-slate-100 text-slate-800 rounded font-bold">
+                          <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded font-bold">
                             {log.module}
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-bold text-indigo-700">{log.action}</td>
-                        <td className="px-4 py-3 text-slate-600">{log.recordId}</td>
-                        <td className="px-4 py-3 text-slate-700 font-sans max-w-sm truncate">
+                        <td className="px-4 py-3 font-bold text-indigo-700 dark:text-indigo-400">{log.action}</td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{log.recordId}</td>
+                        <td className="px-4 py-3 text-slate-700 dark:text-slate-200 font-sans max-w-sm truncate">
                           {log.oldValue || log.newValue ? (
                             <span>
                               {String(log.oldValue || '-')} <span className="text-slate-400 font-mono">→</span>{' '}
-                              <strong className="text-slate-900">{String(log.newValue || '-')}</strong>
+                              <strong className="text-slate-900 dark:text-white">{String(log.newValue || '-')}</strong>
                             </span>
                           ) : (
-                            <span className="text-slate-500">{log.action} executed successfully</span>
+                            <span className="text-slate-500 dark:text-slate-400">{log.action} executed successfully</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-slate-600">{log.userId || 'SYSTEM'}</td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{log.userId || 'SYSTEM'}</td>
                       </tr>
                     ))}
                   </tbody>

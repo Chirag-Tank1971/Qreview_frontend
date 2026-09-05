@@ -23,6 +23,8 @@ import {
   Download,
   FileSpreadsheet,
   Loader2,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import {
   Appraisal,
@@ -31,6 +33,7 @@ import {
   Department,
   Designation,
   User as AuthUser,
+  EmployeeStatus,
 } from '../types';
 import { api } from '../services/api';
 import { InitiateAppraisalModal } from './InitiateAppraisalModal';
@@ -67,6 +70,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
   initialConfig,
 }) => {
   const [activeSection, setActiveSection] = useState<'appraisals' | 'bellCurveAnalytics'>('appraisals');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [appraisals, setAppraisals] = useState<Appraisal[]>([]);
   const [stats, setStats] = useState<AppraisalSummaryStats | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -79,6 +83,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [onlyMine, setOnlyMine] = useState<boolean>(false);
+  const [hideInactive, setHideInactive] = useState<boolean>(false);
 
   // Modals
   const [isInitiateModalOpen, setIsInitiateModalOpen] = useState<boolean>(false);
@@ -136,8 +141,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
       setAppraisals(appraisalsRes);
       setStats(statsRes);
     } catch (err: any) {
-      console.error('Failed to load appraisals:', err);
-      setError(err.message || 'Failed to load annual appraisals');
+      setError(err.message || 'Failed to load appraisals data');
     } finally {
       setIsLoading(false);
     }
@@ -148,6 +152,39 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
   }, [selectedCycleId, selectedYear, selectedDepartmentId, selectedStatus, searchQuery, onlyMine]);
 
   const currencySymbol = '₹';
+
+  // Helper for employment status badge
+  const getEmployeeStatusBadge = (empStatus?: EmployeeStatus) => {
+    if (!empStatus || empStatus === 'ACTIVE') return null;
+    if (empStatus === 'INACTIVE') {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+          OFFBOARDED
+        </span>
+      );
+    }
+    if (empStatus === 'NOTICE') {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+          SERVING NOTICE
+        </span>
+      );
+    }
+    if (empStatus === 'PROBATION') {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+          PROBATION
+        </span>
+      );
+    }
+    return null;
+  };
+
+  // Filtered appraisals according to hideInactive
+  const displayedAppraisals = appraisals.filter((a) => {
+    if (hideInactive && a.employeeStatus === 'INACTIVE') return false;
+    return true;
+  });
 
   // Quick single PDF download helper
   const handleQuickDownloadPdf = async (appraisal: Appraisal, e: React.MouseEvent) => {
@@ -160,6 +197,52 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
       setSelectedAppraisalForLetter(appraisal);
     } finally {
       setDownloadingPdfId(null);
+    }
+  };
+
+  const getAppraisalStatusBadge = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200">
+            <AlertCircle className="w-3 h-3" />
+            <span>Pending Manager</span>
+          </span>
+        );
+      case 'MANAGER_RECOMMENDED':
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
+            <Sliders className="w-3 h-3" />
+            <span>Mgr Recommended</span>
+          </span>
+        );
+      case 'HOD_CALIBRATED':
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-purple-50 text-purple-700 border-purple-200">
+            <CheckCircle2 className="w-3 h-3" />
+            <span>HOD Calibrated</span>
+          </span>
+        );
+      case 'HR_APPROVED':
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
+            <CheckCircle2 className="w-3 h-3" />
+            <span>HR Approved</span>
+          </span>
+        );
+      case 'LOCKED':
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-slate-900 text-white border-slate-900">
+            <Lock className="w-3 h-3" />
+            <span>Locked & Released</span>
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-slate-100 text-slate-700 border-slate-200">
+            <span>{status}</span>
+          </span>
+        );
     }
   };
 
@@ -216,33 +299,33 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
       </div>
 
       {/* View Mode Toggle: Annual Appraisals vs Bell Curve Calibration & Budget Controls */}
-      <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 overflow-x-auto">
+      <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60 overflow-x-auto">
         <button
           onClick={() => setActiveSection('appraisals')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
             activeSection === 'appraisals'
-              ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-semibold'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-slate-700/80 font-semibold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
           }`}
         >
-          <Sliders className="w-3.5 h-3.5 text-indigo-600" />
+          <Sliders className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
           <span>Annual Appraisal & Increment Calibration List</span>
-          <span className="text-[10px] px-1.5 py-0.2 bg-slate-100 text-slate-700 rounded font-semibold">
+          <span className="text-[10px] px-1.5 py-0.2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded font-semibold">
             {appraisals.length} Records
           </span>
         </button>
 
         <button
           onClick={() => setActiveSection('bellCurveAnalytics')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
             activeSection === 'bellCurveAnalytics'
-              ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80 font-semibold'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-slate-700/80 font-semibold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
           }`}
         >
-          <BarChart3 className="w-3.5 h-3.5 text-purple-600" />
+          <BarChart3 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
           <span>Bell Curve Calibration, Budget Pools & Executive Analytics</span>
-          <span className="text-[10px] px-1.5 py-0.2 bg-purple-50 text-purple-700 rounded font-semibold border border-purple-200">
+          <span className="text-[10px] px-1.5 py-0.2 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 rounded font-semibold border border-purple-200 dark:border-purple-800">
             Analytics
           </span>
         </button>
@@ -260,103 +343,103 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
           {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
           {/* Total Appraisals */}
-          <div className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
-            <div className="flex items-center justify-between text-slate-500">
+          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
               <span className="text-[11px] font-semibold uppercase tracking-wider">Cohort Size</span>
-              <Users className="w-4 h-4 text-indigo-600" />
+              <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             </div>
-            <div className="text-2xl font-bold text-slate-900 font-mono">{stats.total}</div>
-            <div className="text-[11px] text-slate-500 flex items-center gap-1">
+            <div className="text-2xl font-bold text-slate-900 dark:text-white font-mono">{stats.total}</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
               <span>{stats.locked} Locked / Released</span>
             </div>
           </div>
 
           {/* Average 4-Quarter Score */}
-          <div className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
-            <div className="flex items-center justify-between text-slate-500">
+          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
               <span className="text-[11px] font-semibold uppercase tracking-wider">Avg 4-Qtr Score</span>
               <Award className="w-4 h-4 text-amber-500" />
             </div>
-            <div className="text-2xl font-bold text-slate-900 font-mono">{stats.averageScore.toFixed(2)}</div>
-            <div className="text-[11px] text-emerald-600 font-medium">Out of 5.00 composite scale</div>
+            <div className="text-2xl font-bold text-slate-900 dark:text-white font-mono">{stats.averageScore.toFixed(2)}</div>
+            <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Out of 5.00 composite scale</div>
           </div>
 
           {/* Average Increment % */}
-          <div className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
-            <div className="flex items-center justify-between text-slate-500">
+          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
               <span className="text-[11px] font-semibold uppercase tracking-wider">Avg Increment</span>
-              <TrendingUp className="w-4 h-4 text-emerald-600" />
+              <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <div className="text-2xl font-bold text-emerald-700 font-mono">+{stats.averageIncrement}%</div>
-            <div className="text-[11px] text-slate-500">Performance-calibrated avg</div>
+            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 font-mono">+{stats.averageIncrement}%</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400">Performance-calibrated avg</div>
           </div>
 
           {/* Total Budget Increment Impact */}
-          <div className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
-            <div className="flex items-center justify-between text-slate-500">
+          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
               <span className="text-[11px] font-semibold uppercase tracking-wider">Annual CTC Revision</span>
-              <DollarSign className="w-4 h-4 text-indigo-600" />
+              <DollarSign className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             </div>
-            <div className="text-xl font-bold text-slate-900 font-mono">
+            <div className="text-xl font-bold text-slate-900 dark:text-white font-mono">
               +{currencySymbol}{(stats.totalIncrementBudgetImpact / 100000).toFixed(2)}L
             </div>
-            <div className="text-[11px] text-slate-500">Total payroll impact</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400">Total payroll impact</div>
           </div>
 
           {/* Promotions */}
-          <div className="p-4 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1 col-span-2 lg:col-span-1">
-            <div className="flex items-center justify-between text-slate-500">
+          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1 col-span-2 lg:col-span-1">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
               <span className="text-[11px] font-semibold uppercase tracking-wider">Promotions</span>
-              <Briefcase className="w-4 h-4 text-purple-600" />
+              <Briefcase className="w-4 h-4 text-purple-600 dark:text-purple-400" />
             </div>
-            <div className="text-2xl font-bold text-purple-700 font-mono">{stats.promotionsCount}</div>
-            <div className="text-[11px] text-slate-500">Elevated to higher levels</div>
+            <div className="text-2xl font-bold text-purple-700 dark:text-purple-400 font-mono">{stats.promotionsCount}</div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400">Elevated to higher levels</div>
           </div>
         </div>
       )}
 
       {/* Standard Increment Matrix Reference Card */}
-      <div className="p-4 bg-slate-100/70 border border-slate-200 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs">
-        <div className="flex items-center gap-2 text-slate-700 font-semibold">
-          <Sliders className="w-4 h-4 text-indigo-600 shrink-0" />
+      <div className="p-4 bg-slate-100/70 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs">
+        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold">
+          <Sliders className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
           <span>8-Cycle Performance Increment Matrix Reference:</span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full md:w-auto">
-          <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg text-[11px]">
-            <span className="font-bold text-emerald-800">Outstanding (4.50+):</span>{' '}
-            <span className="text-emerald-700 font-mono font-semibold">15% - 20%</span>
+          <div className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg text-[11px]">
+            <span className="font-bold text-emerald-800 dark:text-emerald-300">Outstanding (4.50+):</span>{' '}
+            <span className="text-emerald-700 dark:text-emerald-400 font-mono font-semibold">15% - 20%</span>
           </div>
-          <div className="px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-[11px]">
-            <span className="font-bold text-blue-800">Exceeds (3.80 - 4.49):</span>{' '}
-            <span className="text-blue-700 font-mono font-semibold">10% - 14%</span>
+          <div className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg text-[11px]">
+            <span className="font-bold text-blue-800 dark:text-blue-300">Exceeds (3.80 - 4.49):</span>{' '}
+            <span className="text-blue-700 dark:text-blue-400 font-mono font-semibold">10% - 14%</span>
           </div>
-          <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-[11px]">
-            <span className="font-bold text-amber-800">Meets (2.80 - 3.79):</span>{' '}
-            <span className="text-amber-700 font-mono font-semibold">5% - 9%</span>
+          <div className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg text-[11px]">
+            <span className="font-bold text-amber-800 dark:text-amber-300">Meets (2.80 - 3.79):</span>{' '}
+            <span className="text-amber-700 dark:text-amber-400 font-mono font-semibold">5% - 9%</span>
           </div>
-          <div className="px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg text-[11px]">
-            <span className="font-bold text-red-800">Improvement (&lt;2.80):</span>{' '}
-            <span className="text-red-700 font-mono font-semibold">0% - 4%</span>
+          <div className="px-3 py-1.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-[11px]">
+            <span className="font-bold text-red-800 dark:text-red-300">Improvement (&lt;2.80):</span>{' '}
+            <span className="text-red-700 dark:text-red-400 font-mono font-semibold">0% - 4%</span>
           </div>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs space-y-3">
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Cycle Selector */}
           <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               Cycle (A - H)
             </label>
             <select
               value={selectedCycleId}
               onChange={(e) => setSelectedCycleId(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
             >
-              <option value="ALL">All 8 Cycles</option>
+              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All 8 Cycles</option>
               {cycles.map((c) => (
-                <option key={c.id} value={c.id}>
+                <option key={c.id} value={c.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                   {c.name} (Month {c.appraisalMonth})
                 </option>
               ))}
@@ -365,33 +448,33 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
 
           {/* Year Selector */}
           <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               Fiscal Year
             </label>
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
             >
-              <option value={2026}>2026 (Current)</option>
-              <option value={2025}>2025</option>
-              <option value={2027}>2027</option>
+              <option value={2026} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">2026 (Current)</option>
+              <option value={2025} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">2025</option>
+              <option value={2027} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">2027</option>
             </select>
           </div>
 
           {/* Department Selector */}
           <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               Department
             </label>
             <select
               value={selectedDepartmentId}
               onChange={(e) => setSelectedDepartmentId(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
             >
-              <option value="ALL">All Departments</option>
+              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Departments</option>
               {departments.map((d) => (
-                <option key={d.id} value={d.id}>
+                <option key={d.id} value={d.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                   {d.name}
                 </option>
               ))}
@@ -400,26 +483,26 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
 
           {/* Status Selector */}
           <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               Workflow Status
             </label>
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
             >
-              <option value="ALL">All Statuses</option>
-              <option value="PENDING">Pending Manager</option>
-              <option value="MANAGER_RECOMMENDED">Manager Recommended</option>
-              <option value="HOD_CALIBRATED">HOD Calibrated</option>
-              <option value="HR_APPROVED">HR Approved</option>
-              <option value="LOCKED">Locked & Released</option>
+              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Statuses</option>
+              <option value="PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Pending Manager</option>
+              <option value="MANAGER_RECOMMENDED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Manager Recommended</option>
+              <option value="HOD_CALIBRATED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HOD Calibrated</option>
+              <option value="HR_APPROVED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR Approved</option>
+              <option value="LOCKED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Locked & Released</option>
             </select>
           </div>
 
           {/* Search Box */}
           <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
               Search Employee
             </label>
             <div className="relative">
@@ -429,7 +512,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Name, code, title..."
-                className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               />
             </div>
           </div>
@@ -437,7 +520,63 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
       </div>
 
       {/* Appraisals Data List */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs overflow-hidden">
+        {/* Header with Title, Count, and View Mode Switcher */}
+        <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-850/50">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+              Appraisal Candidates & Compensation Records
+            </h3>
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+              {displayedAppraisals.length} {displayedAppraisals.length === 1 ? 'Record' : 'Records'}
+              {hideInactive && ` (${appraisals.length - displayedAppraisals.length} inactive hidden)`}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Quick Hide Inactive Toggle */}
+            <button
+              type="button"
+              onClick={() => setHideInactive(!hideInactive)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                hideInactive
+                  ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800 shadow-2xs font-bold'
+                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Hide Inactive</span>
+            </button>
+            {/* View Mode Switcher (Cards vs Table) */}
+            <div className="flex items-center gap-1 bg-slate-200/70 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setViewMode('cards')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'cards'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-2xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Cards</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'table'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-2xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+                <span>Table</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         {isLoading ? (
           <div className="py-20 text-center space-y-3">
             <RefreshCw className="w-7 h-7 animate-spin text-indigo-600 mx-auto" />
@@ -463,11 +602,232 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
               </button>
             )}
           </div>
+        ) : viewMode === 'cards' ? (
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/50 dark:bg-slate-900/50">
+            {displayedAppraisals.map((appr) => {
+              const incPct = appr.approvedIncrementPercentage || appr.proposedIncrementPercentage || appr.recommendedIncrementPercentage || 10;
+              const currentCtc = appr.currentCtc || 1800000;
+              const revisedCtc = appr.revisedCtc || currentCtc + Math.round((currentCtc * incPct) / 100);
+              const isEligibleForLetter = appr.status === 'HR_APPROVED' || appr.status === 'LOCKED' || appr.isLocked;
+              const isPendingMyAction =
+                (currentUser?.role === 'HOD' && appr.status === 'MANAGER_RECOMMENDED') ||
+                (currentUser?.role === 'MANAGER' && appr.status === 'PENDING') ||
+                (['SUPER_ADMIN', 'HR'].includes(currentUser?.role || '') && appr.status === 'HOD_CALIBRATED');
+
+              return (
+                <div
+                  key={appr.id}
+                  onClick={() => setSelectedAppraisalForDetail(appr)}
+                  className={`bg-white dark:bg-slate-900 rounded-2xl border p-5 shadow-2xs hover:shadow-md transition-all duration-150 cursor-pointer flex flex-col justify-between space-y-4 group ${
+                    isPendingMyAction ? 'border-indigo-300 dark:border-indigo-500/50 ring-2 ring-indigo-500/10 dark:ring-indigo-500/20' : 'border-slate-200/90 dark:border-slate-800'
+                  }`}
+                >
+                  {/* Top: Identity & Status */}
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-xs shrink-0"
+                          style={{ backgroundColor: appr.cycleColor || '#4f46e5' }}
+                        >
+                          {appr.employeeName.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                              {appr.employeeName}
+                            </h4>
+                            {getEmployeeStatusBadge(appr.employeeStatus)}
+                            {appr.promoted && (
+                              <span className="text-[10px] px-1.5 py-0.2 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded font-bold uppercase tracking-wider flex items-center gap-0.5">
+                                <Briefcase className="w-2.5 h-2.5" /> Promoted
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                            {appr.employeeCode} • {appr.designationName}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="shrink-0">{getAppraisalStatusBadge(appr.status)}</span>
+                    </div>
+
+                    {/* Department & Cycle Info */}
+                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+                      <span className="flex items-center gap-1 truncate max-w-[140px]">
+                        <Building2 className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+                        <span className="truncate">{appr.departmentName}</span>
+                      </span>
+                      <span
+                        className="text-[11px] px-2 py-0.5 rounded-full font-semibold border inline-flex items-center gap-1 font-mono"
+                        style={{
+                          backgroundColor: `${appr.cycleColor || '#4f46e5'}15`,
+                          color: appr.cycleColor || '#4f46e5',
+                          borderColor: `${appr.cycleColor || '#4f46e5'}30`,
+                        }}
+                      >
+                        <span>{appr.cycleName}</span>
+                        <span className="text-[9px] opacity-75">(M{appr.appraisalMonth})</span>
+                      </span>
+                    </div>
+
+                    {/* Performance & Score Box */}
+                    <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3.5 border border-slate-100 dark:border-slate-800 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider block">
+                            4-Qtr Rolling Score
+                          </span>
+                          <div className="flex items-baseline gap-1 mt-0.5">
+                            <span className="text-lg font-bold text-slate-900 dark:text-white font-mono">
+                              {appr.averageQuarterlyScore.toFixed(2)}
+                            </span>
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500">/ 5.00</span>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider block">
+                            Rating Band
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md border inline-block mt-0.5 ${
+                              appr.averageQuarterlyScore >= 4.5
+                                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                : appr.averageQuarterlyScore >= 3.8
+                                ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                                : appr.averageQuarterlyScore >= 2.8
+                                ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
+                            }`}
+                          >
+                            {(appr.finalRating || appr.recommendedRating).replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Score bar */}
+                      <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className={`h-1.5 rounded-full transition-all duration-300 ${
+                            appr.averageQuarterlyScore >= 4.5
+                              ? 'bg-emerald-500'
+                              : appr.averageQuarterlyScore >= 3.8
+                              ? 'bg-blue-500'
+                              : appr.averageQuarterlyScore >= 2.8
+                              ? 'bg-amber-500'
+                              : 'bg-red-500'
+                          }`}
+                          style={{ width: `${Math.min(100, (appr.averageQuarterlyScore / 5) * 100)}%` }}
+                        />
+                      </div>
+
+                      {/* Compensation revision row */}
+                      <div className="pt-2 border-t border-slate-200/70 dark:border-slate-700/60 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium block">Revised CTC</span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-xs text-slate-400 dark:text-slate-500 font-mono line-through">
+                              {currencySymbol}{(currentCtc / 100000).toFixed(2)}L
+                            </span>
+                            <span className="text-xs font-bold text-slate-900 dark:text-white font-mono">
+                              → {currencySymbol}{(revisedCtc / 100000).toFixed(2)}L
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium block">Increment</span>
+                          <div className="flex items-center justify-end gap-1 mt-0.5">
+                            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800 font-mono">
+                              +{incPct.toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Quarters Pills (if available) */}
+                      {appr.quarterlyHistory && appr.quarterlyHistory.length > 0 && (
+                        <div className="pt-1.5 border-t border-slate-200/50 dark:border-slate-700/60 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                          <span className="text-[9px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-semibold">4-Qtr Breakdown:</span>
+                          <div className="flex items-center gap-1 font-mono">
+                            {appr.quarterlyHistory.map((q, idx) => (
+                              <span
+                                key={idx}
+                                className="px-1.5 py-0.2 rounded bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 font-semibold text-[10px]"
+                                title={`${q.quarterName || `Q${idx + 1}`}: ${q.score ? q.score.toFixed(2) : '--'}`}
+                              >
+                                {q.quarterName ? q.quarterName.slice(-2) : `Q${idx + 1}`}:{q.score ? q.score.toFixed(1) : '--'}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions Bar */}
+                  <div className="pt-1 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1">
+                      {isEligibleForLetter && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={downloadingPdfId === appr.id}
+                            onClick={(e) => handleQuickDownloadPdf(appr, e)}
+                            className="p-2 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl transition-colors cursor-pointer"
+                            title="Download Official PDF Letter"
+                          >
+                            {downloadingPdfId === appr.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-indigo-600 dark:text-indigo-400" />
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setSelectedAppraisalForLetter(appr)}
+                            className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800 rounded-xl transition-colors cursor-pointer"
+                            title="View Appraisal Letterhead Document"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAppraisalForDetail(appr)}
+                      className={`flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                        isPendingMyAction
+                          ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <Sliders className="w-3.5 h-3.5" />
+                      <span>
+                        {currentUser?.role === 'HOD' && appr.status === 'MANAGER_RECOMMENDED'
+                          ? 'Calibrate Compensation'
+                          : currentUser?.role === 'MANAGER' && appr.status === 'PENDING'
+                          ? 'Recommend Increment'
+                          : ['SUPER_ADMIN', 'HR'].includes(currentUser?.role || '') && appr.status === 'HOD_CALIBRATED'
+                          ? 'Review & Approve'
+                          : 'View & Calibrate'}
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold">
+                <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold">
                   <th className="py-3.5 px-4">Employee</th>
                   <th className="py-3.5 px-3">8-Cycle</th>
                   <th className="py-3.5 px-3 text-center">4-Qtr Rolling Score</th>
@@ -479,8 +839,8 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {appraisals.map((appr) => {
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                {displayedAppraisals.map((appr) => {
                   const incPct = appr.approvedIncrementPercentage || appr.proposedIncrementPercentage || 12;
                   const currentCtc = appr.currentCtc || 1800000;
                   const revisedCtc = appr.revisedCtc || currentCtc + Math.round((currentCtc * incPct) / 100);
@@ -489,21 +849,24 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                   return (
                     <tr
                       key={appr.id}
-                      className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors group cursor-pointer"
                       onClick={() => setSelectedAppraisalForDetail(appr)}
                     >
                       {/* Employee */}
                       <td className="py-3.5 px-4">
                         <div className="space-y-0.5">
-                          <div className="font-bold text-slate-900 text-xs group-hover:text-indigo-600 transition-colors">
-                            {appr.employeeName}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-slate-900 dark:text-white text-xs group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                              {appr.employeeName}
+                            </span>
+                            {getEmployeeStatusBadge(appr.employeeStatus)}
                           </div>
-                          <div className="text-[11px] text-slate-500 flex items-center gap-1.5 font-mono">
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-mono">
                             <span>{appr.employeeCode}</span>
                             <span>•</span>
                             <span>{appr.designationName}</span>
                           </div>
-                          <div className="text-[10px] text-slate-400">{appr.departmentName}</div>
+                          <div className="text-[10px] text-slate-400 dark:text-slate-500">{appr.departmentName}</div>
                         </div>
                       </td>
 
@@ -524,10 +887,10 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                       {/* 4-Quarter Rolling Score */}
                       <td className="py-3.5 px-3 text-center">
                         <div className="inline-flex flex-col items-center">
-                          <span className="font-mono font-bold text-sm text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                          <span className="font-mono font-bold text-sm text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
                             {appr.averageQuarterlyScore.toFixed(2)}
                           </span>
-                          <span className="text-[10px] text-slate-400 mt-0.5">
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
                             {appr.quarterlyHistory?.length || 4} Quarters
                           </span>
                         </div>
@@ -539,18 +902,18 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                           <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-md border inline-block ${
                               appr.averageQuarterlyScore >= 4.5
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                                 : appr.averageQuarterlyScore >= 3.8
-                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
                                 : appr.averageQuarterlyScore >= 2.8
-                                ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                : 'bg-red-50 text-red-700 border-red-200'
+                                ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
                             }`}
                           >
                             {(appr.finalRating || appr.recommendedRating).replace(/_/g, ' ')}
                           </span>
                           {appr.promotionRecommended && (
-                            <div className="text-[10px] font-semibold text-amber-700 flex items-center gap-1">
+                            <div className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-1">
                               <Award className="w-3 h-3 text-amber-500" />
                               <span>Promoted</span>
                             </div>
@@ -559,47 +922,25 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                       </td>
 
                       {/* Current CTC */}
-                      <td className="py-3.5 px-3 text-right font-mono text-slate-600">
+                      <td className="py-3.5 px-3 text-right font-mono text-slate-600 dark:text-slate-300">
                         {appr.currency || '₹'}{currentCtc.toLocaleString()}
                       </td>
 
                       {/* Increment % */}
                       <td className="py-3.5 px-3 text-right">
-                        <span className="font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-100 dark:border-emerald-800">
                           +{incPct.toFixed(1)}%
                         </span>
                       </td>
 
                       {/* Revised CTC */}
-                      <td className="py-3.5 px-3 text-right font-mono font-bold text-slate-900">
+                      <td className="py-3.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-white">
                         {appr.currency || '₹'}{revisedCtc.toLocaleString()}
                       </td>
 
                       {/* Workflow Stage */}
                       <td className="py-3.5 px-3 text-center">
-                        <span
-                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border inline-block ${
-                            appr.status === 'LOCKED'
-                              ? 'bg-slate-900 text-white border-slate-900'
-                              : appr.status === 'HR_APPROVED'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : appr.status === 'HOD_CALIBRATED'
-                              ? 'bg-purple-50 text-purple-700 border-purple-200'
-                              : appr.status === 'MANAGER_RECOMMENDED'
-                              ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-slate-100 text-slate-700 border-slate-200'
-                          }`}
-                        >
-                          {appr.status === 'PENDING'
-                            ? 'Pending Manager'
-                            : appr.status === 'MANAGER_RECOMMENDED'
-                            ? 'Mgr Recommended'
-                            : appr.status === 'HOD_CALIBRATED'
-                            ? 'HOD Calibrated'
-                            : appr.status === 'HR_APPROVED'
-                            ? 'HR Approved'
-                            : 'Locked'}
-                        </span>
+                        {getAppraisalStatusBadge(appr.status)}
                       </td>
 
                       {/* Action */}
@@ -612,11 +953,11 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                                 type="button"
                                 disabled={downloadingPdfId === appr.id}
                                 onClick={(e) => handleQuickDownloadPdf(appr, e)}
-                                className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
                                 title="Download Official PDF Letter (.pdf)"
                               >
                                 {downloadingPdfId === appr.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                                  <Loader2 className="w-4 h-4 animate-spin text-indigo-600 dark:text-indigo-400" />
                                 ) : (
                                   <Download className="w-4 h-4" />
                                 )}
@@ -626,7 +967,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                               <button
                                 type="button"
                                 onClick={() => setSelectedAppraisalForLetter(appr)}
-                                className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition-colors"
                                 title="View Appraisal Letterhead Document"
                               >
                                 <FileText className="w-4 h-4" />
@@ -637,7 +978,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                           <button
                             type="button"
                             onClick={() => setSelectedAppraisalForDetail(appr)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
                           >
                             <span>Calibrate</span>
                             <ChevronRight className="w-3.5 h-3.5" />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Printer,
@@ -40,13 +41,18 @@ export const AppraisalLetterModal: React.FC<AppraisalLetterModalProps> = ({ appr
   const [showDetailedBreakdown, setShowDetailedBreakdown] = useState<boolean>(true);
 
   useEffect(() => {
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = origOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [onClose]);
 
   useEffect(() => {
@@ -176,16 +182,16 @@ export const AppraisalLetterModal: React.FC<AppraisalLetterModalProps> = ({ appr
   const letterDate = letterData?.date || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const effDate = appraisal.effectiveDate || `${appraisal.appraisalYear || '2026'}-10-01`;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 print:p-0 print:bg-white"
+      className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-950/70 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 print:p-0 print:bg-white"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose();
         }
       }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-200 print:border-none print:shadow-none print:max-w-none my-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 print:border-none print:shadow-none print:max-w-none my-auto">
         {/* Modal Toolbar (hidden in print) - sticky */}
         <div className="sticky top-0 z-10 px-6 py-3.5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 print:hidden shadow-md">
           <div className="flex items-center gap-2">
@@ -526,6 +532,7 @@ export const AppraisalLetterModal: React.FC<AppraisalLetterModalProps> = ({ appr
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

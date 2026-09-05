@@ -25,6 +25,9 @@ import {
   AiGrowthPlanResult,
   AiTalentInsightsRequest,
   AiTalentInsightsResult,
+  CreateEmployeePayload,
+  CreateEmployeeResponse,
+  UpdateEmployeePayload,
 } from '../types';
 
 // Point directly to backend port 3000 if running locally or use VITE_API_BASE_URL
@@ -40,6 +43,78 @@ function getAuthHeaders(): HeadersInit {
   };
 }
 
+interface CacheEntry<T> {
+  data: T;
+  expiresAt: number;
+}
+
+const memoryCache = new Map<string, CacheEntry<any>>();
+const inFlightRequests = new Map<string, Promise<any>>();
+
+export function invalidateApiCache(pattern?: string) {
+  if (!pattern) {
+    memoryCache.clear();
+    return;
+  }
+  for (const key of Array.from(memoryCache.keys())) {
+    if (key.includes(pattern)) {
+      memoryCache.delete(key);
+    }
+  }
+}
+
+async function requestWithDedupeAndCache<T>(
+  url: string,
+  options?: RequestInit,
+  cacheTtlMs: number = 0
+): Promise<T> {
+  const method = (options?.method || 'GET').toUpperCase();
+
+  if (method !== 'GET') {
+    const res = await fetch(url, options);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(err.error || `Request failed (${res.status})`);
+    }
+    return res.json();
+  }
+
+  const now = Date.now();
+  const cacheKey = url;
+
+  if (cacheTtlMs > 0 && memoryCache.has(cacheKey)) {
+    const cached = memoryCache.get(cacheKey)!;
+    if (cached.expiresAt > now) {
+      return cached.data;
+    }
+    memoryCache.delete(cacheKey);
+  }
+
+  if (inFlightRequests.has(cacheKey)) {
+    return inFlightRequests.get(cacheKey)!;
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      const res = await fetch(url, options);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+        throw new Error(err.error || `Request failed (${res.status})`);
+      }
+      const data = await res.json();
+      if (cacheTtlMs > 0) {
+        memoryCache.set(cacheKey, { data, expiresAt: Date.now() + cacheTtlMs });
+      }
+      return data;
+    } finally {
+      inFlightRequests.delete(cacheKey);
+    }
+  })();
+
+  inFlightRequests.set(cacheKey, fetchPromise);
+  return fetchPromise;
+}
+
 export const api = {
   // Auth & Session
   async login(email: string, password: string) {
@@ -50,7 +125,13 @@ export const api = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Authentication failed' }));
-      throw new Error(err.error || 'Login failed');
+      let msg = err.error || 'Login failed';
+      if (typeof err.remainingAttempts === 'number') {
+        msg += err.remainingAttempts === 0
+          ? ' Your account is now locked. Please try again in 15 minutes.'
+          : ` ${err.remainingAttempts} attempt${err.remainingAttempts !== 1 ? 's' : ''} remaining before lockout.`;
+      }
+      throw new Error(msg);
     }
     return res.json();
   },
@@ -96,6 +177,31 @@ export const api = {
     localStorage.removeItem('review_app_token');
   },
 
+  async refreshToken(): Promise<{ token: string; user: User; employeeProfile?: Employee; permissions: string[] }> {
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Token refresh failed' }));
+      throw new Error(err.error || 'Failed to refresh token');
+    }
+    return res.json();
+  },
+
+  async changePassword(newPassword: string, confirmPassword: string): Promise<{ success: boolean; user: User; token: string }> {
+    const res = await fetch(`${API_BASE}/auth/change-password`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ newPassword, confirmPassword }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Password change failed' }));
+      throw new Error(err.error || 'Failed to change password');
+    }
+    return res.json();
+  },
+
   async getDbStatus(): Promise<DbStatus> {
     const res = await fetch(`${API_BASE}/system/db-status`);
     if (!res.ok) throw new Error('Failed to fetch DB status');
@@ -110,22 +216,23 @@ export const api = {
     if (params?.status) query.append('status', params.status);
     if (params?.search) query.append('search', params.search);
 
-    const res = await fetch(`${API_BASE}/employees?${query.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch employee records');
-    return res.json();
+    return requestWithDedupeAndCache<Employee[]>(
+      `${API_BASE}/employees?${query.toString()}`,
+      { headers: getAuthHeaders() },
+      60000 // 60s cache
+    );
   },
 
   async getEmployeeById(id: string): Promise<Employee> {
-    const res = await fetch(`${API_BASE}/employees/${id}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch employee');
-    return res.json();
+    return requestWithDedupeAndCache<Employee>(
+      `${API_BASE}/employees/${id}`,
+      { headers: getAuthHeaders() },
+      60000
+    );
   },
 
-  async createEmployee(data: Partial<Employee>): Promise<Employee> {
+  async createEmployee(data: CreateEmployeePayload): Promise<CreateEmployeeResponse> {
+    invalidateApiCache('/employees');
     const res = await fetch(`${API_BASE}/employees`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -138,7 +245,8 @@ export const api = {
     return res.json();
   },
 
-  async updateEmployee(id: string, data: Partial<Employee>): Promise<Employee> {
+  async updateEmployee(id: string, data: UpdateEmployeePayload): Promise<Employee> {
+    invalidateApiCache('/employees');
     const res = await fetch(`${API_BASE}/employees/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
@@ -153,14 +261,15 @@ export const api = {
 
   // Departments API
   async getDepartments(): Promise<Department[]> {
-    const res = await fetch(`${API_BASE}/departments`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch departments');
-    return res.json();
+    return requestWithDedupeAndCache<Department[]>(
+      `${API_BASE}/departments`,
+      { headers: getAuthHeaders() },
+      180000 // 3 min cache
+    );
   },
 
   async createDepartment(data: { name: string; code: string; hodId?: string; hodName?: string }): Promise<Department> {
+    invalidateApiCache('/departments');
     const res = await fetch(`${API_BASE}/departments`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -174,6 +283,7 @@ export const api = {
   },
 
   async updateDepartment(id: string, data: Partial<Department>): Promise<Department> {
+    invalidateApiCache('/departments');
     const res = await fetch(`${API_BASE}/departments/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
@@ -188,14 +298,15 @@ export const api = {
 
   // Designations API
   async getDesignations(): Promise<Designation[]> {
-    const res = await fetch(`${API_BASE}/designations`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch designations');
-    return res.json();
+    return requestWithDedupeAndCache<Designation[]>(
+      `${API_BASE}/designations`,
+      { headers: getAuthHeaders() },
+      180000 // 3 min cache
+    );
   },
 
   async createDesignation(data: { name: string; departmentId: string; level: number }): Promise<Designation> {
+    invalidateApiCache('/designations');
     const res = await fetch(`${API_BASE}/designations`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -210,14 +321,15 @@ export const api = {
 
   // Cycles API
   async getCycles(): Promise<Cycle[]> {
-    const res = await fetch(`${API_BASE}/cycles`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch cycles');
-    return res.json();
+    return requestWithDedupeAndCache<Cycle[]>(
+      `${API_BASE}/cycles`,
+      { headers: getAuthHeaders() },
+      180000 // 3 min cache
+    );
   },
 
   async updateCycle(id: string, data: Partial<Cycle>): Promise<Cycle> {
+    invalidateApiCache('/cycles');
     const res = await fetch(`${API_BASE}/cycles/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
@@ -236,14 +348,15 @@ export const api = {
     if (params?.departmentId) query.append('departmentId', params.departmentId);
     if (params?.search) query.append('search', params.search);
 
-    const res = await fetch(`${API_BASE}/kras?${query.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch KRA library items');
-    return res.json();
+    return requestWithDedupeAndCache<Kra[]>(
+      `${API_BASE}/kras?${query.toString()}`,
+      { headers: getAuthHeaders() },
+      180000 // 3 min cache
+    );
   },
 
   async createKra(data: Partial<Kra>): Promise<Kra> {
+    invalidateApiCache('/kras');
     const res = await fetch(`${API_BASE}/kras`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -257,6 +370,7 @@ export const api = {
   },
 
   async updateKra(id: string, data: Partial<Kra>): Promise<Kra> {
+    invalidateApiCache('/kras');
     const res = await fetch(`${API_BASE}/kras/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
@@ -276,22 +390,23 @@ export const api = {
     if (params?.designationId) query.append('designationId', params.designationId);
     if (params?.search) query.append('search', params.search);
 
-    const res = await fetch(`${API_BASE}/kra-templates?${query.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch KRA templates');
-    return res.json();
+    return requestWithDedupeAndCache<KraTemplate[]>(
+      `${API_BASE}/kra-templates?${query.toString()}`,
+      { headers: getAuthHeaders() },
+      180000 // 3 min cache
+    );
   },
 
   async getKraTemplateById(id: string): Promise<KraTemplate> {
-    const res = await fetch(`${API_BASE}/kra-templates/${id}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch KRA template');
-    return res.json();
+    return requestWithDedupeAndCache<KraTemplate>(
+      `${API_BASE}/kra-templates/${id}`,
+      { headers: getAuthHeaders() },
+      180000
+    );
   },
 
   async createKraTemplate(data: Partial<KraTemplate>): Promise<KraTemplate> {
+    invalidateApiCache('/kra-templates');
     const res = await fetch(`${API_BASE}/kra-templates`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -305,6 +420,7 @@ export const api = {
   },
 
   async updateKraTemplate(id: string, data: Partial<KraTemplate>): Promise<KraTemplate> {
+    invalidateApiCache('/kra-templates');
     const res = await fetch(`${API_BASE}/kra-templates/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
@@ -322,14 +438,15 @@ export const api = {
   // ==========================================
 
   async getReviewPeriods(): Promise<ReviewPeriod[]> {
-    const res = await fetch(`${API_BASE}/review-periods`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch review periods');
-    return res.json();
+    return requestWithDedupeAndCache<ReviewPeriod[]>(
+      `${API_BASE}/review-periods`,
+      { headers: getAuthHeaders() },
+      120000 // 2 min cache
+    );
   },
 
   async createReviewPeriod(data: Partial<ReviewPeriod>): Promise<ReviewPeriod> {
+    invalidateApiCache('/review-periods');
     const res = await fetch(`${API_BASE}/review-periods`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -343,6 +460,7 @@ export const api = {
   },
 
   async updateReviewPeriod(id: string, data: Partial<ReviewPeriod>): Promise<ReviewPeriod> {
+    invalidateApiCache('/review-periods');
     const res = await fetch(`${API_BASE}/review-periods/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
@@ -373,19 +491,19 @@ export const api = {
     if (params?.search) query.append('search', params.search);
     if (params?.onlyMine) query.append('onlyMine', 'true');
 
-    const res = await fetch(`${API_BASE}/reviews?${query.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch reviews');
-    return res.json();
+    return requestWithDedupeAndCache<EmployeeReview[]>(
+      `${API_BASE}/reviews?${query.toString()}`,
+      { headers: getAuthHeaders() },
+      0 // In-flight request deduplication without stale data risk
+    );
   },
 
   async getReviewById(id: string): Promise<EmployeeReview> {
-    const res = await fetch(`${API_BASE}/reviews/${id}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch review');
-    return res.json();
+    return requestWithDedupeAndCache<EmployeeReview>(
+      `${API_BASE}/reviews/${id}`,
+      { headers: getAuthHeaders() },
+      0
+    );
   },
 
   async getReviewStats(params?: { periodId?: string; departmentId?: string }): Promise<ReviewSummaryStats> {
@@ -393,11 +511,11 @@ export const api = {
     if (params?.periodId) query.append('periodId', params.periodId);
     if (params?.departmentId) query.append('departmentId', params.departmentId);
 
-    const res = await fetch(`${API_BASE}/reviews/stats?${query.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch review stats');
-    return res.json();
+    return requestWithDedupeAndCache<ReviewSummaryStats>(
+      `${API_BASE}/reviews/stats?${query.toString()}`,
+      { headers: getAuthHeaders() },
+      0
+    );
   },
 
   async generateBatchReviews(data: {
@@ -430,6 +548,9 @@ export const api = {
       isDraft?: boolean;
     }
   ): Promise<EmployeeReview> {
+    invalidateApiCache('/reviews');
+    invalidateApiCache('/notifications');
+    invalidateApiCache('/ess');
     const res = await fetch(`${API_BASE}/reviews/${id}/score`, {
       method: 'PUT',
       headers: getAuthHeaders(),
@@ -449,6 +570,9 @@ export const api = {
       remarks?: string;
     }
   ): Promise<EmployeeReview> {
+    invalidateApiCache('/reviews');
+    invalidateApiCache('/notifications');
+    invalidateApiCache('/ess');
     const res = await fetch(`${API_BASE}/reviews/${id}/status`, {
       method: 'PUT',
       headers: getAuthHeaders(),
@@ -482,19 +606,19 @@ export const api = {
     if (params?.onlyMine) query.append('onlyMine', 'true');
     if (params?.managerId) query.append('managerId', params.managerId);
 
-    const res = await fetch(`${API_BASE}/appraisals?${query.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch appraisals');
-    return res.json();
+    return requestWithDedupeAndCache<Appraisal[]>(
+      `${API_BASE}/appraisals?${query.toString()}`,
+      { headers: getAuthHeaders() },
+      0 // In-flight request deduplication
+    );
   },
 
   async getAppraisal(id: string): Promise<Appraisal> {
-    const res = await fetch(`${API_BASE}/appraisals/${id}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch appraisal details');
-    return res.json();
+    return requestWithDedupeAndCache<Appraisal>(
+      `${API_BASE}/appraisals/${id}`,
+      { headers: getAuthHeaders() },
+      0
+    );
   },
 
   async getAppraisalStats(params?: { cycleId?: string; year?: number; departmentId?: string }): Promise<AppraisalSummaryStats> {
@@ -503,11 +627,11 @@ export const api = {
     if (params?.year) query.append('year', params.year.toString());
     if (params?.departmentId) query.append('departmentId', params.departmentId);
 
-    const res = await fetch(`${API_BASE}/appraisals/stats?${query.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch appraisal stats');
-    return res.json();
+    return requestWithDedupeAndCache<AppraisalSummaryStats>(
+      `${API_BASE}/appraisals/stats?${query.toString()}`,
+      { headers: getAuthHeaders() },
+      0
+    );
   },
 
   async initiateAppraisalCycle(data: {
@@ -515,6 +639,9 @@ export const api = {
     appraisalYear?: number;
     overrideExisting?: boolean;
   }): Promise<{ message: string; cycleName: string; createdCount: number; updatedCount: number; totalEligible: number }> {
+    invalidateApiCache('/appraisals');
+    invalidateApiCache('/notifications');
+    invalidateApiCache('/ess');
     const res = await fetch(`${API_BASE}/appraisals/initiate-cycle`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -606,6 +733,9 @@ export const api = {
   },
 
   async acknowledgeAppraisal(id: string, comments?: string): Promise<Appraisal> {
+    invalidateApiCache('/appraisals');
+    invalidateApiCache('/ess');
+    invalidateApiCache('/notifications');
     const res = await fetch(`${API_BASE}/appraisals/${id}/acknowledge`, {
       method: 'PUT',
       headers: getAuthHeaders(),
@@ -637,6 +767,9 @@ export const api = {
       isDraft?: boolean;
     }
   ): Promise<EmployeeReview> {
+    invalidateApiCache('/reviews');
+    invalidateApiCache('/ess');
+    invalidateApiCache('/notifications');
     const res = await fetch(`${API_BASE}/reviews/${reviewId}/self-assess`, {
       method: 'PUT',
       headers: getAuthHeaders(),
@@ -1169,4 +1302,6 @@ export const api = {
       throw new Error(err.message || 'Failed to generate talent insights');
     }
   },
+
+  clearCache: invalidateApiCache,
 };
