@@ -187,10 +187,11 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
           badgeLabel: 'Appraisal List',
           badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
           config: {
-            activeSection: meta.activeSection || 'appraisals',
-            status: meta.status || 'RECOMMENDED',
-            cycleId: meta.cycleId || 'cycle_f',
+            activeSection: 'appraisals',
+            status: meta.status === 'CALIBRATED' || meta.status === 'HOD_CALIBRATED' ? 'HOD_CALIBRATED' : (meta.status || 'ALL'),
+            cycleId: meta.cycleId || 'ALL',
             appraisalId: meta.appraisalId,
+            openDetail: true,
             ...meta,
           },
         };
@@ -202,8 +203,8 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
           badgeLabel: 'Digital Letters',
           badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
           config: {
-            activeSection: meta.activeSection || 'appraisals',
-            status: meta.status || 'LOCKED',
+            activeSection: 'appraisals',
+            status: 'ALL',
             appraisalId: meta.appraisalId || 'appr_2026_emp_hod_eng',
             openLetter: meta.openLetter !== undefined ? meta.openLetter : true,
             ...meta,
@@ -231,9 +232,10 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
           badgeLabel: 'Letter Release',
           badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
           config: {
-            activeSection: meta.activeSection || 'appraisals',
-            status: meta.status || 'HR_APPROVED',
+            activeSection: 'appraisals',
+            status: 'HR_APPROVED',
             appraisalId: meta.appraisalId,
+            openDetail: true,
             ...meta,
           },
         };

@@ -421,53 +421,61 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
           {activeTab === 'budgets' && (
             <div className="space-y-6">
               {/* Overall Payroll & Budget Overview Card */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5">
-                <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
-                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider">Current Payroll (Pre)</span>
-                    <DollarSign className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-                  <div className="text-2xl font-bold text-slate-900 dark:text-white font-mono">
-                    {currencySymbol}{(data.cohortSummary.totalPayrollPre / 100000).toFixed(2)}L
-                  </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400">Total base CTC annualized</div>
-                </div>
+              {(() => {
+                const overallCapPercent = data.cohortSummary.totalPayrollPre > 0
+                  ? ((data.cohortSummary.totalBudgetCap / data.cohortSummary.totalPayrollPre) * 100).toFixed(1)
+                  : '12.0';
 
-                <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
-                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider">Total Allocated Budget Cap (12%)</span>
-                    <Sliders className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div className="text-2xl font-bold text-purple-700 dark:text-purple-400 font-mono">
-                    {currencySymbol}{(data.cohortSummary.totalBudgetCap / 100000).toFixed(2)}L
-                  </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400">Approved organizational budget limit</div>
-                </div>
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5">
+                    <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
+                      <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider">Current Payroll (Pre)</span>
+                        <DollarSign className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                      <div className="text-2xl font-bold text-slate-900 dark:text-white font-mono">
+                        {currencySymbol}{(data.cohortSummary.totalPayrollPre / 100000).toFixed(2)}L
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">Total base CTC annualized</div>
+                    </div>
 
-                <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
-                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider">Actual Spent Increment</span>
-                    <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 font-mono">
-                    {currencySymbol}{(data.cohortSummary.totalBudgetSpent / 100000).toFixed(2)}L
-                  </div>
-                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                    +{data.cohortSummary.averageIncrementPercent}% company-wide avg
-                  </div>
-                </div>
+                    <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
+                      <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider">Total Allocated Budget Cap ({overallCapPercent}%)</span>
+                        <Sliders className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <div className="text-2xl font-bold text-purple-700 dark:text-purple-400 font-mono">
+                        {currencySymbol}{(data.cohortSummary.totalBudgetCap / 100000).toFixed(2)}L
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">Approved organizational budget limit</div>
+                    </div>
 
-                <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
-                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider">Remaining Budget Reserve</span>
-                    <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
+                      <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider">Actual Spent Increment</span>
+                        <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 font-mono">
+                        {currencySymbol}{(data.cohortSummary.totalBudgetSpent / 100000).toFixed(2)}L
+                      </div>
+                      <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                        +{data.cohortSummary.averageIncrementPercent}% company-wide avg
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
+                      <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider">Remaining Budget Reserve</span>
+                        <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div className="text-2xl font-bold text-blue-700 dark:text-blue-400 font-mono">
+                        {currencySymbol}{((data.cohortSummary.totalBudgetCap - data.cohortSummary.totalBudgetSpent) / 100000).toFixed(2)}L
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">Unallocated reserve pool</div>
+                    </div>
                   </div>
-                  <div className="text-2xl font-bold text-blue-700 dark:text-blue-400 font-mono">
-                    {currencySymbol}{((data.cohortSummary.totalBudgetCap - data.cohortSummary.totalBudgetSpent) / 100000).toFixed(2)}L
-                  </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400">Unallocated reserve pool</div>
-                </div>
-              </div>
+                );
+              })()}
 
               {/* Departmental Pool Cards */}
               <div className="space-y-4">

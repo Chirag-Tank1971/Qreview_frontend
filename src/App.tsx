@@ -253,6 +253,7 @@ function AppContent() {
               cycles={cycles}
               designations={designations}
               initialConfig={appraisalConfig}
+              onClearInitialConfig={() => setAppraisalConfig(null)}
             />
           ) : currentView === 'reviews' ? (
             <QuarterlyReviewView

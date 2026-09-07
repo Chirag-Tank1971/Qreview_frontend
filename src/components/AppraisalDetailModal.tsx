@@ -234,7 +234,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
       await api.submitHodCalibration(appraisal.id, {
         calibratedIncrementPercent: incrementPercent,
         promotionApproved: promotionRecommended,
-        notes: hodNotes,
+        notes: hodNotes.trim() || 'HOD departmental calibration and budget alignment completed.',
       });
       setConfirmActionType(null);
       toast.success(`HOD calibration saved at +${incrementPercent}% increment.`, 'Calibration Saved');

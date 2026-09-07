@@ -30,10 +30,12 @@ import {
   UpdateEmployeePayload,
 } from '../types';
 
-// Point directly to backend port 3000 if running locally or use VITE_API_BASE_URL
+// Resolve API Base URL: respects VITE_API_BASE_URL; falls back to relative '/api' in production
 const API_BASE = import.meta.env.VITE_API_BASE_URL
   ? `${import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '')}/api`
-  : 'http://localhost:3000/api';
+  : import.meta.env.PROD
+  ? '/api'
+  : (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api');
   
 function getAuthHeaders(): HeadersInit {
   const token = localStorage.getItem('review_app_token');
@@ -41,6 +43,89 @@ function getAuthHeaders(): HeadersInit {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string) => void> = [];
+
+function onRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+/**
+ * Transparent fetch wrapper with automatic token refresh and failed request replay
+ */
+export async function fetchWithAutoRefresh(url: string, options: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(options.headers || {});
+  const currentToken = localStorage.getItem('review_app_token');
+  if (currentToken && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${currentToken}`);
+  }
+  options.headers = headers;
+
+  let res = await fetch(url, options);
+
+  // If 401 Unauthorized and not an auth endpoint, attempt transparent token refresh
+  if (res.status === 401 && !url.includes('/auth/login') && !url.includes('/auth/refresh')) {
+    const refreshToken = localStorage.getItem('review_app_refresh_token');
+    if (!refreshToken) {
+      return res;
+    }
+
+    if (!isRefreshing) {
+      isRefreshing = true;
+      try {
+        const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          if (data.token) {
+            localStorage.setItem('review_app_token', data.token);
+          }
+          if (data.refreshToken) {
+            localStorage.setItem('review_app_refresh_token', data.refreshToken);
+          }
+          isRefreshing = false;
+          onRefreshed(data.token);
+
+          // Retry the original request with the fresh token
+          const retryHeaders = new Headers(options.headers);
+          retryHeaders.set('Authorization', `Bearer ${data.token}`);
+          options.headers = retryHeaders;
+          return fetch(url, options);
+        } else {
+          // Refresh token expired or revoked
+          isRefreshing = false;
+          refreshSubscribers = [];
+          localStorage.removeItem('review_app_token');
+          localStorage.removeItem('review_app_refresh_token');
+          window.dispatchEvent(new CustomEvent('auth:session_expired'));
+          return res;
+        }
+      } catch {
+        isRefreshing = false;
+        refreshSubscribers = [];
+        return res;
+      }
+    } else {
+      // If refresh is already in flight, queue this request
+      return new Promise<Response>((resolve) => {
+        refreshSubscribers.push((newToken: string) => {
+          const retryHeaders = new Headers(options.headers);
+          retryHeaders.set('Authorization', `Bearer ${newToken}`);
+          options.headers = retryHeaders;
+          resolve(fetch(url, options));
+        });
+      });
+    }
+  }
+
+  return res;
 }
 
 interface CacheEntry<T> {
@@ -71,7 +156,7 @@ async function requestWithDedupeAndCache<T>(
   const method = (options?.method || 'GET').toUpperCase();
 
   if (method !== 'GET') {
-    const res = await fetch(url, options);
+    const res = await fetchWithAutoRefresh(url, options);
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
       throw new Error(err.error || `Request failed (${res.status})`);
@@ -96,7 +181,7 @@ async function requestWithDedupeAndCache<T>(
 
   const fetchPromise = (async () => {
     try {
-      const res = await fetch(url, options);
+      const res = await fetchWithAutoRefresh(url, options);
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
         throw new Error(err.error || `Request failed (${res.status})`);
@@ -133,11 +218,14 @@ export const api = {
       }
       throw new Error(msg);
     }
-    return res.json();
+    const data = await res.json();
+    if (data.token) localStorage.setItem('review_app_token', data.token);
+    if (data.refreshToken) localStorage.setItem('review_app_refresh_token', data.refreshToken);
+    return data;
   },
 
   async getMe(): Promise<{ user: User; employeeProfile?: Employee; permissions: string[] }> {
-    const res = await fetch(`${API_BASE}/auth/me`, {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/auth/me`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) {
@@ -156,11 +244,14 @@ export const api = {
       const err = await res.json().catch(() => ({ error: 'Role switch failed' }));
       throw new Error(err.error || 'Failed to switch role');
     }
-    return res.json();
+    const data = await res.json();
+    if (data.token) localStorage.setItem('review_app_token', data.token);
+    if (data.refreshToken) localStorage.setItem('review_app_refresh_token', data.refreshToken);
+    return data;
   },
 
   async getDemoUsers() {
-    const res = await fetch(`${API_BASE}/auth/demo-users`);
+    const res = await fetchWithAutoRefresh(`${API_BASE}/auth/demo-users`);
     if (!res.ok) throw new Error('Failed to fetch demo users');
     return res.json();
   },
@@ -175,22 +266,41 @@ export const api = {
       // Ignore network errors on logout
     }
     localStorage.removeItem('review_app_token');
+    localStorage.removeItem('review_app_refresh_token');
   },
 
-  async refreshToken(): Promise<{ token: string; user: User; employeeProfile?: Employee; permissions: string[] }> {
+  async refreshToken(): Promise<{ token: string; refreshToken?: string; user: User; employeeProfile?: Employee; permissions: string[] }> {
+    const storedRefresh = localStorage.getItem('review_app_refresh_token') || localStorage.getItem('review_app_token');
     const res = await fetch(`${API_BASE}/auth/refresh`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: storedRefresh }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Token refresh failed' }));
       throw new Error(err.error || 'Failed to refresh token');
     }
+    const data = await res.json();
+    if (data.token) localStorage.setItem('review_app_token', data.token);
+    if (data.refreshToken) localStorage.setItem('review_app_refresh_token', data.refreshToken);
+    return data;
+  },
+
+  async revokeSessions(userId?: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/auth/revoke-sessions`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to revoke sessions' }));
+      throw new Error(err.error || 'Failed to revoke sessions');
+    }
     return res.json();
   },
 
-  async changePassword(newPassword: string, confirmPassword: string): Promise<{ success: boolean; user: User; token: string }> {
-    const res = await fetch(`${API_BASE}/auth/change-password`, {
+  async changePassword(newPassword: string, confirmPassword: string): Promise<{ success: boolean; user: User; token: string; refreshToken?: string }> {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/auth/change-password`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify({ newPassword, confirmPassword }),
@@ -199,11 +309,14 @@ export const api = {
       const err = await res.json().catch(() => ({ error: 'Password change failed' }));
       throw new Error(err.error || 'Failed to change password');
     }
-    return res.json();
+    const data = await res.json();
+    if (data.token) localStorage.setItem('review_app_token', data.token);
+    if (data.refreshToken) localStorage.setItem('review_app_refresh_token', data.refreshToken);
+    return data;
   },
 
   async getDbStatus(): Promise<DbStatus> {
-    const res = await fetch(`${API_BASE}/system/db-status`);
+    const res = await fetchWithAutoRefresh(`${API_BASE}/system/db-status`);
     if (!res.ok) throw new Error('Failed to fetch DB status');
     return res.json();
   },
@@ -268,8 +381,9 @@ export const api = {
     );
   },
 
-  async createDepartment(data: { name: string; code: string; hodId?: string; hodName?: string }): Promise<Department> {
+  async createDepartment(data: { name: string; code: string; hodId?: string; hodName?: string; budgetCapPercent?: number }): Promise<Department> {
     invalidateApiCache('/departments');
+    invalidateApiCache('/appraisals');
     const res = await fetch(`${API_BASE}/departments`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -284,6 +398,7 @@ export const api = {
 
   async updateDepartment(id: string, data: Partial<Department>): Promise<Department> {
     invalidateApiCache('/departments');
+    invalidateApiCache('/appraisals');
     const res = await fetch(`${API_BASE}/departments/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
@@ -683,7 +798,7 @@ export const api = {
       calibratedIncrementPercent: number;
       promotionApproved: boolean;
       calibratedRating?: string;
-      notes: string;
+      notes?: string;
     }
   ): Promise<Appraisal> {
     const res = await fetch(`${API_BASE}/appraisals/${id}/hod-calibrate`, {
@@ -693,7 +808,11 @@ export const api = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Failed to submit HOD calibration' }));
-      throw new Error(err.error || 'Failed to submit HOD calibration');
+      const message =
+        (Array.isArray(err.details) && err.details.length > 0)
+          ? err.details.map((d: any) => d.message).join('; ')
+          : (err.error || 'Failed to submit HOD calibration');
+      throw new Error(message);
     }
     return res.json();
   },
@@ -715,7 +834,11 @@ export const api = {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Failed to approve appraisal' }));
-      throw new Error(err.error || 'Failed to approve appraisal');
+      const message =
+        (Array.isArray(err.details) && err.details.length > 0)
+          ? err.details.map((d: any) => d.message).join('; ')
+          : (err.error || 'Failed to approve appraisal');
+      throw new Error(message);
     }
     return res.json();
   },

@@ -60,6 +60,7 @@ interface AppraisalManagementViewProps {
   cycles: Cycle[];
   designations: Designation[];
   initialConfig?: AppraisalViewConfig | null;
+  onClearInitialConfig?: () => void;
 }
 
 export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = ({
@@ -68,6 +69,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
   cycles,
   designations,
   initialConfig,
+  onClearInitialConfig,
 }) => {
   const [activeSection, setActiveSection] = useState<'appraisals' | 'bellCurveAnalytics'>('appraisals');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
@@ -99,21 +101,40 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
       if (initialConfig.cycleId) setSelectedCycleId(initialConfig.cycleId);
       if (initialConfig.year) setSelectedYear(initialConfig.year);
       if (initialConfig.departmentId) setSelectedDepartmentId(initialConfig.departmentId);
-      if (initialConfig.status) setSelectedStatus(initialConfig.status);
-      if (initialConfig.appraisalId) {
-        api.getAppraisals().then((res) => {
-          const match = res?.find((a) => a.id === initialConfig.appraisalId);
-          if (match) {
-            if (initialConfig.openLetter) {
-              setSelectedAppraisalForLetter(match);
-            } else if (initialConfig.openDetail) {
-              setSelectedAppraisalForDetail(match);
-            }
-          }
-        }).catch((err) => console.warn('Could not auto-open appraisal record', err));
+      if (initialConfig.status) {
+        let normStatus = initialConfig.status;
+        if (normStatus === 'CALIBRATED') normStatus = 'HOD_CALIBRATED';
+        if (normStatus === 'RECOMMENDED') normStatus = 'MANAGER_RECOMMENDED';
+        setSelectedStatus(normStatus);
       }
+      if (initialConfig.appraisalId) {
+        // Direct fetch guarantees opening the modal regardless of current active table filters
+        api.getAppraisal(initialConfig.appraisalId)
+          .then((appr) => {
+            if (appr) {
+              if (initialConfig.openLetter) {
+                setSelectedAppraisalForLetter(appr);
+              } else {
+                setSelectedAppraisalForDetail(appr);
+              }
+            }
+          })
+          .catch(() => {
+            api.getAppraisals().then((res) => {
+              const match = res?.find((a) => a.id === initialConfig.appraisalId);
+              if (match) {
+                if (initialConfig.openLetter) {
+                  setSelectedAppraisalForLetter(match);
+                } else {
+                  setSelectedAppraisalForDetail(match);
+                }
+              }
+            }).catch((err) => console.warn('Could not auto-open appraisal record', err));
+          });
+      }
+      onClearInitialConfig?.();
     }
-  }, [initialConfig]);
+  }, [initialConfig, onClearInitialConfig]);
 
   const userRole = currentUser?.role || 'EMPLOYEE';
   const canInitiate = userRole === 'SUPER_ADMIN' || userRole === 'HR';

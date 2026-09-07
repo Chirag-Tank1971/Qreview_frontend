@@ -38,7 +38,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** Schedule a silent token refresh 1 hour before token expiry */
+  /** Schedule a silent token refresh 2 minutes before access token expiry */
   const scheduleRefresh = (currentToken: string) => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
 
@@ -46,26 +46,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!expiry) return;
 
     const now = Date.now();
-    const refreshAt = expiry - 60 * 60 * 1000; // 1 hour before expiry
-    const delay = Math.max(refreshAt - now, 0);
+    const refreshAt = expiry - 2 * 60 * 1000; // 2 minutes before expiry
+    const delay = Math.max(refreshAt - now, 30 * 1000); // at least 30s or when due
 
     refreshTimerRef.current = setTimeout(async () => {
       try {
         const data = await api.refreshToken();
-        localStorage.setItem('review_app_token', data.token);
-        setToken(data.token);
+        if (data.token) {
+          localStorage.setItem('review_app_token', data.token);
+          setToken(data.token);
+          scheduleRefresh(data.token);
+        }
+        if (data.refreshToken) {
+          localStorage.setItem('review_app_refresh_token', data.refreshToken);
+        }
         setUser(data.user);
         setEmployeeProfile(data.employeeProfile || null);
         setPermissions(data.permissions || []);
-        scheduleRefresh(data.token); // reschedule for the new token
       } catch {
-        // Refresh failed — user may have been deactivated; clear session silently
+        // Refresh failed — user session may have been revoked; clear session cleanly
         localStorage.removeItem('review_app_token');
+        localStorage.removeItem('review_app_refresh_token');
         setToken(null);
         setUser(null);
         setEmployeeProfile(null);
         setPermissions([]);
-        toast.warning('Your session has expired. Please sign in again.', 'Session Expired');
+        toast.warning('Your session has expired or was revoked. Please sign in again.', 'Session Expired');
       }
     }, delay);
   };
@@ -102,8 +108,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     loadSession();
+
+    const handleSessionExpired = () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      setToken(null);
+      setUser(null);
+      setEmployeeProfile(null);
+      setPermissions([]);
+      toast.warning('Your session has expired or was revoked. Please sign in again.', 'Session Expired');
+    };
+
+    window.addEventListener('auth:session_expired', handleSessionExpired);
+
     return () => {
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      window.removeEventListener('auth:session_expired', handleSessionExpired);
     };
   }, []);
 

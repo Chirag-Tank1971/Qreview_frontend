@@ -23,9 +23,20 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
   const [deptName, setDeptName] = useState('');
   const [deptCode, setDeptCode] = useState('');
   const [deptHodId, setDeptHodId] = useState('');
+  const [deptBudgetCapPercent, setDeptBudgetCapPercent] = useState<number | string>(12.0);
   const [deptLoading, setDeptLoading] = useState(false);
   const [deptError, setDeptError] = useState<string | null>(null);
   const [deptSuccess, setDeptSuccess] = useState(false);
+
+  // Department Edit State
+  const [editingDeptId, setEditingDeptId] = useState<string | null>(null);
+  const [editDeptData, setEditDeptData] = useState<{
+    name: string;
+    code: string;
+    hodId: string;
+    budgetCapPercent: number | string;
+  }>({ name: '', code: '', hodId: '', budgetCapPercent: 12.0 });
+  const [deptUpdateLoading, setDeptUpdateLoading] = useState(false);
 
   // Designation Form State
   const [desName, setDesName] = useState('');
@@ -49,17 +60,23 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
 
     try {
       const selectedHod = employees.find((emp) => emp.id === deptHodId);
+      const parsedCap = typeof deptBudgetCapPercent === 'number'
+        ? deptBudgetCapPercent
+        : parseFloat(deptBudgetCapPercent as string);
+
       await api.createDepartment({
         name: deptName,
         code: deptCode,
         hodId: deptHodId || undefined,
         hodName: selectedHod?.name || undefined,
+        budgetCapPercent: !isNaN(parsedCap) ? parsedCap : 12.0,
       });
 
-      toast.success(`Department "${deptName}" (${deptCode}) created successfully.`, 'Department Created');
+      toast.success(`Department "${deptName}" (${deptCode}) created with ${!isNaN(parsedCap) ? parsedCap : 12.0}% budget cap.`, 'Department Created');
       setDeptName('');
       setDeptCode('');
       setDeptHodId('');
+      setDeptBudgetCapPercent(12.0);
       setDeptSuccess(true);
       onRefresh();
       setTimeout(() => setDeptSuccess(false), 3000);
@@ -69,6 +86,35 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
       toast.error(errMsg, 'Department Error');
     } finally {
       setDeptLoading(false);
+    }
+  };
+
+  const handleUpdateDepartment = async (deptId: string) => {
+    setDeptError(null);
+    setDeptUpdateLoading(true);
+    try {
+      const selectedHod = employees.find((emp) => emp.id === editDeptData.hodId);
+      const parsedCap = typeof editDeptData.budgetCapPercent === 'number'
+        ? editDeptData.budgetCapPercent
+        : parseFloat(editDeptData.budgetCapPercent as string);
+
+      await api.updateDepartment(deptId, {
+        name: editDeptData.name.trim(),
+        code: editDeptData.code.toUpperCase().trim(),
+        hodId: editDeptData.hodId || undefined,
+        hodName: selectedHod?.name || undefined,
+        budgetCapPercent: !isNaN(parsedCap) ? parsedCap : 12.0,
+      });
+
+      setEditingDeptId(null);
+      toast.success(`Department "${editDeptData.name}" updated successfully.`, 'Department Saved');
+      onRefresh();
+    } catch (err: any) {
+      const errMsg = err.message || 'Failed to update department';
+      setDeptError(errMsg);
+      toast.error(errMsg, 'Department Error');
+    } finally {
+      setDeptUpdateLoading(false);
     }
   };
 
@@ -182,20 +228,40 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
               </div>
             </div>
 
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Designated HOD</label>
-              <select
-                value={deptHodId}
-                onChange={(e) => setDeptHodId(e.target.value)}
-                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-slate-400/20 focus:border-slate-400 dark:focus:border-slate-600 font-medium"
-              >
-                <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Select Department Head (HOD)</option>
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
-                    {emp.name} ({emp.employeeCode})
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Designated HOD</label>
+                <select
+                  value={deptHodId}
+                  onChange={(e) => setDeptHodId(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-slate-400/20 focus:border-slate-400 dark:focus:border-slate-600 font-medium"
+                >
+                  <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Select HOD (Optional)</option>
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+                      {emp.name} ({emp.employeeCode})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <span>Increment Budget Cap (%)</span>
+                  <span className="text-[10px] text-slate-400 font-normal">0 - 100%</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="100"
+                  required
+                  value={deptBudgetCapPercent}
+                  onChange={(e) => setDeptBudgetCapPercent(e.target.value)}
+                  placeholder="12.0"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-slate-400/20 focus:border-slate-400 dark:focus:border-slate-600"
+                />
+              </div>
             </div>
 
             <button
@@ -211,23 +277,119 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
           {/* List of Departments */}
           <div className="space-y-2">
             <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Active Departments</h4>
-            <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-56 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl">
+            <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-72 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl">
               {departments.map((d) => (
-                <div key={d.id} className="p-3 flex items-center justify-between bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-slate-900 dark:text-white text-xs">{d.name}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                        {d.code}
-                      </span>
+                <div key={d.id} className="p-3 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                  {editingDeptId === d.id ? (
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center pb-1 border-b border-slate-100 dark:border-slate-800">
+                        <span className="font-bold text-slate-900 dark:text-white text-xs">Edit Department: {d.name}</span>
+                        <button
+                          onClick={() => setEditingDeptId(null)}
+                          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Name</label>
+                          <input
+                            type="text"
+                            value={editDeptData.name}
+                            onChange={(e) => setEditDeptData({ ...editDeptData, name: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Code</label>
+                          <input
+                            type="text"
+                            value={editDeptData.code}
+                            onChange={(e) => setEditDeptData({ ...editDeptData, code: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-400"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">HOD</label>
+                          <select
+                            value={editDeptData.hodId}
+                            onChange={(e) => setEditDeptData({ ...editDeptData, hodId: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-400"
+                          >
+                            <option value="">Not Assigned</option>
+                            {employees.map((emp) => (
+                              <option key={emp.id} value={emp.id}>
+                                {emp.name} ({emp.employeeCode})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Budget Cap (%)</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={editDeptData.budgetCapPercent}
+                            onChange={(e) => setEditDeptData({ ...editDeptData, budgetCapPercent: e.target.value })}
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-400"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleUpdateDepartment(d.id)}
+                        disabled={deptUpdateLoading}
+                        className="w-full py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        <span>{deptUpdateLoading ? 'Saving...' : 'Save Changes'}</span>
+                      </button>
                     </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      HOD: <span className="text-slate-700 dark:text-slate-200 font-medium">{d.hodName || 'Not assigned'}</span>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-slate-900 dark:text-white text-xs">{d.name}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                            {d.code}
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-mono font-semibold">
+                            {typeof d.budgetCapPercent === 'number' ? d.budgetCapPercent : 12.0}% Cap
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          HOD: <span className="text-slate-700 dark:text-slate-200 font-medium">{d.hodName || 'Not assigned'}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingDeptId(d.id);
+                            setEditDeptData({
+                              name: d.name,
+                              code: d.code,
+                              hodId: d.hodId || '',
+                              budgetCapPercent: typeof d.budgetCapPercent === 'number' ? d.budgetCapPercent : 12.0,
+                            });
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-750 rounded-lg transition-colors cursor-pointer"
+                          title="Edit Department & Budget Cap"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-medium">
+                          Active
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-medium">
-                    Active
-                  </span>
+                  )}
                 </div>
               ))}
             </div>
