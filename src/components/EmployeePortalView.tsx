@@ -275,49 +275,49 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
               </div>
 
               {/* Right Cycle Cohort & CTC Highlight */}
-              <div className="flex flex-wrap items-center gap-3 self-stretch lg:self-auto justify-start lg:justify-end">
+              <div className="grid grid-cols-1 xs:grid-cols-3 sm:grid-cols-3 gap-2.5 w-full lg:w-auto lg:flex lg:items-center">
                 {/* 8-Cycle Badge */}
-                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3 text-center min-w-[130px]">
+                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl p-2.5 sm:p-3 text-center">
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold block">
                     Appraisal Cohort
                   </span>
                   <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center justify-center gap-1.5 mt-0.5">
                     <span
-                      className="w-2 h-2 rounded-full"
+                      className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: currentEmp.cycleColor || '#c2410c' }}
                     />
-                    <span>{currentEmp.cycleName || `Cycle ${currentEmp.cycleCode}`}</span>
+                    <span className="truncate">{currentEmp.cycleName || `Cycle ${currentEmp.cycleCode}`}</span>
                   </div>
                   <span className="text-[9px] text-slate-400 dark:text-slate-500 block mt-0.5">
-                    Annual Month: {currentEmp.cycleCode === 'F' ? 'September' : currentEmp.cycleCode === 'D' ? 'June' : 'Quarterly'}
+                    Annual: {currentEmp.cycleCode === 'F' ? 'September' : currentEmp.cycleCode === 'D' ? 'June' : 'Quarterly'}
                   </span>
                 </div>
 
                 {/* Current CTC Badge */}
-                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3 text-center min-w-[140px]">
+                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl p-2.5 sm:p-3 text-center">
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold block">
                     Current Fixed CTC
                   </span>
-                  <div className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">
+                  <div className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 truncate">
                     {currentEmp.currency || '₹'}{(currentEmp.currentCtc || 1600000).toLocaleString('en-IN')}
                   </div>
-                  <span className="text-[9px] text-slate-500 dark:text-slate-400 block mt-0.5 font-mono">
-                    ≈ {currentEmp.currency || '₹'}{Math.round((currentEmp.currentCtc || 1600000) / 12).toLocaleString('en-IN')} / month
+                  <span className="text-[9px] text-slate-500 dark:text-slate-400 block mt-0.5 font-mono truncate">
+                    ≈ {currentEmp.currency || '₹'}{Math.round((currentEmp.currentCtc || 1600000) / 12).toLocaleString('en-IN')} / mo
                   </span>
                 </div>
 
                 {/* Composite Rolling Score */}
-                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3 text-center min-w-[120px]">
+                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl p-2.5 sm:p-3 text-center">
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold block">
                     Quarterly Avg
                   </span>
-                  <div className="text-base font-extrabold text-amber-600 dark:text-amber-400 font-mono mt-0.5 flex items-center justify-center gap-1">
-                    <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                  <div className="text-sm sm:text-base font-extrabold text-amber-600 dark:text-amber-400 font-mono mt-0.5 flex items-center justify-center gap-1">
+                    <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-amber-500 text-amber-500 shrink-0" />
                     <span>{metrics?.averageScore && metrics.averageScore > 0 ? metrics.averageScore.toFixed(2) : '4.50'}</span>
                     <span className="text-xs text-slate-500 dark:text-slate-400">/ 5</span>
                   </div>
                   <span className="text-[9px] text-slate-400 dark:text-slate-500 block mt-0.5">
-                    {metrics?.completedReviewsCount || 4} Quarters Scored
+                    {metrics?.completedReviewsCount || 4} Quarters
                   </span>
                 </div>
               </div>
@@ -325,7 +325,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex items-center space-x-1 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1 rounded-xl shadow-2xs overflow-x-auto">
+          <div className="flex items-center space-x-1 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1 rounded-xl shadow-2xs overflow-x-auto overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
             <button
               onClick={() => setActiveTab('appraisal')}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${

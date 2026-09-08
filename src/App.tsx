@@ -18,6 +18,7 @@ import { AiPerformanceHub } from './components/AiPerformanceHub';
 import { LoginPage } from './components/LoginPage';
 import { LoginModal } from './components/LoginModal';
 import { ForcePasswordChangeScreen } from './components/ForcePasswordChangeScreen';
+import { MobileNavDrawer } from './components/MobileNavDrawer';
 import { Loader2, Users, LayoutDashboard, Target, Award, Sparkles, FileText, Sliders, DollarSign, UserCheck, FileSpreadsheet, UploadCloud, ShieldCheck } from 'lucide-react';
 import { KraTemplate, Kra, Department, Designation, Employee, Cycle } from './types';
 import { api } from './services/api';
@@ -25,6 +26,7 @@ import { api } from './services/api';
 function AppContent() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [currentView, setCurrentView] = useState<'portal' | 'ai_performance' | 'appraisals' | 'reviews' | 'kras' | 'employees' | 'reports' | 'bulk' | 'audit' | 'overview'>('portal');
 
   // View-specific configurations for direct workflow navigation
@@ -196,6 +198,15 @@ function AppContent() {
       <Header
         onNavigate={handleNavigate}
         onOpenLogin={() => setIsLoginModalOpen(true)}
+        onOpenMobileMenu={() => setIsMobileNavOpen(true)}
+      />
+
+      {/* Mobile Slide-Over Navigation Drawer */}
+      <MobileNavDrawer
+        isOpen={isMobileNavOpen}
+        onClose={() => setIsMobileNavOpen(false)}
+        currentView={currentView}
+        onSelectView={handleNavigate}
       />
 
       <div className="flex flex-col flex-1">
@@ -213,10 +224,10 @@ function AppContent() {
         />
 
         {/* Main Content Area */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12 overflow-x-hidden">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-12 overflow-x-hidden">
           {/* View Context Banner */}
           {VIEW_META[currentView] && (
-            <div className="mb-6 p-4 sm:p-5 bg-white/75 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="mb-4 sm:mb-6 p-3.5 sm:p-5 bg-white/75 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 flex-wrap mb-1">
                   <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">

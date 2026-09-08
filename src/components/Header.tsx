@@ -23,14 +23,16 @@ import {
   Sun,
   Moon,
   Monitor,
+  Menu,
 } from 'lucide-react';
 
 interface HeaderProps {
   onNavigate?: (tab: string, options?: any) => void;
   onOpenLogin?: () => void;
+  onOpenMobileMenu?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onNavigate, onOpenLogin }) => {
+export const Header: React.FC<HeaderProps> = ({ onNavigate, onOpenLogin, onOpenMobileMenu }) => {
   const { user, employeeProfile, logout, switchRole, isLoading } = useAuth();
   const { theme, isDark, setTheme, toggleTheme } = useTheme();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -114,27 +116,38 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onOpenLogin }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Left Brand / Title */}
-          <div className="flex items-center space-x-3.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-violet-600 text-white flex items-center justify-center font-bold shadow-sm shadow-indigo-500/25 ring-1 ring-black/5">
-              <Layers className="w-5 h-5 text-white drop-shadow-xs" />
+          <div className="flex items-center space-x-2 sm:space-x-3.5 min-w-0">
+            {/* Mobile Hamburger Drawer Button */}
+            <button
+              onClick={onOpenMobileMenu}
+              className="p-1.5 -ml-1 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors md:hidden cursor-pointer"
+              aria-label="Open navigation menu"
+              title="Open Navigation"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-violet-600 text-white flex items-center justify-center font-bold shadow-sm shadow-indigo-500/25 ring-1 ring-black/5 shrink-0">
+              <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-white drop-shadow-xs" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
-                  Performance & Appraisal System
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h1 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white tracking-tight truncate">
+                  <span className="hidden sm:inline">Performance & Appraisal System</span>
+                  <span className="inline sm:hidden">Appraisal System</span>
                 </h1>
-                <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+                <span className="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
                   Enterprise
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block font-medium">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden md:block font-medium truncate">
                 Continuous 4-Quarter Reviews & Staggered Cohort Calibration
               </p>
             </div>
           </div>
 
           {/* Right Actions */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
+          <div className="flex items-center space-x-1.5 sm:space-x-3 shrink-0">
             {user ? (
               <>
                 {/* Quick Persona Switcher */}
@@ -142,13 +155,13 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onOpenLogin }) => {
                   <button
                     onClick={() => setIsPersonaMenuOpen(!isPersonaMenuOpen)}
                     disabled={isSwitchingRole || isLoading}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100/80 dark:bg-slate-800/80 hover:bg-slate-200/70 dark:hover:bg-slate-700/70 text-slate-700 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
+                    className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100/80 dark:bg-slate-800/80 hover:bg-slate-200/70 dark:hover:bg-slate-700/70 text-slate-700 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
                     title="Quick Role Persona Switcher"
                   >
-                    <Zap className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <Zap className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                     <span className="hidden md:inline text-[11px] text-slate-500 dark:text-slate-400 font-medium">Role:</span>
-                    <span className="text-slate-900 dark:text-white font-semibold">{currentRoleConfig.shortLabel}</span>
-                    <ChevronDown className="w-3 h-3 text-slate-400" />
+                    <span className="text-slate-900 dark:text-white font-semibold hidden xs:inline">{currentRoleConfig.shortLabel}</span>
+                    <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
                   </button>
 
                   {isPersonaMenuOpen && (

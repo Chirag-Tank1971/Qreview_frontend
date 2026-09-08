@@ -19,6 +19,8 @@ import {
   MapPin,
   DollarSign,
   Key,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 
 export const EmployeeDirectory: React.FC = () => {
@@ -38,6 +40,7 @@ export const EmployeeDirectory: React.FC = () => {
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedCycle, setSelectedCycle] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<'employees' | 'masters' | 'cycles'>('employees');
@@ -250,6 +253,30 @@ export const EmployeeDirectory: React.FC = () => {
                 <RotateCw className="w-3.5 h-3.5" />
               </button>
 
+              {/* Cards / Table View Toggle */}
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
+                <button
+                  onClick={() => setViewMode('cards')}
+                  className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
+                    viewMode === 'cards' ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs' : 'text-slate-500'
+                  }`}
+                  title="Card View (Recommended for Mobile)"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline text-[11px]">Cards</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
+                    viewMode === 'table' ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs' : 'text-slate-500'
+                  }`}
+                  title="Table View"
+                >
+                  <List className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline text-[11px]">Table</span>
+                </button>
+              </div>
+
               {isHRorAdmin && (
                 <button
                   onClick={() => {
@@ -264,12 +291,93 @@ export const EmployeeDirectory: React.FC = () => {
             </div>
           </div>
 
-          {/* Employees Table */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider text-[11px]">
+          {/* Employees Display: Cards or Table */}
+          {viewMode === 'cards' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {loading ? (
+                <div className="col-span-full p-12 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                  Loading employee records...
+                </div>
+              ) : filteredEmployees.length === 0 ? (
+                <div className="col-span-full p-12 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                  No employees found matching the filters.
+                </div>
+              ) : (
+                filteredEmployees.map((emp) => {
+                  const cycleInfo = cycles.find((c) => c.id === emp.cycleId);
+                  return (
+                    <div
+                      key={emp.id}
+                      className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-2xs hover:shadow-xs transition-all space-y-3 flex flex-col justify-between"
+                    >
+                      <div className="space-y-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-800 dark:text-slate-200 font-bold text-xs shrink-0">
+                              {emp.name.charAt(0)}
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">{emp.name}</h4>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate">{emp.employeeCode} • {emp.email}</p>
+                            </div>
+                          </div>
+                          {getStatusBadge(emp.status)}
+                        </div>
+
+                        <div className="space-y-1 text-xs">
+                          <div className="text-slate-800 dark:text-slate-200 font-medium flex items-center gap-1.5">
+                            <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">{emp.designationName || 'Role'} • {emp.departmentName || 'Dept'}</span>
+                          </div>
+                          {cycleInfo && (
+                            <div className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cycleInfo.color || '#6366f1' }} />
+                              <span>{cycleInfo.name.startsWith('Cycle') ? cycleInfo.name : `Cycle ${cycleInfo.code} (${cycleInfo.name})`}</span>
+                            </div>
+                          )}
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                            <span>Manager: <strong className="text-slate-700 dark:text-slate-300">{emp.managerName || 'None'}</strong></span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                        {isHRorAdmin ? (
+                          <div>
+                            <span className="text-[10px] text-slate-400 block leading-tight">Starting CTC</span>
+                            <span className="font-mono font-bold text-slate-900 dark:text-white">
+                              {emp.currency || '₹'}{(emp.currentCtc || 1600000).toLocaleString()}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-slate-400">
+                            Joined {new Date(emp.joiningDate).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                          </div>
+                        )}
+
+                        {isHRorAdmin && (
+                          <button
+                            onClick={() => {
+                              setEditingEmployee(emp);
+                              setIsModalOpen(true);
+                            }}
+                            className="p-1.5 px-2.5 rounded-lg text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 font-semibold text-xs flex items-center gap-1 transition-colors"
+                          >
+                            <Edit2 className="w-3 h-3" /> Edit
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+              <div className="overflow-x-auto overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider text-[11px]">
                     <th className="px-5 py-3.5">Employee</th>
                     <th className="px-4 py-3.5">Department & Role</th>
                     <th className="px-4 py-3.5">Appraisal Cycle</th>
@@ -419,8 +527,9 @@ export const EmployeeDirectory: React.FC = () => {
               </table>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    )}
 
       {/* VIEW 2: MASTERS (DEPARTMENTS & DESIGNATIONS) */}
       {activeTab === 'masters' && isHRorAdmin && (

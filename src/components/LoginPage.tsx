@@ -167,39 +167,40 @@ export const LoginPage: React.FC = () => {
       </div>
 
       {/* Top Navbar */}
-      <header className="relative z-10 w-full max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+      <header className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-5 flex items-center justify-between">
+        <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
             <Layers className="w-5 h-5 text-white" />
           </div>
-          <div>
-            <h1 className="text-base font-bold text-white tracking-tight">
-              Quarterly Review & Appraisal Management
+          <div className="min-w-0">
+            <h1 className="text-sm sm:text-base font-bold text-white tracking-tight truncate">
+              <span className="hidden sm:inline">Quarterly Review & Appraisal Management</span>
+              <span className="inline sm:hidden">Appraisal System</span>
             </h1>
-            <p className="text-xs text-slate-400">
+            <p className="text-[11px] sm:text-xs text-slate-400 truncate">
               Enterprise Performance & Calibration Portal
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 shrink-0">
           <button
             onClick={() => setShowHelpModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 transition-colors cursor-pointer"
           >
-            <HelpCircle className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Corporate Access Guide</span>
+            <HelpCircle className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <span className="hidden xs:inline">Access Guide</span>
           </button>
         </div>
       </header>
 
       {/* Main Center Area */}
-      <main className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 my-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+      <main className="relative z-10 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 my-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center">
           
           {/* Left Column: Interactive Modern Login Card */}
           <div className="lg:col-span-6 max-w-lg mx-auto w-full">
-            <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-3xl shadow-2xl shadow-black/50 border border-slate-100 dark:border-slate-800 p-8 sm:p-10 relative">
+            <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-3xl shadow-2xl shadow-black/50 border border-slate-100 dark:border-slate-800 p-5 sm:p-10 relative">
               
               {/* Card Header */}
               <div className="space-y-2 mb-7">

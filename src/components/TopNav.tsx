@@ -118,11 +118,11 @@ export const TopNav: React.FC<SidebarNavProps> = ({ currentView, onSelectView, u
   const activeAdminItem = visibleAdmin.find((item) => item.id === currentView);
 
   return (
-    <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-b border-slate-200/70 dark:border-slate-800/80 w-full shrink-0 sticky top-16 z-30 py-2.5 transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <nav className="flex items-center justify-between gap-2 p-1 bg-slate-100/80 dark:bg-slate-950/60 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+    <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-b border-slate-200/70 dark:border-slate-800/80 w-full shrink-0 sticky top-16 z-30 py-1.5 sm:py-2.5 transition-colors duration-200">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <nav className="flex items-center justify-between gap-1.5 sm:gap-2 p-1 bg-slate-100/80 dark:bg-slate-950/60 rounded-2xl border border-slate-200/60 dark:border-slate-800">
           {/* Primary Navigation Workspaces */}
-          <div className="flex items-center gap-1.5 overflow-x-auto top-nav-scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto top-nav-scrollbar-hide overscroll-x-contain py-0.5" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
             <style dangerouslySetInnerHTML={{__html: `.top-nav-scrollbar-hide::-webkit-scrollbar { display: none; }`}} />
             {visiblePrimary.map((item) => {
               const Icon = item.icon;
@@ -135,7 +135,7 @@ export const TopNav: React.FC<SidebarNavProps> = ({ currentView, onSelectView, u
                     setIsAdminOpen(false);
                     onSelectView(item.id);
                   }}
-                  className={`group relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer ${
+                  className={`group relative flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer shrink-0 ${
                     isActive
                       ? 'bg-white dark:bg-slate-800 text-indigo-950 dark:text-white shadow-xs border border-slate-200/90 dark:border-slate-700 ring-1 ring-black/5 dark:ring-white/5'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
@@ -167,7 +167,7 @@ export const TopNav: React.FC<SidebarNavProps> = ({ currentView, onSelectView, u
             <div className="relative shrink-0" ref={adminDropdownRef}>
               <button
                 onClick={() => setIsAdminOpen(!isAdminOpen)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer ${
+                className={`flex items-center gap-1 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer ${
                   isCurrentViewAdmin
                     ? 'bg-white dark:bg-slate-800 text-indigo-950 dark:text-white shadow-xs border border-slate-200/90 dark:border-slate-700 ring-1 ring-black/5 dark:ring-white/5'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800/50 border border-transparent'
@@ -177,7 +177,8 @@ export const TopNav: React.FC<SidebarNavProps> = ({ currentView, onSelectView, u
                 <Settings className={`w-3.5 h-3.5 transition-colors ${
                   isCurrentViewAdmin ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'
                 }`} />
-                <span>Admin & Setup</span>
+                <span className="hidden xs:inline">Admin & Setup</span>
+                <span className="inline xs:hidden">Admin</span>
                 {isCurrentViewAdmin && activeAdminItem && (
                   <span className="hidden sm:inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800">
                     {activeAdminItem.label.split(' ')[0]}
@@ -190,7 +191,7 @@ export const TopNav: React.FC<SidebarNavProps> = ({ currentView, onSelectView, u
 
               {/* Dropdown Menu */}
               {isAdminOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/90 dark:border-slate-800 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-24px)] bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/90 dark:border-slate-800 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                   <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 mb-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                       System Administration
