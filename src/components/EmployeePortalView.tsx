@@ -189,15 +189,16 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
 
         {/* Administrative Employee Record Selector (Only for Admins/HR) */}
         {(user?.role === 'SUPER_ADMIN' || user?.role === 'HR') && (
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto min-w-0">
             <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 shrink-0 flex items-center gap-1.5">
               <UserCheck className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
-              <span>Viewing Employee:</span>
+              <span className="hidden sm:inline">Viewing Employee:</span>
+              <span className="inline sm:hidden">Employee:</span>
             </label>
             <select
               value={selectedEmployeeId}
               onChange={(e) => setSelectedEmployeeId(e.target.value)}
-              className="text-xs font-semibold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer shadow-2xs max-w-[200px] sm:max-w-[260px] md:max-w-[300px] truncate"
+              className="flex-1 min-w-0 text-xs font-semibold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer shadow-2xs truncate sm:max-w-[260px] md:max-w-[300px]"
             >
               {employees.map((emp) => (
                 <option key={emp.id} value={emp.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
@@ -208,7 +209,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
             <button
               onClick={() => selectedEmployeeId && loadEssOverview(selectedEmployeeId)}
               title="Refresh Data"
-              className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-all shrink-0"
+              className="p-1.5 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-all shrink-0 cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
