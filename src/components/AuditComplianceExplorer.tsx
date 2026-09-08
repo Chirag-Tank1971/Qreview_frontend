@@ -73,7 +73,7 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
   const [complianceReport, setComplianceReport] = useState<ComplianceRiskReport | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('emp_dev_1');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   const [timelineData, setTimelineData] = useState<{ employee: any; timeline: AuditTimelineEvent[] } | null>(null);
 
   // Filtering states for Master Audit Log
@@ -108,11 +108,9 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
       if (summaryRes.success) setMetrics(summaryRes.metrics);
       if (healthRes.success) setComplianceReport(healthRes.report);
       if (logsRes.success) setAuditLogs(logsRes.logs);
-      if (Array.isArray(empRes)) {
+      if (Array.isArray(empRes) && empRes.length > 0) {
         setEmployees(empRes);
-        if (empRes.length > 0 && !selectedEmployeeId) {
-          setSelectedEmployeeId(empRes[0].id);
-        }
+        setSelectedEmployeeId((prev) => (prev && empRes.some((e) => e.id === prev) ? prev : empRes[0].id));
       }
     } catch (err) {
       console.error('Failed to load audit data:', err);
@@ -474,7 +472,7 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
               >
                 {employees.map((emp) => (
                   <option key={emp.id} value={emp.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
-                    {emp.fullName} ({emp.employeeCode}) - {emp.departmentName} [{emp.cycleName || 'Cycle'}]
+                    {emp.name || (emp as any).fullName} ({emp.employeeCode}) - {emp.departmentName} [{emp.cycleName || emp.cycleCode || 'Cycle'}]
                   </option>
                 ))}
               </select>
