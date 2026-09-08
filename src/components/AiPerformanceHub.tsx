@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Sparkles,
   Award,
@@ -29,6 +29,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { api } from '../services/api';
+import { PipCard, PipInitiateModal, PipConcludeModal } from './pip';
 import {
   User,
   Employee,
@@ -91,6 +92,29 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
   const [newCheckinRating, setNewCheckinRating] = useState<number>(3.5);
   const [newCheckinActions, setNewCheckinActions] = useState<string>('');
   const [savingCheckin, setSavingCheckin] = useState<boolean>(false);
+
+  // PIP Enhanced Governance & Historical State
+  const [pipFilterTab, setPipFilterTab] = useState<'ACTIVE' | 'COMPLETED' | 'SEPARATED' | 'ALL'>('ACTIVE');
+  const [isInitiatePipOpen, setIsInitiatePipOpen] = useState<boolean>(false);
+  const [concludePipTarget, setConcludePipTarget] = useState<PipRecord | null>(null);
+
+  const filteredPips = useMemo(() => {
+    switch (pipFilterTab) {
+      case 'ACTIVE':
+        return pips.filter((p) => p.status === 'active' || p.status === 'extended' || p.status === 'under_review');
+      case 'COMPLETED':
+        return pips.filter((p) => p.status === 'completed_successfully');
+      case 'SEPARATED':
+        return pips.filter((p) => p.status === 'escalated_action');
+      case 'ALL':
+      default:
+        return pips;
+    }
+  }, [pips, pipFilterTab]);
+
+  const activePipCount = pips.filter((p) => p.status === 'active' || p.status === 'extended' || p.status === 'under_review').length;
+  const completedPipCount = pips.filter((p) => p.status === 'completed_successfully').length;
+  const separatedPipCount = pips.filter((p) => p.status === 'escalated_action').length;
 
   // 5. Growth Plan State
   const [growthTargetRole, setGrowthTargetRole] = useState<string>('Staff / Lead Systems Architect');
@@ -1404,112 +1428,124 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
             </div>
           </div>
 
-          {/* Performance Improvement Plan (PIP) Active Cases */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
+          {/* Performance Improvement Plan (PIP) Active Cases & Historical Archive */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
-                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                  Active Performance Improvement Plans (PIP) & Check-ins
+                  Performance Improvement Plans (PIP) & Talent Governance
                 </h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Structured coaching milestones, SLA adherence tracking, and bi-weekly manager check-in reviews.
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Structured coaching milestones, bi-weekly check-ins, repeat cycle retention, and legal PDF dossiers.
                 </p>
               </div>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
-                {pips.length} Active Plan
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                {!isNormalEmployee && (
+                  <button
+                    onClick={() => setIsInitiatePipOpen(true)}
+                    className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Initiate New PIP</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Historical Archive & Status Tabs */}
+            <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
+              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setPipFilterTab('ACTIVE')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                    pipFilterTab === 'ACTIVE'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Active Plans ({activePipCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPipFilterTab('COMPLETED')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                    pipFilterTab === 'COMPLETED'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Completed / Restored ({completedPipCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPipFilterTab('SEPARATED')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                    pipFilterTab === 'SEPARATED'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Separated ({separatedPipCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPipFilterTab('ALL')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                    pipFilterTab === 'ALL'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs font-bold'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  All History ({pips.length})
+                </button>
+              </div>
+
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                Showing {filteredPips.length} record{filteredPips.length === 1 ? '' : 's'}
               </span>
             </div>
 
-            <div className="space-y-3">
-              {pips.map((pip) => (
-                <div
-                  key={pip.id}
-                  id={`pip_row_${pip.id}`}
-                  className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <span>{pip.employeeName}</span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-normal">({pip.employeeCode})</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300">
-                          {pip.durationDays}-Day Plan
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                        Manager: {pip.managerName} • Target Completion: {pip.targetEndDate}
-                      </div>
-                    </div>
-
+            {/* List of PIP Cards */}
+            <div className="space-y-3 pt-2">
+              {filteredPips.length === 0 ? (
+                <div className="text-center py-12 bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 p-6 space-y-2">
+                  <ShieldCheck className="w-8 h-8 text-slate-400 mx-auto" />
+                  <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    No {pipFilterTab.toLowerCase()} PIP records found
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                    {pipFilterTab === 'ACTIVE'
+                      ? 'All employees are meeting expectations. No performance improvement plans are currently active.'
+                      : 'No historical records under this filter view.'}
+                  </p>
+                  {!isNormalEmployee && pipFilterTab === 'ACTIVE' && (
                     <button
-                      id={`btn_manage_pip_${pip.id}`}
-                      onClick={() => setActivePipModal(pip)}
-                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all self-start sm:self-auto"
+                      onClick={() => setIsInitiatePipOpen(true)}
+                      className="mt-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1 shadow-2xs cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      Add Check-in & Review
+                      Initiate PIP for an Employee
                     </button>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div>
-                    <div className="flex justify-between text-xs font-semibold mb-1">
-                      <span className="text-slate-600 dark:text-slate-400">Milestone Progression</span>
-                      <span className="text-indigo-700 dark:text-indigo-400">{pip.overallProgress}% Completed</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                      <div
-                        className="bg-indigo-600 h-full rounded-full transition-all duration-500"
-                        style={{ width: `${pip.overallProgress}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Milestones Chips */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-                    {pip.milestones.map((m) => (
-                      <div
-                        key={m.id}
-                        className={`p-2.5 rounded-lg border flex items-start justify-between gap-2 ${
-                          m.status === 'met'
-                            ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300'
-                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                        }`}
-                      >
-                        <div>
-                          <div className="font-semibold text-[11px]">{m.title}</div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Target: {m.targetMetric}</div>
-                        </div>
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0 ${
-                            m.status === 'met'
-                              ? 'bg-emerald-200/80 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200'
-                              : 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200'
-                          }`}
-                        >
-                          {m.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Checkin History */}
-                  {pip.checkins.length > 0 && (
-                    <div className="pt-2 border-t border-slate-200/70 dark:border-slate-700">
-                      <div className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase mb-1.5">
-                        Latest Bi-Weekly Check-in:
-                      </div>
-                      <div className="text-xs bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                        <span className="font-semibold text-slate-900 dark:text-white">
-                          Week {pip.checkins[pip.checkins.length - 1].weekNumber} ({pip.checkins[pip.checkins.length - 1].date}):
-                        </span>{' '}
-                        {pip.checkins[pip.checkins.length - 1].managerNotes}
-                      </div>
-                    </div>
                   )}
                 </div>
-              ))}
+              ) : (
+                filteredPips.map((pip) => (
+                  <PipCard
+                    key={pip.id}
+                    pip={pip}
+                    currentUser={currentUser}
+                    onOpenCheckin={(target) => setActivePipModal(target)}
+                    onOpenConclude={(target) => setConcludePipTarget(target)}
+                    onUpdated={(updated) => {
+                      setPips((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+                    }}
+                  />
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -1734,6 +1770,30 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
             </div>
           </div>
         </div>
+      )}
+      {/* PIP Initiate Modal */}
+      {isInitiatePipOpen && (
+        <PipInitiateModal
+          isOpen={isInitiatePipOpen}
+          onClose={() => setIsInitiatePipOpen(false)}
+          employees={employees}
+          existingPips={pips}
+          onCreated={(newPip) => {
+            setPips((prev) => [newPip, ...prev]);
+          }}
+        />
+      )}
+
+      {/* PIP Conclude Modal */}
+      {concludePipTarget && (
+        <PipConcludeModal
+          isOpen={!!concludePipTarget}
+          onClose={() => setConcludePipTarget(null)}
+          pip={concludePipTarget}
+          onConcluded={(updated) => {
+            setPips((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+          }}
+        />
       )}
     </div>
   );

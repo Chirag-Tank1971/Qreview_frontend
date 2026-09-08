@@ -1281,6 +1281,51 @@ export const api = {
     return res.json();
   },
 
+  async signPip(id: string, signData: { role?: 'MANAGER' | 'HR' | 'EMPLOYEE'; comments?: string }): Promise<PipRecord> {
+    const res = await fetch(`${API_BASE}/pips/${id}/sign`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(signData),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to record digital sign-off' }));
+      throw new Error(err.error || 'Failed to record digital sign-off');
+    }
+    return res.json();
+  },
+
+  async concludePip(id: string, conclusionData: { outcome: 'PASSED' | 'EXTENDED' | 'SEPARATED'; notes: string }): Promise<PipRecord> {
+    const res = await fetch(`${API_BASE}/pips/${id}/conclude`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(conclusionData),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to conclude PIP' }));
+      throw new Error(err.error || 'Failed to conclude PIP');
+    }
+    return res.json();
+  },
+
+  async updatePipMilestone(id: string, milestoneId: string, data: { status: 'pending' | 'in_progress' | 'met' | 'unmet'; notes?: string }): Promise<PipRecord> {
+    const res = await fetch(`${API_BASE}/pips/${id}/milestone/${milestoneId}`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to update milestone status' }));
+      throw new Error(err.error || 'Failed to update milestone status');
+    }
+    return res.json();
+  },
+
+  async getPipHistory(employeeId: string): Promise<PipRecord[]> {
+    const res = await fetch(`${API_BASE}/pips/history/${employeeId}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch employee PIP history');
+    return res.json();
+  },
+
   // 9-Box Talent Matrix
   async getTalentRecords(): Promise<TalentRecord[]> {
     const res = await fetch(`${API_BASE}/talent-records`, { headers: getAuthHeaders() });

@@ -1,33 +1,124 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
-import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { Header } from './components/Header';
 import { TopNav } from './components/TopNav';
-import { EmployeeDirectory } from './components/EmployeeDirectory';
-import { KraManagementView } from './components/KraManagementView';
-import { KraTemplateBuilderModal } from './components/KraTemplateBuilderModal';
-import { KraLibraryModal } from './components/KraLibraryModal';
-import { QuarterlyReviewView, ReviewViewConfig } from './components/QuarterlyReviewView';
-import { AppraisalManagementView, AppraisalViewConfig } from './components/AppraisalManagementView';
-import { EmployeePortalView, EmployeePortalConfig } from './components/EmployeePortalView';
-import { ReportsCenterView, ReportsViewConfig } from './components/ReportsCenterView';
-import { BulkImportExportManager } from './components/BulkImportExportManager';
-import { AuditComplianceExplorer } from './components/AuditComplianceExplorer';
-import { AiPerformanceHub } from './components/AiPerformanceHub';
 import { LoginPage } from './components/LoginPage';
 import { LoginModal } from './components/LoginModal';
 import { ForcePasswordChangeScreen } from './components/ForcePasswordChangeScreen';
 import { MobileNavDrawer } from './components/MobileNavDrawer';
-import { Loader2, Users, LayoutDashboard, Target, Award, Sparkles, FileText, Sliders, DollarSign, UserCheck, FileSpreadsheet, UploadCloud, ShieldCheck } from 'lucide-react';
-import { KraTemplate, Kra, Department, Designation, Employee, Cycle } from './types';
-import { api } from './services/api';
+import { ViewSkeletonFallback } from './components/ui/ViewSkeletonFallback';
+import { useMasterData } from './hooks/useMasterData';
+import { useUrlHashView, AppView } from './hooks/useUrlHashView';
+import { Loader2 } from 'lucide-react';
+import { KraTemplate } from './types';
+import { ReviewViewConfig } from './components/QuarterlyReviewView';
+import { AppraisalViewConfig } from './components/AppraisalManagementView';
+import { EmployeePortalConfig } from './components/EmployeePortalView';
+import { ReportsViewConfig } from './components/ReportsCenterView';
+
+// Route-level code splitting: Lazy load heavy domain views
+const EmployeePortalView = lazy(() =>
+  import('./components/EmployeePortalView').then((m) => ({ default: m.EmployeePortalView }))
+);
+const QuarterlyReviewView = lazy(() =>
+  import('./components/QuarterlyReviewView').then((m) => ({ default: m.QuarterlyReviewView }))
+);
+const AppraisalManagementView = lazy(() =>
+  import('./components/AppraisalManagementView').then((m) => ({ default: m.AppraisalManagementView }))
+);
+const ReportsCenterView = lazy(() =>
+  import('./components/ReportsCenterView').then((m) => ({ default: m.ReportsCenterView }))
+);
+const EmployeeDirectory = lazy(() =>
+  import('./components/EmployeeDirectory').then((m) => ({ default: m.EmployeeDirectory }))
+);
+const KraManagementView = lazy(() =>
+  import('./components/KraManagementView').then((m) => ({ default: m.KraManagementView }))
+);
+const AiPerformanceHub = lazy(() =>
+  import('./components/AiPerformanceHub').then((m) => ({ default: m.AiPerformanceHub }))
+);
+const BulkImportExportManager = lazy(() =>
+  import('./components/BulkImportExportManager').then((m) => ({ default: m.BulkImportExportManager }))
+);
+const AuditComplianceExplorer = lazy(() =>
+  import('./components/AuditComplianceExplorer').then((m) => ({ default: m.AuditComplianceExplorer }))
+);
+
+// Modals lazy loaded on demand
+const KraTemplateBuilderModal = lazy(() =>
+  import('./components/KraTemplateBuilderModal').then((m) => ({ default: m.KraTemplateBuilderModal }))
+);
+const KraLibraryModal = lazy(() =>
+  import('./components/KraLibraryModal').then((m) => ({ default: m.KraLibraryModal }))
+);
+
+const VIEW_META: Record<string, { title: string; subtitle: string; tag: string; tagColor: string }> = {
+  portal: {
+    title: 'My Space & Performance Goals',
+    subtitle: 'Track your quarterly performance, complete self-reviews, and view your digital appraisal letter',
+    tag: 'Personal Workspace',
+    tagColor: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800/60',
+  },
+  reviews: {
+    title: 'Performance Reviews',
+    subtitle: 'Review quarterly goals, provide ratings and feedback, and track team progress',
+    tag: 'Evaluation Cycle',
+    tagColor: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/80 dark:border-blue-800/60',
+  },
+  appraisals: {
+    title: 'Annual Appraisals & Calibrations',
+    subtitle: 'Manage yearly appraisal cycles, salary calibrations, promotion reviews, and letter generation',
+    tag: 'Annual Calibration',
+    tagColor: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/60',
+  },
+  reports: {
+    title: 'Analytics & Reports',
+    subtitle: 'Monitor review completion rates, department performance trends, and rating distributions',
+    tag: 'Executive Reports',
+    tagColor: 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200/80 dark:border-purple-800/60',
+  },
+  employees: {
+    title: 'Employee Directory',
+    subtitle: 'Search team members, view reporting managers, and browse department structures',
+    tag: 'Team Directory',
+    tagColor: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-slate-700',
+  },
+  kras: {
+    title: 'Goals & KRA Template Library',
+    subtitle: 'Browse and configure Key Result Area templates and evaluation criteria by role',
+    tag: 'Goal Templates',
+    tagColor: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200/80 dark:border-amber-800/60',
+  },
+  ai_performance: {
+    title: 'AI Copilot & 360 Feedback',
+    subtitle: 'Generate AI-assisted review summaries, share continuous kudos, and track growth plans',
+    tag: 'AI Assisted',
+    tagColor: 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200/80 dark:border-violet-800/60',
+  },
+  bulk: {
+    title: 'Bulk Data Management',
+    subtitle: 'Import employee lists or download spreadsheet exports for reviews and salary records',
+    tag: 'Data Tools',
+    tagColor: 'bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border-cyan-200/80 dark:border-cyan-800/60',
+  },
+  audit: {
+    title: 'Compliance & Audit Trail',
+    subtitle: 'Review tamper-evident change history, sign-offs, and administrative security logs',
+    tag: 'Security & Audit',
+    tagColor: 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200/80 dark:border-rose-800/60',
+  },
+};
 
 function AppContent() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<'portal' | 'ai_performance' | 'appraisals' | 'reviews' | 'kras' | 'employees' | 'reports' | 'bulk' | 'audit' | 'overview'>('portal');
+
+  // Synchronized URL Hash Navigation
+  const { currentView, setView } = useUrlHashView();
 
   // View-specific configurations for direct workflow navigation
   const [appraisalConfig, setAppraisalConfig] = useState<AppraisalViewConfig | null>(null);
@@ -35,14 +126,31 @@ function AppContent() {
   const [reportsConfig, setReportsConfig] = useState<ReportsViewConfig | null>(null);
   const [portalConfig, setPortalConfig] = useState<EmployeePortalConfig | null>(null);
 
+  // Centralized Master Data via Custom Hook
+  const {
+    templates,
+    kras,
+    departments,
+    designations,
+    employees,
+    cycles,
+    saveTemplate,
+    saveKra,
+  } = useMasterData(isAuthenticated);
+
+  // KRA Modals State
+  const [isTemplateBuilderOpen, setIsTemplateBuilderOpen] = useState(false);
+  const [isKraLibraryOpen, setIsKraLibraryOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<KraTemplate | null>(null);
+
+  const canManageKras = user?.role === 'SUPER_ADMIN' || user?.role === 'HR' || user?.role === 'HOD';
+
   const handleNavigate = (tab: string, options?: any) => {
-    if (['portal', 'ai_performance', 'appraisals', 'reviews', 'kras', 'employees', 'reports', 'bulk', 'audit', 'overview'].includes(tab)) {
-      setAppraisalConfig(tab === 'appraisals' ? options || null : null);
-      setReviewConfig(tab === 'reviews' ? options || null : null);
-      setReportsConfig(tab === 'reports' ? options || null : null);
-      setPortalConfig(tab === 'portal' ? options || null : null);
-      setCurrentView(tab as any);
-    }
+    setAppraisalConfig(tab === 'appraisals' ? options || null : null);
+    setReviewConfig(tab === 'reviews' ? options || null : null);
+    setReportsConfig(tab === 'reports' ? options || null : null);
+    setPortalConfig(tab === 'portal' ? options || null : null);
+    setView(tab as AppView);
   };
 
   // Auto-switch to portal if user is an employee, and reset all view configs when switching roles
@@ -52,80 +160,26 @@ function AppContent() {
     setReportsConfig(null);
     setPortalConfig(null);
     if (user?.role === 'EMPLOYEE') {
-      setCurrentView('portal');
+      setView('portal', true);
     }
-  }, [user?.id, user?.role]);
-
-  // Master Data State
-  const [templates, setTemplates] = useState<KraTemplate[]>([]);
-  const [kras, setKras] = useState<Kra[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [designations, setDesignations] = useState<Designation[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [cycles, setCycles] = useState<Cycle[]>([]);
-
-  // KRA Modals
-  const [isTemplateBuilderOpen, setIsTemplateBuilderOpen] = useState(false);
-  const [isKraLibraryOpen, setIsKraLibraryOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<KraTemplate | null>(null);
-
-  const canManageKras = user?.role === 'SUPER_ADMIN' || user?.role === 'HR' || user?.role === 'HOD';
-
-  const loadInitialData = async () => {
-    try {
-      const [tmplRes, kraRes, deptRes, desRes, empRes, cycleRes] = await Promise.allSettled([
-        api.getKraTemplates(),
-        api.getKras(),
-        api.getDepartments(),
-        api.getDesignations(),
-        api.getEmployees(),
-        api.getCycles(),
-      ]);
-      if (tmplRes.status === 'fulfilled' && Array.isArray(tmplRes.value)) setTemplates(tmplRes.value);
-      if (kraRes.status === 'fulfilled' && Array.isArray(kraRes.value)) setKras(kraRes.value);
-      if (deptRes.status === 'fulfilled' && Array.isArray(deptRes.value)) setDepartments(deptRes.value);
-      if (desRes.status === 'fulfilled' && Array.isArray(desRes.value)) setDesignations(desRes.value);
-      if (empRes.status === 'fulfilled' && Array.isArray(empRes.value)) setEmployees(empRes.value);
-      if (cycleRes.status === 'fulfilled' && Array.isArray(cycleRes.value)) setCycles(cycleRes.value);
-    } catch (err) {
-      console.error('Failed to load initial master data:', err);
-    }
-  };
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadInitialData();
-    }
-  }, [isAuthenticated]);
-
-  const handleSaveTemplate = async (templateData: Partial<KraTemplate>) => {
-    if (templateData.id) {
-      await api.updateKraTemplate(templateData.id, templateData);
-    } else {
-      await api.createKraTemplate(templateData);
-    }
-    await loadInitialData();
-  };
-
-  const handleSaveKra = async (kraData: Partial<Kra>) => {
-    if (kraData.id) {
-      await api.updateKra(kraData.id, kraData);
-    } else {
-      await api.createKra(kraData);
-    }
-    await loadInitialData();
-  };
+  }, [user?.id, user?.role, setView]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-slate-100 space-y-4">
-        <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-        <p className="text-xs text-slate-400 font-medium">Initializing Enterprise Performance & Appraisal System...</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 dark:bg-indigo-400/10 flex items-center justify-center border border-indigo-500/20">
+            <Loader2 className="w-6 h-6 animate-spin text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 animate-pulse">
+            Initializing Session & Security Tokens...
+          </p>
+        </div>
       </div>
     );
   }
 
-  // If not logged in, directly show the modern enterprise LoginPage
+  // Not authenticated
   if (!isAuthenticated) {
     return <LoginPage />;
   }
@@ -134,63 +188,6 @@ function AppContent() {
   if (user?.mustChangePassword) {
     return <ForcePasswordChangeScreen />;
   }
-
-  const VIEW_META: Record<string, { title: string; subtitle: string; tag: string; tagColor: string }> = {
-    portal: {
-      title: 'My Space & Performance Goals',
-      subtitle: 'Track your quarterly performance, complete self-reviews, and view your digital appraisal letter',
-      tag: 'Personal Workspace',
-      tagColor: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800/60',
-    },
-    reviews: {
-      title: 'Performance Reviews',
-      subtitle: 'Review quarterly goals, provide ratings and feedback, and track team progress',
-      tag: 'Evaluation Cycle',
-      tagColor: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/80 dark:border-blue-800/60',
-    },
-    appraisals: {
-      title: 'Annual Appraisals & Calibrations',
-      subtitle: 'Manage yearly appraisal cycles, salary calibrations, promotion reviews, and letter generation',
-      tag: 'Annual Calibration',
-      tagColor: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/60',
-    },
-    reports: {
-      title: 'Analytics & Reports',
-      subtitle: 'Monitor review completion rates, department performance trends, and rating distributions',
-      tag: 'Executive Reports',
-      tagColor: 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200/80 dark:border-purple-800/60',
-    },
-    employees: {
-      title: 'Employee Directory',
-      subtitle: 'Search team members, view reporting managers, and browse department structures',
-      tag: 'Team Directory',
-      tagColor: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-slate-700',
-    },
-    kras: {
-      title: 'Goals & KRA Template Library',
-      subtitle: 'Browse and configure Key Result Area templates and evaluation criteria by role',
-      tag: 'Goal Templates',
-      tagColor: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200/80 dark:border-amber-800/60',
-    },
-    ai_performance: {
-      title: 'AI Copilot & 360 Feedback',
-      subtitle: 'Generate AI-assisted review summaries, share continuous kudos, and track growth plans',
-      tag: 'AI Assisted',
-      tagColor: 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200/80 dark:border-violet-800/60',
-    },
-    bulk: {
-      title: 'Bulk Data Management',
-      subtitle: 'Import employee lists or download spreadsheet exports for reviews and salary records',
-      tag: 'Data Tools',
-      tagColor: 'bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border-cyan-200/80 dark:border-cyan-800/60',
-    },
-    audit: {
-      title: 'Compliance & Audit Trail',
-      subtitle: 'Review tamper-evident change history, sign-offs, and administrative security logs',
-      tag: 'Security & Audit',
-      tagColor: 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200/80 dark:border-rose-800/60',
-    },
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-50 to-indigo-50/20 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-600 selection:text-white transition-colors duration-200">
@@ -218,7 +215,7 @@ function AppContent() {
             setAppraisalConfig(null);
             setReportsConfig(null);
             setPortalConfig(null);
-            setCurrentView(v);
+            setView(v as AppView);
           }}
           userRole={user?.role}
           onOpenMobileMenu={() => setIsMobileNavOpen(true)}
@@ -250,107 +247,112 @@ function AppContent() {
             </div>
           )}
 
-          {currentView === 'portal' ? (
-            <EmployeePortalView
-              onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
-              onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
-              initialConfig={portalConfig}
-            />
-          ) : currentView === 'ai_performance' ? (
-            <AiPerformanceHub currentUser={user} />
-          ) : currentView === 'appraisals' ? (
-            <AppraisalManagementView
-              currentUser={user}
-              departments={departments}
-              cycles={cycles}
-              designations={designations}
-              initialConfig={appraisalConfig}
-              onClearInitialConfig={() => setAppraisalConfig(null)}
-            />
-          ) : currentView === 'reviews' ? (
-            <QuarterlyReviewView
-              currentUser={user}
-              departments={departments}
-              cycles={cycles}
-              employees={employees}
-              initialConfig={reviewConfig}
-              onClearInitialConfig={() => setReviewConfig(null)}
-            />
-          ) : currentView === 'reports' ? (
-            <ReportsCenterView
-              departments={departments}
-              cycles={cycles}
-              initialConfig={reportsConfig}
-            />
-          ) : currentView === 'bulk' ? (
-            <BulkImportExportManager />
-          ) : currentView === 'audit' ? (
-            <AuditComplianceExplorer currentUser={user} />
-          ) : currentView === 'kras' ? (
-            <KraManagementView
-              templates={templates}
-              kras={kras}
-              departments={departments}
-              designations={designations}
-              employees={employees}
-              canManage={canManageKras}
-              onOpenCreateTemplate={() => {
-                setEditingTemplate(null);
-                setIsTemplateBuilderOpen(true);
-              }}
-              onOpenEditTemplate={(tmpl) => {
-                setEditingTemplate(tmpl);
-                setIsTemplateBuilderOpen(true);
-              }}
-              onOpenLibrary={() => setIsKraLibraryOpen(true)}
-            />
-          ) : (
-            <EmployeeDirectory
-              currentUser={user}
-              departments={departments}
-              designations={designations}
-              cycles={cycles}
-              kraTemplates={templates}
-              onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
-              onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
-              initialConfig={portalConfig}
-              employees={employees}
-            />
-          )}
+          {/* Lazy loaded domain view with fallback */}
+          <Suspense fallback={<ViewSkeletonFallback />}>
+            {currentView === 'portal' ? (
+              <EmployeePortalView
+                onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
+                onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
+                initialConfig={portalConfig}
+              />
+            ) : currentView === 'ai_performance' ? (
+              <AiPerformanceHub currentUser={user} />
+            ) : currentView === 'appraisals' ? (
+              <AppraisalManagementView
+                currentUser={user}
+                departments={departments}
+                cycles={cycles}
+                designations={designations}
+                initialConfig={appraisalConfig}
+                onClearInitialConfig={() => setAppraisalConfig(null)}
+              />
+            ) : currentView === 'reviews' ? (
+              <QuarterlyReviewView
+                currentUser={user}
+                departments={departments}
+                cycles={cycles}
+                employees={employees}
+                initialConfig={reviewConfig}
+                onClearInitialConfig={() => setReviewConfig(null)}
+              />
+            ) : currentView === 'reports' ? (
+              <ReportsCenterView
+                departments={departments}
+                cycles={cycles}
+                initialConfig={reportsConfig}
+              />
+            ) : currentView === 'bulk' ? (
+              <BulkImportExportManager />
+            ) : currentView === 'audit' ? (
+              <AuditComplianceExplorer currentUser={user} />
+            ) : currentView === 'kras' ? (
+              <KraManagementView
+                templates={templates}
+                kras={kras}
+                departments={departments}
+                designations={designations}
+                employees={employees}
+                canManage={canManageKras}
+                onOpenCreateTemplate={() => {
+                  setEditingTemplate(null);
+                  setIsTemplateBuilderOpen(true);
+                }}
+                onOpenEditTemplate={(tmpl) => {
+                  setEditingTemplate(tmpl);
+                  setIsTemplateBuilderOpen(true);
+                }}
+                onOpenLibrary={() => setIsKraLibraryOpen(true)}
+              />
+            ) : (
+              <EmployeeDirectory
+                currentUser={user}
+                departments={departments}
+                designations={designations}
+                cycles={cycles}
+                kraTemplates={templates}
+                onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
+                onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
+                initialConfig={portalConfig}
+                employees={employees}
+              />
+            )}
+          </Suspense>
         </main>
       </div>
 
       {/* Modals */}
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
 
-      {/* KRA Modals */}
-      {isTemplateBuilderOpen && (
-        <KraTemplateBuilderModal
-          template={editingTemplate}
-          departments={departments}
-          designations={designations}
-          kraLibrary={kras}
-          onSave={handleSaveTemplate}
-          onClose={() => {
-            setIsTemplateBuilderOpen(false);
-            setEditingTemplate(null);
-          }}
-          onOpenLibrary={() => {
-            setIsTemplateBuilderOpen(false);
-            setIsKraLibraryOpen(true);
-          }}
-        />
-      )}
+      {/* KRA Modals with Suspense */}
+      <Suspense fallback={null}>
+        {isTemplateBuilderOpen && (
+          <KraTemplateBuilderModal
+            template={editingTemplate}
+            departments={departments}
+            designations={designations}
+            kraLibrary={kras}
+            onSave={saveTemplate}
+            onClose={() => {
+              setIsTemplateBuilderOpen(false);
+              setEditingTemplate(null);
+            }}
+            onOpenLibrary={() => {
+              setIsTemplateBuilderOpen(false);
+              setIsKraLibraryOpen(true);
+            }}
+          />
+        )}
 
-      {isKraLibraryOpen && (
-        <KraLibraryModal
-          kras={kras}
-          departments={departments}
-          canEdit={canManageKras}
-          onSaveKra={handleSaveKra}
-          onClose={() => setIsKraLibraryOpen(false)}
-        />
-      )}
+        {isKraLibraryOpen && (
+          <KraLibraryModal
+            kras={kras}
+            departments={departments}
+            canEdit={canManageKras}
+            onSaveKra={saveKra}
+            onClose={() => setIsKraLibraryOpen(false)}
+          />
+        )}
+      </Suspense>
 
       {/* Footer */}
       <footer className="border-t border-slate-200/70 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md py-4 mt-auto mb-16 md:mb-0">
@@ -358,10 +360,12 @@ function AppContent() {
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
             <span className="font-semibold text-slate-700 dark:text-slate-300">Performance & Appraisal Management</span>
+            <span className="text-slate-400">•</span>
+            <span>Enterprise Edition</span>
           </div>
-          <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
-            Quarterly Reviews • Annual Calibration • AI-Assisted Growth
-          </span>
+          <div>
+            <span>Quarterly Cycles • Calibration • Audit Governance</span>
+          </div>
         </div>
       </footer>
     </div>
