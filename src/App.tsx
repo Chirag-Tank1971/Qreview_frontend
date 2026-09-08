@@ -221,10 +221,11 @@ function AppContent() {
             setCurrentView(v);
           }}
           userRole={user?.role}
+          onOpenMobileMenu={() => setIsMobileNavOpen(true)}
         />
 
         {/* Main Content Area */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-12 overflow-x-hidden">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-24 md:pb-12 overflow-x-hidden">
           {/* View Context Banner */}
           {VIEW_META[currentView] && (
             <div className="mb-4 sm:mb-6 p-3.5 sm:p-5 bg-white/75 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -352,7 +353,7 @@ function AppContent() {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-slate-200/70 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md py-4 mt-auto">
+      <footer className="border-t border-slate-200/70 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md py-4 mt-auto mb-16 md:mb-0">
         <div className="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
