@@ -99,7 +99,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       if (initialConfig.status) {
         let normalized = initialConfig.status;
         if (normalized === 'SELF_ASSESSED') normalized = 'MANAGER_PENDING';
-        const validStatuses = ['ALL', 'MANAGER_PENDING', 'MANAGER_COMPLETED', 'HR_PENDING', 'HR_COMPLETED', 'CLOSED', 'RETURNED', 'ASSIGNED', 'DRAFT'];
+        const validStatuses = ['ALL', 'MANAGER_PENDING', 'MANAGER_COMPLETED', 'HOD_COMPLETED', 'HR_PENDING', 'HR_COMPLETED', 'CLOSED', 'RETURNED', 'ASSIGNED', 'DRAFT'];
         if (!validStatuses.includes(normalized)) normalized = 'ALL';
         setFilterStatus(normalized);
       }
@@ -299,6 +299,8 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
         return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 flex items-center space-x-1"><Clock className="w-3 h-3" /><span>Mgr Pending</span></span>;
       case 'MANAGER_COMPLETED':
         return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 flex items-center space-x-1"><CheckCircle2 className="w-3 h-3" /><span>Mgr Completed</span></span>;
+      case 'HOD_COMPLETED':
+        return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 flex items-center space-x-1"><Award className="w-3 h-3 text-purple-600 dark:text-purple-400" /><span>HOD Completed</span></span>;
       case 'HR_PENDING':
       case 'HR_COMPLETED':
         return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 flex items-center space-x-1"><UserCheck className="w-3 h-3" /><span>HR Review</span></span>;
@@ -594,6 +596,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Statuses</option>
               <option value="MANAGER_PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Manager Pending</option>
               <option value="MANAGER_COMPLETED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Manager Completed</option>
+              <option value="HOD_COMPLETED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HOD Completed</option>
               <option value="HR_PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR Pending</option>
               <option value="HR_COMPLETED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR Completed</option>
               <option value="ASSIGNED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Assigned</option>

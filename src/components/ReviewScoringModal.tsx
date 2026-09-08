@@ -115,8 +115,21 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
       setErrorMessage('');
       setSuccessMessage('');
       setAiSuccessNote('');
-      // If employee already submitted, start at step 1; if not, could start at step 2
-      setWizardStep(review.selfSubmittedAt ? 1 : 2);
+      // Determine initial wizard step:
+      if (
+        review.status === 'HOD_COMPLETED' ||
+        review.status === 'HR_PENDING' ||
+        review.status === 'HR_COMPLETED' ||
+        review.status === 'CLOSED'
+      ) {
+        setWizardStep(3);
+      } else if (review.status === 'MANAGER_COMPLETED') {
+        setWizardStep(3);
+      } else if (review.selfSubmittedAt) {
+        setWizardStep(1);
+      } else {
+        setWizardStep(2);
+      }
     }
   }, [review]);
 
@@ -143,9 +156,13 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
   if (!isOpen || !review) return null;
 
   // Check user permissions
-  const isManager = currentUser?.role === 'MANAGER' || currentUser?.role === 'HOD';
+  const isManager = currentUser?.role === 'MANAGER';
+  const isHod = currentUser?.role === 'HOD';
   const isHrOrAdmin = currentUser?.role === 'HR' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'MANAGEMENT';
-  const canEdit = !review.isClosed && (isManager || isHrOrAdmin);
+
+  // If review is HOD_COMPLETED, Manager and HOD can no longer edit; only HR/Admin can calibrate and final-lock
+  const isHodCompleted = review.status === 'HOD_COMPLETED';
+  const canEdit = !review.isClosed && (isHrOrAdmin || (!isHodCompleted && (isManager || isHod)));
 
   // Update a single snapshot row
   const handleKraChange = (index: number, field: keyof ReviewKraSnapshot, value: any) => {
@@ -297,14 +314,42 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
     setSaving(true);
     setErrorMessage('');
     try {
+      // 1. First persist any edited ratings, strengths, improvements, or HR comments
+      if (canEdit && snapshots.length > 0) {
+        await api.scoreReview(review.id, {
+          kraSnapshot: snapshots,
+          strengths,
+          improvements,
+          managerOverallComments: managerComments,
+          employeeComments,
+          hrComments,
+          isDraft: true,
+        });
+      }
+
+      // 2. Then transition status
+      const defaultRemarks =
+        newStatus === 'CLOSED'
+          ? 'Final review signed off, locked, and closed by HR'
+          : newStatus === 'HR_COMPLETED'
+          ? 'Review approved by HR Calibration'
+          : `Transitioned review status to ${newStatus}`;
+
       await api.updateReviewStatus(review.id, {
         status: newStatus,
-        remarks: statusModalRemarks || `Transitioned review status to ${newStatus}`,
+        remarks: statusModalRemarks || defaultRemarks,
       });
+
       setShowStatusModal(null);
       setStatusModalRemarks('');
-      setSuccessMessage(`Review status updated to ${newStatus}`);
-      toast.success(`Review status updated to ${newStatus}`, 'Workflow Updated');
+      const succMsg =
+        newStatus === 'CLOSED'
+          ? 'Review successfully finalized, locked, and closed!'
+          : newStatus === 'HR_COMPLETED'
+          ? 'Review successfully approved by HR!'
+          : `Review status updated to ${newStatus}`;
+      setSuccessMessage(succMsg);
+      toast.success(succMsg, 'Workflow Updated');
       setTimeout(() => {
         onSaved();
       }, 600);
@@ -391,6 +436,45 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               <p className="text-rose-700 dark:text-rose-300 text-[11px] mt-0.5">
                 This employee has been marked inactive in the system. Performance review scoring and evaluation submission are disabled to safeguard evaluation integrity. Historical review records remain available for reference.
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* REVIEW RETURNED BANNER */}
+        {review.status === 'RETURNED' && (
+          <div className="mx-6 mt-3 px-4 py-3 bg-rose-50/90 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/80 text-rose-900 dark:text-rose-200 text-xs rounded-xl flex items-start gap-3 shadow-xs">
+            <div className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 flex items-center justify-center shrink-0 mt-0.5">
+              <RotateCcw className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="font-bold text-rose-950 dark:text-rose-100 text-xs sm:text-sm">
+                  Review Returned to Reporting Manager ({review.managerName})
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowAuditModal(true)}
+                  className="text-[11px] font-semibold underline text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-rose-100 flex items-center gap-1 cursor-pointer"
+                >
+                  <History className="w-3.5 h-3.5" />
+                  <span>View Timeline & Remarks ({review.actionHistory?.length || 0})</span>
+                </button>
+              </div>
+              <p className="text-rose-800 dark:text-rose-300 text-[11px] mt-1">
+                This review was returned by HR for revision. Reporting Manager <strong className="font-semibold text-rose-950 dark:text-rose-100">{review.managerName}</strong> must update scoring in Step 2 and submit again.
+              </p>
+              {(() => {
+                const lastReturn = [...(review.actionHistory || [])].reverse().find((a) => a.action === 'RETURNED');
+                return lastReturn?.remarks ? (
+                  <div className="mt-2 p-2.5 rounded-lg bg-white/90 dark:bg-slate-900/70 border border-rose-200/90 dark:border-rose-800/80 text-slate-800 dark:text-slate-200 text-[11px]">
+                    <span className="font-bold text-rose-800 dark:text-rose-300">Return Reason / HR Remarks: </span>
+                    <span className="italic">"{lastReturn.remarks}"</span>
+                    <div className="text-slate-400 dark:text-slate-500 text-[10px] mt-1 font-mono">
+                      By {lastReturn.performedByName} ({lastReturn.performedByRole}) • {new Date(lastReturn.performedAt).toLocaleString()}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
             </div>
           </div>
         )}
@@ -663,6 +747,18 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                 </div>
               </div>
 
+              {isHodCompleted && !isHrOrAdmin && (
+                <div className="bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200 text-xs p-3.5 rounded-xl flex items-center gap-2.5 shadow-2xs">
+                  <Lock className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                  <div>
+                    <span className="font-bold">HOD Evaluation Completed (Read-Only)</span>
+                    <p className="text-[11px] text-purple-800 dark:text-purple-300 mt-0.5">
+                      This quarterly review has been calibrated by HOD and submitted to HR. Goal ratings are now locked for manager and HOD roles.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-4">
                 {snapshots.map((item, idx) => {
                   const itemContribution = ((item.rating || 0) * (item.weight || 0)) / 100;
@@ -886,53 +982,63 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                     />
                   </div>
                 )}
-              </div>
-            </div>
-          )}
 
-          {/* AUDIT TRAIL MODAL OVERLAY */}
-          {showAuditModal && (
-            <div className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700/80 p-5 shadow-2xs space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-2">
-                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                  <History className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                  <span>Lifecycle Action History & Audit Log</span>
-                </h4>
-                <button
-                  type="button"
-                  onClick={() => setShowAuditModal(false)}
-                  className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                >
-                  Close
-                </button>
-              </div>
-
-              <div className="relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">
-                {(review.actionHistory || []).map((action, idx) => (
-                  <div key={action.id || idx} className="relative">
-                    <div className="absolute -left-6 top-0.5 w-5 h-5 rounded-full bg-white dark:bg-slate-800 border-2 border-indigo-600 flex items-center justify-center">
-                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
-                    </div>
-                    <div>
-                      <div className="flex items-center space-x-2 flex-wrap">
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{action.action}</span>
-                        <span className="text-xs text-slate-400">•</span>
-                        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{action.performedByName}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-mono">
-                          {action.performedByRole}
-                        </span>
+                {/* HR FINAL SIGN-OFF & LOCK ACTION CARD */}
+                {isHrOrAdmin && !review.isClosed && (
+                  <div className="p-4 rounded-xl bg-slate-900 text-white dark:bg-slate-950 border border-slate-700 shadow-md space-y-3 mt-4">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                            HR Final Sign-Off & Lock Actions
+                          </h4>
+                          <p className="text-[11px] text-slate-400">
+                            Current Stage: <span className="font-semibold text-indigo-300">{review.status}</span> • Live Weighted Score: <span className="font-mono font-bold text-white">{computedScore.toFixed(2)}/5.00</span>
+                          </p>
+                        </div>
                       </div>
-                      {action.remarks && (
-                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 bg-slate-50 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
-                          {action.remarks}
-                        </p>
-                      )}
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">
-                        {new Date(action.performedAt).toLocaleString()}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => setShowStatusModal('HR_COMPLETED')}
+                          className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                          <span>Approve (HR)</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => setShowStatusModal('CLOSED')}
+                          className="px-4 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer ring-2 ring-indigo-400/40"
+                        >
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>Final Lock & Close</span>
+                        </button>
+                      </div>
                     </div>
+                    <p className="text-[11px] text-slate-300 leading-relaxed border-t border-slate-800 pt-2.5">
+                      Click <strong>Final Lock & Close</strong> to complete this appraisal cycle. It saves your feedback, permanently locks the review against further edits, records the timestamp in the audit trail, and archives this quarterly evaluation.
+                    </p>
                   </div>
-                ))}
+                )}
+
+                {/* HOD / MANAGER READ-ONLY BANNER FOR HOD_COMPLETED */}
+                {isHodCompleted && !isHrOrAdmin && (
+                  <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800/70 text-purple-950 dark:text-purple-200 space-y-1.5 shadow-2xs">
+                    <div className="flex items-center gap-2 font-bold text-xs">
+                      <Lock className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      <span>HOD Evaluation Submitted & Locked</span>
+                    </div>
+                    <p className="text-[11px] text-purple-800 dark:text-purple-300">
+                      The departmental HOD has completed the calibration for this review. It is currently with HR for final calibration and permanent lock. Further edits by managers or HODs are restricted.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1007,7 +1113,41 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                 <div className="text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-3 py-2 rounded-xl border border-rose-200 dark:border-rose-800">
                   Evaluation submission disabled (Employee Inactive)
                 </div>
+              ) : isHrOrAdmin ? (
+                /* HR / Admin Step 3 Options with Final Lock prominent button */
+                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => handleSaveScores(true)}
+                    className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Save Draft</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => setShowStatusModal('HR_COMPLETED')}
+                    className="px-3.5 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-800 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
+                  >
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>Approve (HR)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => setShowStatusModal('CLOSED')}
+                    className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer ring-2 ring-indigo-500/30"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Final Lock & Close</span>
+                  </button>
+                </div>
               ) : (
+                /* Manager Standard Options */
                 <>
                   <button
                     type="button"
@@ -1026,7 +1166,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                     className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>Submit Evaluation</span>
+                    <span>{currentUser?.role === 'HOD' ? 'Submit HOD Calibration' : 'Submit Evaluation'}</span>
                   </button>
                 </>
               )
@@ -1038,24 +1178,46 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
         {showStatusModal &&
           createPortal(
             <div
-              className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 p-4"
+              className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4"
               onClick={(e) => {
                 if (e.target === e.currentTarget) setShowStatusModal(null);
               }}
             >
-              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-5 space-y-4">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-5 space-y-4 animate-in fade-in zoom-in-95 duration-150">
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  <span>Confirm Transition to {showStatusModal}</span>
+                  {showStatusModal === 'CLOSED' ? (
+                    <Lock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  ) : showStatusModal === 'HR_COMPLETED' ? (
+                    <UserCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  ) : (
+                    <RotateCcw className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  )}
+                  <span>
+                    {showStatusModal === 'CLOSED'
+                      ? 'Final Lock & Close Quarterly Review'
+                      : showStatusModal === 'HR_COMPLETED'
+                      ? 'Approve Review (HR Calibration)'
+                      : `Return Review to ${review.managerName}`}
+                  </span>
                 </h4>
                 <p className="text-xs text-slate-600 dark:text-slate-400">
-                  Provide audit remarks or specific instructions for this lifecycle state change:
+                  {showStatusModal === 'CLOSED'
+                    ? `This will permanently lock the review for ${review.employeeName}. All ratings, scores, and growth comments will be preserved and locked.`
+                    : showStatusModal === 'HR_COMPLETED'
+                    ? `Mark this review as HR Approved and record calibration remarks in the audit trail:`
+                    : `Provide audit remarks or return instructions for ${review.managerName}:`}
                 </p>
                 <textarea
                   rows={3}
                   value={statusModalRemarks}
                   onChange={(e) => setStatusModalRemarks(e.target.value)}
-                  placeholder="e.g. Scores aligned with cohort distribution. Approved for appraisal processing..."
+                  placeholder={
+                    showStatusModal === 'CLOSED'
+                      ? 'e.g. Approved and final locked by HR following performance calibration...'
+                      : showStatusModal === 'HR_COMPLETED'
+                      ? 'e.g. Scores aligned with cohort distribution. Approved for appraisal processing...'
+                      : 'e.g. Please recalibrate goal scoring based on quarterly achievement metrics...'
+                  }
                   className="w-full text-xs p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-indigo-500"
                 />
                 <div className="flex justify-end space-x-2 pt-2">
@@ -1068,9 +1230,158 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                   <button
                     disabled={saving}
                     onClick={() => handleStatusTransition(showStatusModal)}
-                    className="px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg cursor-pointer"
+                    className={`px-4 py-1.5 text-xs font-semibold text-white rounded-lg shadow-xs cursor-pointer ${
+                      showStatusModal === 'CLOSED'
+                        ? 'bg-indigo-600 hover:bg-indigo-700'
+                        : showStatusModal === 'HR_COMPLETED'
+                        ? 'bg-emerald-600 hover:bg-emerald-700'
+                        : 'bg-amber-600 hover:bg-amber-700'
+                    }`}
                   >
-                    Confirm Transition
+                    {showStatusModal === 'CLOSED'
+                      ? 'Confirm & Final Lock'
+                      : showStatusModal === 'HR_COMPLETED'
+                      ? 'Confirm HR Approval'
+                      : 'Confirm Return'}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
+
+        {/* AUDIT TRAIL MODAL OVERLAY (PORTALED) */}
+        {showAuditModal &&
+          createPortal(
+            <div
+              className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setShowAuditModal(false);
+              }}
+            >
+              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-850">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200 dark:border-indigo-800/60">
+                      <History className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>Review Lifecycle & Audit Trail</span>
+                        <span className="font-mono text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700">
+                          {review.actionHistory?.length || 0} events
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {review.employeeName} ({review.employeeCode}) • Period: {review.reviewPeriodName}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAuditModal(false)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Body / Timeline */}
+                <div className="p-6 overflow-y-auto space-y-4 flex-1">
+                  {(!review.actionHistory || review.actionHistory.length === 0) ? (
+                    <div className="text-center py-10 text-slate-400 dark:text-slate-500 text-xs">
+                      No lifecycle events recorded for this review yet.
+                    </div>
+                  ) : (
+                    <div className="relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">
+                      {review.actionHistory.map((action, idx) => {
+                        const isReturned = action.action === 'RETURNED';
+                        const isApproved = action.action === 'APPROVED';
+                        const isClosed = action.action === 'CLOSED';
+
+                        return (
+                          <div key={action.id || idx} className="relative">
+                            <div
+                              className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full bg-white dark:bg-slate-850 border-2 flex items-center justify-center shadow-xs ${
+                                isReturned
+                                  ? 'border-rose-500'
+                                  : isApproved
+                                  ? 'border-emerald-500'
+                                  : isClosed
+                                  ? 'border-slate-500'
+                                  : 'border-indigo-600'
+                              }`}
+                            >
+                              <div
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  isReturned
+                                    ? 'bg-rose-500'
+                                    : isApproved
+                                    ? 'bg-emerald-500'
+                                    : isClosed
+                                    ? 'bg-slate-500'
+                                    : 'bg-indigo-600'
+                                }`}
+                              />
+                            </div>
+
+                            <div>
+                              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                                <span
+                                  className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
+                                    isReturned
+                                      ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+                                      : isApproved
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                                      : isClosed
+                                      ? 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                                      : 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800'
+                                  }`}
+                                >
+                                  {action.action}
+                                </span>
+                                <span className="text-xs text-slate-400">•</span>
+                                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                                  {action.performedByName}
+                                </span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">
+                                  {action.performedByRole}
+                                </span>
+                              </div>
+
+                              {isReturned && (
+                                <div className="mt-1 text-[11px] text-rose-600 dark:text-rose-400 font-medium">
+                                  ↩ Returned to Reporting Manager: <span className="font-semibold text-slate-800 dark:text-slate-200">{review.managerName}</span>
+                                </div>
+                              )}
+
+                              {action.remarks && (
+                                <div className="text-xs text-slate-700 dark:text-slate-300 mt-1.5 bg-slate-50 dark:bg-slate-850 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 leading-relaxed">
+                                  <span className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 block mb-0.5">Remarks / Reason:</span>
+                                  {action.remarks}
+                                </div>
+                              )}
+
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">
+                                {new Date(action.performedAt).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-850 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowAuditModal(false)}
+                    className="px-4 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                  >
+                    Close
                   </button>
                 </div>
               </div>
