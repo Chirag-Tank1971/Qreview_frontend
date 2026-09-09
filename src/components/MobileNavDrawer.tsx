@@ -7,6 +7,7 @@ import {
   Target,
   BarChart3,
   Users,
+  Bell,
   Shield,
   Upload,
   Sparkles,
@@ -99,6 +100,13 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
       subtitle: 'Bell curve distributions & department trends',
       icon: BarChart3,
       roles: ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'],
+    },
+    {
+      id: 'notifications',
+      label: 'Notifications & Alerts',
+      subtitle: 'Actionable tasks & email delivery audit',
+      icon: Bell,
+      roles: ['SUPER_ADMIN', 'HR', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'],
     },
   ];
 

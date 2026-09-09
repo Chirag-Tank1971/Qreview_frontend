@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Bell,
@@ -19,6 +19,8 @@ import {
   BarChart3,
   FileSpreadsheet,
   CheckSquare,
+  RotateCcw,
+  Trash2,
 } from 'lucide-react';
 import { Notification, User } from '../types';
 import { api } from '../services/api';
@@ -65,14 +67,129 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
     }
   }, [isOpen, currentUser]);
 
-  const handleRemoveNotification = async (id: string, e?: React.MouseEvent) => {
+  // Pending Deletion with 3s Undo State
+  interface PendingDeletion {
+    notification: Notification;
+    index: number;
+    timeoutId: ReturnType<typeof setTimeout>;
+    intervalId: ReturnType<typeof setInterval>;
+    secondsRemaining: number;
+  }
+
+  const [pendingDeletion, setPendingDeletion] = useState<PendingDeletion | null>(null);
+  const pendingRef = useRef<PendingDeletion | null>(null);
+  pendingRef.current = pendingDeletion;
+
+  const isDeletingRef = useRef(false);
+  const isUndoingRef = useRef(false);
+
+  // Cleanup on unmount - commit any pending deletion
+  useEffect(() => {
+    return () => {
+      if (pendingRef.current) {
+        clearTimeout(pendingRef.current.timeoutId);
+        clearInterval(pendingRef.current.intervalId);
+        api.deleteNotification(pendingRef.current.notification.id).catch(console.error);
+      }
+    };
+  }, []);
+
+  const handleRemoveNotification = (id: string, e?: React.SyntheticEvent | MouseEvent) => {
     if (e) e.stopPropagation();
-    try {
-      await api.deleteNotification(id);
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    } catch (err) {
-      console.error('Failed to remove notification:', err);
+
+    if (isDeletingRef.current) return;
+    isDeletingRef.current = true;
+    setTimeout(() => {
+      isDeletingRef.current = false;
+    }, 400);
+
+    if (pendingRef.current) {
+      clearTimeout(pendingRef.current.timeoutId);
+      clearInterval(pendingRef.current.intervalId);
+      api.deleteNotification(pendingRef.current.notification.id).catch(console.error);
     }
+
+    const notifIndex = notifications.findIndex((n) => n.id === id);
+    const targetNotif = notifications[notifIndex];
+    if (!targetNotif) return;
+
+    // Optimistically remove from visible list
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+
+    let secondsLeft = 3;
+    const intervalId = setInterval(() => {
+      secondsLeft -= 1;
+      setPendingDeletion((prev) => {
+        if (!prev) return null;
+        return { ...prev, secondsRemaining: Math.max(0, secondsLeft) };
+      });
+    }, 1000);
+
+    const timeoutId = setTimeout(async () => {
+      clearInterval(intervalId);
+      try {
+        await api.deleteNotification(targetNotif.id);
+      } catch (err) {
+        console.error('Failed to commit deletion on server:', err);
+      }
+      setPendingDeletion(null);
+    }, 3000);
+
+    setPendingDeletion({
+      notification: targetNotif,
+      index: notifIndex,
+      timeoutId,
+      intervalId,
+      secondsRemaining: 3,
+    });
+  };
+
+  const handleUndoDelete = (e?: React.SyntheticEvent | MouseEvent | TouchEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    if (isUndoingRef.current) return;
+    isUndoingRef.current = true;
+    setTimeout(() => {
+      isUndoingRef.current = false;
+    }, 400);
+
+    const currentPending = pendingRef.current || pendingDeletion;
+    if (!currentPending) return;
+
+    clearTimeout(currentPending.timeoutId);
+    clearInterval(currentPending.intervalId);
+
+    const restored = currentPending.notification;
+    const originalIdx = currentPending.index;
+
+    setNotifications((prev) => {
+      if (prev.some((n) => n.id === restored.id)) return prev;
+      const next = [...prev];
+      if (originalIdx >= 0 && originalIdx <= next.length) {
+        next.splice(originalIdx, 0, restored);
+      } else {
+        next.unshift(restored);
+      }
+      return next;
+    });
+
+    pendingRef.current = null;
+    setPendingDeletion(null);
+  };
+
+  const handleDismissUndoToast = (e?: React.SyntheticEvent | MouseEvent | TouchEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    const currentPending = pendingRef.current || pendingDeletion;
+    if (!currentPending) return;
+
+    clearTimeout(currentPending.timeoutId);
+    clearInterval(currentPending.intervalId);
+    api.deleteNotification(currentPending.notification.id).catch(console.error);
+    pendingRef.current = null;
+    setPendingDeletion(null);
   };
 
   const handleCompleteNotification = async (id: string, e?: React.MouseEvent) => {
@@ -411,11 +528,13 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
   if (!isOpen) return null;
   if (typeof document === 'undefined') return null;
 
-  return createPortal(
-    <div 
-      className="fixed inset-0 z-[9999] overflow-hidden flex justify-end bg-slate-950/40 dark:bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150"
-      onClick={onClose}
-    >
+  return (
+    <>
+      {createPortal(
+        <div
+          className="fixed inset-0 z-[9999] overflow-hidden flex justify-end bg-slate-950/40 dark:bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={onClose}
+        >
       <div
         className="w-full max-w-md bg-white dark:bg-slate-900 h-screen shadow-2xl flex flex-col border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right duration-200"
         onClick={(e) => e.stopPropagation()}
@@ -482,26 +601,25 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
               return (
                 <div
                   key={notif.id}
-                  className={`pt-3 first:pt-0 p-3.5 rounded-xl transition-all border ${
-                    notif.isRead
+                  className={`pt-3 first:pt-0 p-3.5 rounded-xl transition-all border ${notif.isRead
                       ? 'bg-white dark:bg-slate-800/60 border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-300'
                       : 'bg-indigo-50/40 dark:bg-indigo-950/40 border-indigo-100 dark:border-indigo-900/60 text-slate-900 dark:text-white shadow-2xs'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2.5">
-                      <div className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs mt-0.5">
+                    <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                      <div className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs mt-0.5 shrink-0">
                         {getIconForType(notif.type)}
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-1 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-bold text-slate-900 dark:text-white">{notif.title}</span>
+                          <span className="text-xs font-bold text-slate-900 dark:text-white break-words">{notif.title}</span>
                           {getPriorityBadge(notif.priority)}
                         </div>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{notif.message}</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed break-words">{notif.message}</p>
                         <div className="flex items-center gap-2 pt-1">
                           <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1 font-mono">
-                            <Clock className="w-3 h-3" />
+                            <Clock className="w-3 h-3 shrink-0" />
                             {new Date(notif.createdAt).toLocaleTimeString([], {
                               hour: '2-digit',
                               minute: '2-digit',
@@ -523,10 +641,10 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
                       )}
                       <button
                         onClick={(e) => handleRemoveNotification(notif.id, e)}
-                        className="text-[10px] text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 p-1 rounded-md border border-transparent hover:border-rose-200 dark:hover:border-rose-900/50 transition-colors cursor-pointer"
-                        title="Remove / Done"
+                        className="p-1.5 text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/80 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 rounded-lg border border-rose-200/60 dark:border-rose-800/60 transition-colors cursor-pointer shadow-2xs"
+                        title="Delete notification"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -567,5 +685,69 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
       </div>
     </div>,
     document.body
+  )}
+
+      {/* Floating 3-Second Undo Notification Snackbar */}
+      {pendingDeletion && typeof document !== 'undefined' && createPortal(
+        <div
+          className="pointer-events-auto"
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            left: '12px',
+            right: '12px',
+            maxWidth: '460px',
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            zIndex: 9999999,
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+        >
+          <div className="bg-slate-900/95 dark:bg-slate-950/95 text-white rounded-2xl px-4 py-3 shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-slate-700/80 backdrop-blur-md flex items-center justify-between gap-3 ring-2 ring-indigo-500/40">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/30">
+                <Trash2 className="w-4 h-4" />
+              </div>
+
+              <div className="flex flex-col min-w-0 flex-1 pr-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white truncate">
+                    Notification removed
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold bg-slate-800 text-indigo-400 border border-slate-700 shrink-0">
+                    {pendingDeletion.secondsRemaining}s
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-400 truncate">
+                  "{pendingDeletion.notification.title}"
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleUndoDelete}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-xs font-extrabold shadow-md transition-all cursor-pointer transform active:scale-95 touch-manipulation select-none"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Undo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDismissUndoToast}
+                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer touch-manipulation"
+                title="Dismiss"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 };

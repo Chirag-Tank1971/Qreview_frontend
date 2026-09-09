@@ -978,6 +978,25 @@ export const api = {
     return res.json();
   },
 
+  // Email Notification & Delivery Logs
+  async getEmailLogs(limit: number = 50): Promise<{ logs: any[] }> {
+    const res = await fetch(`${API_BASE}/emails/logs?limit=${limit}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to fetch email delivery logs');
+    return res.json();
+  },
+
+  async sendTestEmail(email?: string, name?: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/emails/test`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ email, name }),
+    });
+    if (!res.ok) throw new Error('Failed to dispatch test email');
+    return res.json();
+  },
+
   // Dedicated Reports Center (Section 16 Specification)
   async getQuarterlyStatusReport(params?: { periodId?: string; departmentId?: string; cycleId?: string; status?: string }): Promise<any> {
     const q = new URLSearchParams();

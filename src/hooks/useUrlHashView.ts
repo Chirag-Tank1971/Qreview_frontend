@@ -10,6 +10,7 @@ export type AppView =
   | 'reports'
   | 'bulk'
   | 'audit'
+  | 'notifications'
   | 'overview';
 
 const VALID_VIEWS: AppView[] = [
@@ -22,6 +23,7 @@ const VALID_VIEWS: AppView[] = [
   'reports',
   'bulk',
   'audit',
+  'notifications',
   'overview',
 ];
 

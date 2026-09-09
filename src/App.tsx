@@ -11,7 +11,7 @@ import { MobileNavDrawer } from './components/MobileNavDrawer';
 import { ViewSkeletonFallback } from './components/ui/ViewSkeletonFallback';
 import { useMasterData } from './hooks/useMasterData';
 import { useUrlHashView, AppView } from './hooks/useUrlHashView';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { KraTemplate } from './types';
 import { ReviewViewConfig } from './components/QuarterlyReviewView';
 import { AppraisalViewConfig } from './components/AppraisalManagementView';
@@ -45,6 +45,9 @@ const BulkImportExportManager = lazy(() =>
 );
 const AuditComplianceExplorer = lazy(() =>
   import('./components/AuditComplianceExplorer').then((m) => ({ default: m.AuditComplianceExplorer }))
+);
+const NotificationsCenterView = lazy(() =>
+  import('./components/NotificationsCenterView').then((m) => ({ default: m.NotificationsCenterView }))
 );
 
 // Modals lazy loaded on demand
@@ -109,6 +112,12 @@ const VIEW_META: Record<string, { title: string; subtitle: string; tag: string; 
     subtitle: 'Review tamper-evident change history, sign-offs, and administrative security logs',
     tag: 'Security & Audit',
     tagColor: 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200/80 dark:border-rose-800/60',
+  },
+  notifications: {
+    title: 'Notifications & Workflow Center',
+    subtitle: 'Track your actionable tasks, review deadlines, and monitor transactional audit communications',
+    tag: 'Notification Hub',
+    tagColor: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/60',
   },
 };
 
@@ -207,19 +216,21 @@ function AppContent() {
       />
 
       <div className="flex flex-col flex-1">
-        {/* Top Navigation */}
-        <TopNav
-          currentView={currentView}
-          onSelectView={(v) => {
-            setReviewConfig(null);
-            setAppraisalConfig(null);
-            setReportsConfig(null);
-            setPortalConfig(null);
-            setView(v as AppView);
-          }}
-          userRole={user?.role}
-          onOpenMobileMenu={() => setIsMobileNavOpen(true)}
-        />
+        {/* Top Navigation - hidden on dedicated Notifications page */}
+        {currentView !== 'notifications' && (
+          <TopNav
+            currentView={currentView}
+            onSelectView={(v) => {
+              setReviewConfig(null);
+              setAppraisalConfig(null);
+              setReportsConfig(null);
+              setPortalConfig(null);
+              setView(v as AppView);
+            }}
+            userRole={user?.role}
+            onOpenMobileMenu={() => setIsMobileNavOpen(true)}
+          />
+        )}
 
         {/* Main Content Area */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-24 md:pb-12 overflow-x-hidden">
@@ -228,6 +239,16 @@ function AppContent() {
             <div className="mb-4 sm:mb-6 p-3.5 sm:p-5 bg-white/75 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 flex-wrap mb-1">
+                  {currentView === 'notifications' && (
+                    <button
+                      onClick={() => handleNavigate('portal')}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 mr-2 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shadow-2xs"
+                      title="Back to Workspace"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Back to Workspace</span>
+                    </button>
+                  )}
                   <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
                     {VIEW_META[currentView].title}
                   </h2>
@@ -285,6 +306,11 @@ function AppContent() {
               <BulkImportExportManager />
             ) : currentView === 'audit' ? (
               <AuditComplianceExplorer currentUser={user} />
+            ) : currentView === 'notifications' ? (
+              <NotificationsCenterView
+                currentUser={user}
+                onNavigate={(tab, opts) => handleNavigate(tab as AppView, opts)}
+              />
             ) : currentView === 'kras' ? (
               <KraManagementView
                 templates={templates}

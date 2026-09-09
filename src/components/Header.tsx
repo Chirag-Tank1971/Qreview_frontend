@@ -222,10 +222,10 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onOpenLogin, onOpenM
 
                 {/* Workflow Notifications Bell Button */}
                 <button
-                  onClick={() => setIsNotificationOpen(true)}
+                  onClick={() => onNavigate?.('notifications')}
                   id="workflow-notifications-btn"
                   className="relative p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-all cursor-pointer border border-transparent hover:border-slate-200/60 dark:hover:border-slate-700/60 active:scale-95"
-                  title="Notifications"
+                  title="Notifications & Workflow Center"
                 >
                   <Bell className="w-4 h-4" />
                   {unreadNotifCount > 0 && (
@@ -317,6 +317,16 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onOpenLogin, onOpenM
                         >
                           <UserIcon className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                           <span>My Self-Service Portal</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsProfileMenuOpen(false);
+                            onNavigate?.('notifications');
+                          }}
+                          className="w-full text-left px-3.5 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-xl flex items-center space-x-2.5 transition-colors cursor-pointer"
+                        >
+                          <Bell className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+                          <span>Notifications & Workflow Hub</span>
                         </button>
                       </div>
 
