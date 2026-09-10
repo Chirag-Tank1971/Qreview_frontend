@@ -38,9 +38,13 @@ import {
 } from '../types';
 
 interface BulkImportExportManagerProps {
-  currentUser: User | null;
+  currentUser?: User | null;
   onDataImported?: () => void;
 }
+
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB upload guardrail
+const MAX_BATCH_ROWS = 3000; // 3,000 records recommended per batch
+const PREVIEW_PAGE_SIZE = 20; // 20 rows per page to prevent DOM memory ballooning
 
 export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = ({
   currentUser,
@@ -57,6 +61,8 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
   const [validationReport, setValidationReport] = useState<BulkValidationReport | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [previewPage, setPreviewPage] = useState(1);
   const [importResult, setImportResult] = useState<BulkImportResult | null>(null);
   const [allowUpdateExisting, setAllowUpdateExisting] = useState(true);
   const [skipInvalidRows, setSkipInvalidRows] = useState(true);
@@ -138,42 +144,87 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
   // ==========================================
   const handleFileUpload = (file: File) => {
     if (!file) return;
+
+    // 1. File Size Guardrail (Pre-Read Check)
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      toast.error(
+        `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the maximum allowed limit of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)} MB. Please upload a smaller file.`,
+        'File Too Large'
+      );
+      return;
+    }
+
     setFileName(file.name);
     setImportResult(null);
+    setIsParsing(true);
+    setPreviewPage(1);
+
     const isCsv = file.name.endsWith('.csv');
 
-    if (isCsv) {
-      Papa.parse(file, {
-        header: true,
-        dynamicTyping: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          const rows = normalizeParsedData(results.data);
-          setParsedRows(rows);
-          validateData(selectedDataset, rows);
-        },
-        error: (err) => {
-          alert(`CSV Parse Error: ${err.message}`);
-        },
-      });
-    } else {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
-          const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-          const rows = normalizeParsedData(json);
-          setParsedRows(rows);
-          validateData(selectedDataset, rows);
-        } catch (err: any) {
-          alert(`Excel Read Error: ${err.message}`);
-        }
-      };
-      reader.readAsArrayBuffer(file);
-    }
+    // Yield control to the browser event loop so React can render the loading state before synchronous parsing
+    setTimeout(() => {
+      if (isCsv) {
+        Papa.parse(file, {
+          header: true,
+          dynamicTyping: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            try {
+              const rows = normalizeParsedData(results.data);
+              // 2. Batch Row Count Cap
+              if (rows.length > MAX_BATCH_ROWS) {
+                toast.warning(
+                  `File contains ${rows.length} records. The maximum recommended batch size is ${MAX_BATCH_ROWS} rows. Please split your file into smaller batches for optimal performance.`,
+                  'Batch Limit Exceeded'
+                );
+                setIsParsing(false);
+                return;
+              }
+              setParsedRows(rows);
+              validateData(selectedDataset, rows);
+            } finally {
+              setIsParsing(false);
+            }
+          },
+          error: (err) => {
+            setIsParsing(false);
+            toast.error(`CSV Parse Error: ${err.message}`, 'Parsing Failed');
+          },
+        });
+      } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target?.result as ArrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+            const rows = normalizeParsedData(json);
+            // 2. Batch Row Count Cap
+            if (rows.length > MAX_BATCH_ROWS) {
+              toast.warning(
+                `File contains ${rows.length} records. The maximum recommended batch size is ${MAX_BATCH_ROWS} rows. Please split your file into smaller batches for optimal performance.`,
+                'Batch Limit Exceeded'
+              );
+              setIsParsing(false);
+              return;
+            }
+            setParsedRows(rows);
+            validateData(selectedDataset, rows);
+          } catch (err: any) {
+            toast.error(`Excel Read Error: ${err.message}`, 'Parsing Failed');
+          } finally {
+            setIsParsing(false);
+          }
+        };
+        reader.onerror = () => {
+          setIsParsing(false);
+          toast.error('Failed to read file from disk.', 'File Read Error');
+        };
+        reader.readAsArrayBuffer(file);
+      }
+    }, 60);
   };
 
   // Map header names (human friendly or key) to canonical schema keys
@@ -381,6 +432,12 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
       return r.status === statusFilter;
     }) || [];
 
+  const totalPages = Math.ceil(filteredResults.length / PREVIEW_PAGE_SIZE) || 1;
+  const paginatedResults = filteredResults.slice(
+    (previewPage - 1) * PREVIEW_PAGE_SIZE,
+    previewPage * PREVIEW_PAGE_SIZE
+  );
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -562,7 +619,15 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                   <FileSpreadsheet className="w-7 h-7" />
                 </div>
 
-                {fileName ? (
+                {isParsing ? (
+                  <div className="py-2">
+                    <div className="w-9 h-9 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                    <p className="font-bold text-slate-900 dark:text-white text-base">Reading & Parsing Spreadsheet...</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Decompressing records and mapping columns. Please wait a moment.
+                    </p>
+                  </div>
+                ) : fileName ? (
                   <div>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 mb-2">
                       <CheckCircle2 className="w-3.5 h-3.5" /> File Loaded
@@ -578,7 +643,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                       Drag & Drop your Excel or CSV file here, or <span className="text-indigo-600 dark:text-indigo-400 underline">Browse Files</span>
                     </p>
                     <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
-                      Maximum file size: 25 MB • Recommended up to 5,000 rows per batch
+                      Maximum file size: 10 MB • Recommended up to 3,000 rows per batch
                     </p>
                   </div>
                 )}
@@ -790,7 +855,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-medium">
-                    {filteredResults.map((res) => {
+                    {paginatedResults.map((res) => {
                       const isError = res.status === 'ERROR';
                       const isWarning = res.status === 'WARNING';
                       return (
@@ -859,6 +924,36 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination Controls */}
+              {filteredResults.length > PREVIEW_PAGE_SIZE && (
+                <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-850/50 text-xs">
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">
+                    Showing <strong className="text-slate-800 dark:text-slate-200">{(previewPage - 1) * PREVIEW_PAGE_SIZE + 1}</strong> to{' '}
+                    <strong className="text-slate-800 dark:text-slate-200">{Math.min(previewPage * PREVIEW_PAGE_SIZE, filteredResults.length)}</strong> of{' '}
+                    <strong className="text-slate-800 dark:text-slate-200">{filteredResults.length}</strong> records
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setPreviewPage((p) => Math.max(1, p - 1))}
+                      disabled={previewPage === 1}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-2xs"
+                    >
+                      Previous
+                    </button>
+                    <span className="px-3 py-1 font-bold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg">
+                      Page {previewPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setPreviewPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={previewPage === totalPages}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors shadow-2xs"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -22,8 +22,19 @@ import {
   LayoutGrid,
   List,
 } from 'lucide-react';
+import { User } from '../types';
 
-export const EmployeeDirectory: React.FC = () => {
+interface EmployeeDirectoryProps {
+  currentUser?: User | null;
+  departments?: Department[];
+  designations?: Designation[];
+  cycles?: Cycle[];
+  kraTemplates?: KraTemplate[];
+  onNavigateToAppraisals?: (options?: any) => void;
+  onNavigateToReviews?: (options?: any) => void;
+}
+
+export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
   const { user } = useAuth();
   const isHRorAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'HR';
 
@@ -92,6 +103,12 @@ export const EmployeeDirectory: React.FC = () => {
     }
     return true;
   });
+
+  // KPI Metrics
+  const totalEmployeesCount = employees.length;
+  const activeEmployeesCount = employees.filter((e) => e.status === 'ACTIVE').length;
+  const uniqueDeptCount = new Set(employees.map((e) => e.departmentId).filter(Boolean)).size || departments.length;
+  const hasActiveFilters = Boolean(searchQuery || selectedDept || selectedCycle || selectedStatus);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -182,6 +199,103 @@ export const EmployeeDirectory: React.FC = () => {
       {/* VIEW 1: EMPLOYEES DIRECTORY */}
       {activeTab === 'employees' && (
         <div className="space-y-4">
+          {/* Summary Metric Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {/* Total Employees Box */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-xs relative overflow-hidden flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Total Employees
+                </p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    {totalEmployeesCount}
+                  </span>
+                  {hasActiveFilters && (
+                    <span className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-900/50">
+                      {filteredEmployees.length} filtered
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                  {hasActiveFilters ? 'Filtered view active' : 'Active registered headcount'}
+                </p>
+              </div>
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center shrink-0">
+                <Users className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+            </div>
+
+            {/* Active Workforce Box */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-xs flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Active Workforce
+                </p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight">
+                    {activeEmployeesCount}
+                  </span>
+                  <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-900/50">
+                    {totalEmployeesCount > 0 ? Math.round((activeEmployeesCount / totalEmployeesCount) * 100) : 0}%
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                  Active status members
+                </p>
+              </div>
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+            </div>
+
+            {/* Departments Box */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-xs flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Departments
+                </p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    {departments.length || uniqueDeptCount}
+                  </span>
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                    {designations.length} roles
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                  Active business units
+                </p>
+              </div>
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 flex items-center justify-center shrink-0">
+                <Building2 className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+            </div>
+
+            {/* Review Cohorts Box */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-xs flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Review Cohorts
+                </p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    {cycles.length || 8}
+                  </span>
+                  <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-100 dark:border-amber-900/50">
+                    Cycles A-H
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                  Staggered quarterly cycles
+                </p>
+              </div>
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 flex items-center justify-center shrink-0">
+                <Shield className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+            </div>
+          </div>
+
           {/* Controls Bar */}
           <div className="flex flex-col lg:flex-row gap-3 items-center justify-between bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-3.5 rounded-2xl shadow-xs">
             {/* Search */}

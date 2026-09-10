@@ -303,7 +303,7 @@ function AppContent() {
                 initialConfig={reportsConfig}
               />
             ) : currentView === 'bulk' ? (
-              <BulkImportExportManager />
+              <BulkImportExportManager currentUser={user} />
             ) : currentView === 'audit' ? (
               <AuditComplianceExplorer currentUser={user} />
             ) : currentView === 'notifications' ? (
