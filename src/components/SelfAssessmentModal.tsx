@@ -95,7 +95,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
 
     const origMap = new Map((review.kraSnapshot || []).map((k) => [k.id, k]));
     for (const k of kraStates) {
-      const orig = origMap.get(k.id);
+      const orig = origMap.get(k.id) as any;
       if (!orig) return true;
       if ((k.selfRating || 0) !== (orig.selfRating || 0)) return true;
       if ((k.selfAchievement || '') !== (orig.selfAchievement || '')) return true;

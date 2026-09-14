@@ -26,7 +26,7 @@ import { Notification, User } from '../types';
 import { api } from '../services/api';
 
 export interface WorkflowNavigationTarget {
-  tab: 'portal' | 'appraisals' | 'reviews' | 'kras' | 'employees' | 'reports' | 'overview';
+  tab: 'portal' | 'appraisals' | 'reviews' | 'kras' | 'employees' | 'reports';
   sectionLabel: string;
   badgeLabel: string;
   badgeColor: string;

@@ -176,7 +176,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
 
     const origMap = new Map((review.kraSnapshot || []).map((k) => [k.id, k]));
     for (const s of snapshots) {
-      const orig = origMap.get(s.id);
+      const orig = origMap.get(s.id) as any;
       if (!orig) return true;
       if ((s.rating || 0) !== (orig.rating || 0)) return true;
       if ((s.achievement || '') !== (orig.achievement || '')) return true;

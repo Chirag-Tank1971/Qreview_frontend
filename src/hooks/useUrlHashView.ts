@@ -12,8 +12,7 @@ export type AppView =
   | 'reports'
   | 'bulk'
   | 'audit'
-  | 'notifications'
-  | 'overview';
+  | 'notifications';
 
 const VALID_VIEWS: AppView[] = [
   'portal',
@@ -28,17 +27,16 @@ const VALID_VIEWS: AppView[] = [
   'bulk',
   'audit',
   'notifications',
-  'overview',
 ];
 
 export const ROLE_ALLOWED_VIEWS: Record<string, AppView[]> = {
-  SUPER_ADMIN: ['portal', 'reviews', 'appraisals', 'ai_performance', 'reports', 'employees', 'hierarchy', 'kras', 'bulk', 'audit', 'notifications', 'overview'],
+  SUPER_ADMIN: ['portal', 'reviews', 'appraisals', 'ai_performance', 'reports', 'employees', 'hierarchy', 'kras', 'bulk', 'audit', 'notifications'],
   MANAGEMENT: ['management', 'reports', 'hierarchy', 'notifications', 'portal'],
-  HR: ['portal', 'reviews', 'appraisals', 'reports', 'employees', 'hierarchy', 'kras', 'bulk', 'audit', 'notifications', 'overview'],
-  HOD: ['portal', 'reviews', 'appraisals', 'reports', 'hierarchy', 'notifications', 'overview'],
-  REPORTING_MANAGER: ['portal', 'reviews', 'appraisals', 'notifications', 'overview'],
-  MANAGER: ['portal', 'reviews', 'appraisals', 'notifications', 'overview'],
-  EMPLOYEE: ['portal', 'reviews', 'notifications', 'overview'],
+  HR: ['portal', 'reviews', 'appraisals', 'reports', 'employees', 'hierarchy', 'kras', 'bulk', 'audit', 'notifications'],
+  HOD: ['portal', 'reviews', 'appraisals', 'reports', 'hierarchy', 'notifications'],
+  REPORTING_MANAGER: ['portal', 'reviews', 'appraisals', 'notifications'],
+  MANAGER: ['portal', 'reviews', 'appraisals', 'notifications'],
+  EMPLOYEE: ['portal', 'reviews', 'notifications'],
 };
 
 export function isViewPermitted(view: AppView, role?: string): boolean {
