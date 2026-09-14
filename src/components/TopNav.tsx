@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Check,
   Grid,
+  Layers,
 } from 'lucide-react';
 
 interface SidebarNavProps {
@@ -52,25 +53,25 @@ export const TopNav: React.FC<SidebarNavProps> = ({ currentView, onSelectView, u
       id: 'portal', 
       label: 'My Space', 
       icon: User, 
-      roles: ['SUPER_ADMIN', 'HR', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'] 
+      roles: ['SUPER_ADMIN', 'HR', 'REPORTING_MANAGER', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'] 
     },
     { 
       id: 'reviews', 
       label: userRole === 'EMPLOYEE' ? 'My Reviews' : 'Team Reviews', 
       icon: Award, 
-      roles: ['SUPER_ADMIN', 'HR', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'] 
+      roles: ['SUPER_ADMIN', 'HR', 'REPORTING_MANAGER', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'] 
     },
     { 
       id: 'appraisals', 
       label: 'Appraisals', 
       icon: TrendingUp, 
-      roles: ['SUPER_ADMIN', 'HR', 'MANAGER', 'HOD', 'MANAGEMENT'] 
+      roles: ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'] 
     },
     { 
       id: 'ai_performance', 
       label: 'AI & 360', 
       icon: Sparkles, 
-      roles: ['SUPER_ADMIN', 'HR', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'], 
+      roles: ['SUPER_ADMIN'], 
       isAiBadge: true 
     },
     { 
@@ -81,21 +82,28 @@ export const TopNav: React.FC<SidebarNavProps> = ({ currentView, onSelectView, u
     },
   ];
 
-  // Admin & System Settings items
+  // Admin & System Settings items (Super Admin & HR)
   const adminNavItems = [
     { 
       id: 'employees', 
       label: 'Employee Directory', 
-      subtitle: 'Organization hierarchy & profiles',
+      subtitle: 'Organization directory & profiles',
       icon: Users, 
-      roles: ['SUPER_ADMIN', 'HR', 'MANAGEMENT'] 
+      roles: ['SUPER_ADMIN', 'HR'] 
+    },
+    { 
+      id: 'hierarchy', 
+      label: 'Department & Hierarchy', 
+      subtitle: 'Org tree, HODs, & reporting lines',
+      icon: Layers, 
+      roles: ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'] 
     },
     { 
       id: 'kras', 
       label: 'Goal Templates (KRAs)', 
       subtitle: 'Standard metrics & evaluation criteria',
       icon: Target, 
-      roles: ['SUPER_ADMIN', 'HR', 'MANAGER', 'HOD'] 
+      roles: ['SUPER_ADMIN', 'HR'] 
     },
     { 
       id: 'bulk', 
@@ -106,10 +114,10 @@ export const TopNav: React.FC<SidebarNavProps> = ({ currentView, onSelectView, u
     },
     { 
       id: 'audit', 
-      label: 'Compliance & Audit Trail', 
-      subtitle: 'Security logs & change history',
+      label: userRole === 'HR' ? 'Appraisal Lifecycle' : 'Audit Trail & Lifecycle', 
+      subtitle: userRole === 'HR' ? 'Employee appraisal evolution timeline' : 'Decision history & master audit stream',
       icon: Shield, 
-      roles: ['SUPER_ADMIN', 'HR', 'MANAGEMENT'] 
+      roles: ['SUPER_ADMIN', 'HR'] 
     },
   ];
 
@@ -122,9 +130,9 @@ export const TopNav: React.FC<SidebarNavProps> = ({ currentView, onSelectView, u
   return (
     <>
       {/* 1. Desktop Top Navigation Bar (Hidden on Mobile screens < md) */}
-      <div className="hidden md:block bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-b border-slate-200/70 dark:border-slate-800/80 w-full shrink-0 sticky top-16 z-30 py-2.5 transition-colors duration-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex items-center justify-between gap-2 p-1 bg-slate-100/80 dark:bg-slate-950/60 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+      <div className="hidden md:block bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 w-full shrink-0 sticky top-14 sm:top-16 z-30 py-2 transition-colors duration-200">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <nav className="flex items-center justify-between gap-2 p-1 bg-slate-100 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
             {/* Primary Navigation Workspaces */}
             <div className="flex items-center gap-1.5 overflow-x-auto top-nav-scrollbar-hide overscroll-x-contain py-0.5" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               <style dangerouslySetInnerHTML={{__html: `.top-nav-scrollbar-hide::-webkit-scrollbar { display: none; }`}} />
@@ -281,8 +289,8 @@ export const TopNav: React.FC<SidebarNavProps> = ({ currentView, onSelectView, u
             <span className="text-[10px] font-medium leading-tight">Reviews</span>
           </button>
 
-          {/* Tab 3: Appraisals (or Analytics for employee) */}
-          {userRole !== 'EMPLOYEE' ? (
+          {/* Tab 3: Appraisals for Admin/HR/Management, Analytics for HOD */}
+          {['SUPER_ADMIN', 'HR', 'MANAGEMENT'].includes(userRole || '') ? (
             <button
               onClick={() => onSelectView('appraisals')}
               className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl transition-all cursor-pointer ${
@@ -296,7 +304,7 @@ export const TopNav: React.FC<SidebarNavProps> = ({ currentView, onSelectView, u
               </div>
               <span className="text-[10px] font-medium leading-tight">Appraisals</span>
             </button>
-          ) : (
+          ) : userRole === 'HOD' ? (
             <button
               onClick={() => onSelectView('reports')}
               className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-xl transition-all cursor-pointer ${
@@ -310,7 +318,7 @@ export const TopNav: React.FC<SidebarNavProps> = ({ currentView, onSelectView, u
               </div>
               <span className="text-[10px] font-medium leading-tight">Analytics</span>
             </button>
-          )}
+          ) : null}
 
           {/* Tab 4: AI & 360 */}
           <button

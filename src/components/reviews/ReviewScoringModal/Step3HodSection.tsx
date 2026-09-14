@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Sparkles, Lock, UserCheck } from 'lucide-react';
+import { TrendingUp, Sparkles, Lock, UserCheck, CheckCircle2 } from 'lucide-react';
 import { EmployeeReview, ReviewStatus } from '../../../types';
 
 interface Step3HodSectionProps {
@@ -15,7 +15,6 @@ interface Step3HodSectionProps {
   setHrComments: (val: string) => void;
   canEdit: boolean;
   isHrOrAdmin: boolean;
-  isHodCompleted: boolean;
   saving: boolean;
   aiLoading: boolean;
   aiSuccessNote: string;
@@ -36,7 +35,6 @@ export const Step3HodSection: React.FC<Step3HodSectionProps> = ({
   setHrComments,
   canEdit,
   isHrOrAdmin,
-  isHodCompleted,
   saving,
   aiLoading,
   aiSuccessNote,
@@ -162,15 +160,22 @@ export const Step3HodSection: React.FC<Step3HodSectionProps> = ({
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => onOpenStatusModal('HR_COMPLETED')}
-                  className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>Approve (HR)</span>
-                </button>
+                {review.status === 'HR_COMPLETED' ? (
+                  <span className="px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>✓ HR Approved</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => onOpenStatusModal('HR_COMPLETED')}
+                    className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>Approve (HR)</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   disabled={saving}
@@ -183,20 +188,11 @@ export const Step3HodSection: React.FC<Step3HodSectionProps> = ({
               </div>
             </div>
             <p className="text-[11px] text-slate-300 leading-relaxed border-t border-slate-800 pt-2.5">
-              Click <strong>Final Lock & Close</strong> to complete this appraisal cycle. It saves your feedback, permanently locks the review against further edits, records the timestamp in the audit trail, and archives this quarterly evaluation.
-            </p>
-          </div>
-        )}
-
-        {/* HOD / MANAGER READ-ONLY BANNER FOR HOD_COMPLETED */}
-        {isHodCompleted && !isHrOrAdmin && (
-          <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800/70 text-purple-950 dark:text-purple-200 space-y-1.5 shadow-2xs">
-            <div className="flex items-center gap-2 font-bold text-xs">
-              <Lock className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              <span>HOD Evaluation Submitted & Locked</span>
-            </div>
-            <p className="text-[11px] text-purple-800 dark:text-purple-300">
-              The departmental HOD has completed the calibration for this review. It is currently with HR for final calibration and permanent lock. Further edits by managers or HODs are restricted.
+              {review.status === 'HR_COMPLETED' ? (
+                <>HR Calibration review has been approved. Click <strong>Final Lock & Close</strong> to complete this appraisal cycle, permanently lock all evaluations against further changes, and archive the quarterly record.</>
+              ) : (
+                <>Click <strong>Approve (HR)</strong> to approve calibration, or <strong>Final Lock & Close</strong> to permanently complete and archive this quarterly evaluation.</>
+              )}
             </p>
           </div>
         )}

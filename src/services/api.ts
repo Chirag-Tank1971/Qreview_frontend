@@ -28,15 +28,22 @@ import {
   CreateEmployeePayload,
   CreateEmployeeResponse,
   UpdateEmployeePayload,
+  ManagementDashboardData,
+  ManagementDepartmentPerformanceItem,
+  ManagementPerformanceTrendsData,
+  ManagementPerformerItem,
+  ManagementAttentionItem,
+  ManagementAppraisalSummaryData,
+  ManagementEmployeeDossier,
 } from '../types';
 
 // Resolve API Base URL: respects VITE_API_BASE_URL; falls back to relative '/api' in production
 const API_BASE = import.meta.env.VITE_API_BASE_URL
   ? `${import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '')}/api`
   : import.meta.env.PROD
-  ? '/api'
-  : (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api');
-  
+    ? '/api'
+    : (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api');
+
 function getAuthHeaders(): HeadersInit {
   const token = localStorage.getItem('review_app_token');
   return {
@@ -372,6 +379,22 @@ export const api = {
     return res.json();
   },
 
+  async deleteEmployee(id: string): Promise<{ success: boolean; message: string }> {
+    invalidateApiCache('/employees');
+    invalidateApiCache('/departments');
+    invalidateApiCache('/reviews');
+    invalidateApiCache('/appraisals');
+    const res = await fetch(`${API_BASE}/employees/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to delete employee' }));
+      throw new Error(err.error || 'Failed to delete employee');
+    }
+    return res.json();
+  },
+
   // Departments API
   async getDepartments(): Promise<Department[]> {
     return requestWithDedupeAndCache<Department[]>(
@@ -411,6 +434,22 @@ export const api = {
     return res.json();
   },
 
+  async deleteDepartment(id: string): Promise<{ success: boolean; message: string }> {
+    invalidateApiCache('/departments');
+    invalidateApiCache('/designations');
+    invalidateApiCache('/employees');
+    invalidateApiCache('/appraisals');
+    const res = await fetch(`${API_BASE}/departments/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to delete department' }));
+      throw new Error(err.error || 'Failed to delete department');
+    }
+    return res.json();
+  },
+
   // Designations API
   async getDesignations(): Promise<Designation[]> {
     return requestWithDedupeAndCache<Designation[]>(
@@ -430,6 +469,20 @@ export const api = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Failed to create designation' }));
       throw new Error(err.error || 'Failed to create designation');
+    }
+    return res.json();
+  },
+
+  async deleteDesignation(id: string): Promise<{ success: boolean; message: string }> {
+    invalidateApiCache('/designations');
+    invalidateApiCache('/employees');
+    const res = await fetch(`${API_BASE}/designations/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to delete designation' }));
+      throw new Error(err.error || 'Failed to delete designation');
     }
     return res.json();
   },
@@ -948,7 +1001,11 @@ export const api = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error('Failed to mark notification as read');
-    return res.json();
+    const data = await res.json();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('notifications-updated'));
+    }
+    return data;
   },
 
   async markAllNotificationsRead(): Promise<any> {
@@ -957,7 +1014,11 @@ export const api = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error('Failed to mark all notifications as read');
-    return res.json();
+    const data = await res.json();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('notifications-updated', { detail: { count: 0 } }));
+    }
+    return data;
   },
 
   async deleteNotification(id: string): Promise<any> {
@@ -966,7 +1027,11 @@ export const api = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error('Failed to delete notification');
-    return res.json();
+    const data = await res.json();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('notifications-updated'));
+    }
+    return data;
   },
 
   async completeNotification(id: string): Promise<any> {
@@ -975,7 +1040,11 @@ export const api = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error('Failed to complete notification');
-    return res.json();
+    const data = await res.json();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('notifications-updated'));
+    }
+    return data;
   },
 
   // Email Notification & Delivery Logs
@@ -1488,6 +1557,112 @@ export const api = {
     } catch (err: any) {
       throw new Error(err.message || 'Failed to generate talent insights');
     }
+  },
+
+  // ==========================================
+  // Management Role Endpoints
+  // ==========================================
+
+  async getManagementDashboard(params?: { periodId?: string; year?: number; quarter?: number }): Promise<ManagementDashboardData> {
+    const query = new URLSearchParams();
+    if (params?.periodId) query.set('periodId', params.periodId);
+    if (params?.year) query.set('year', String(params.year));
+    if (params?.quarter) query.set('quarter', String(params.quarter));
+    const qs = query.toString();
+    const res = await fetchWithAutoRefresh(`${API_BASE}/dashboard/management${qs ? `?${qs}` : ''}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to fetch management dashboard'));
+    return res.json();
+  },
+
+  async getManagementDepartmentPerformance(params?: {
+    periodId?: string;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }): Promise<{ period: ReviewPeriod | null; departments: ManagementDepartmentPerformanceItem[] }> {
+    const query = new URLSearchParams();
+    if (params?.periodId) query.set('periodId', params.periodId);
+    if (params?.search) query.set('search', params.search);
+    if (params?.sortBy) query.set('sortBy', params.sortBy);
+    if (params?.sortOrder) query.set('sortOrder', params.sortOrder);
+    const qs = query.toString();
+    const res = await fetchWithAutoRefresh(`${API_BASE}/management/departments/performance${qs ? `?${qs}` : ''}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to fetch department performance'));
+    return res.json();
+  },
+
+  async getManagementPerformanceTrends(params?: { year?: number }): Promise<ManagementPerformanceTrendsData> {
+    const query = new URLSearchParams();
+    if (params?.year) query.set('year', String(params.year));
+    const qs = query.toString();
+    const res = await fetchWithAutoRefresh(`${API_BASE}/management/performance/trends${qs ? `?${qs}` : ''}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to fetch performance trends'));
+    return res.json();
+  },
+
+  async getManagementHighPerformers(params?: {
+    periodId?: string;
+    threshold?: number;
+    limit?: number;
+  }): Promise<{ period: ReviewPeriod | null; threshold: number; count: number; performers: ManagementPerformerItem[] }> {
+    const query = new URLSearchParams();
+    if (params?.periodId) query.set('periodId', params.periodId);
+    if (params?.threshold) query.set('threshold', String(params.threshold));
+    if (params?.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    const res = await fetchWithAutoRefresh(`${API_BASE}/management/high-performers${qs ? `?${qs}` : ''}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to fetch high performers'));
+    return res.json();
+  },
+
+  async getManagementAttentionRequired(params?: {
+    periodId?: string;
+    threshold?: number;
+    limit?: number;
+  }): Promise<{ period: ReviewPeriod | null; threshold: number; count: number; attentionItems: ManagementAttentionItem[] }> {
+    const query = new URLSearchParams();
+    if (params?.periodId) query.set('periodId', params.periodId);
+    if (params?.threshold) query.set('threshold', String(params.threshold));
+    if (params?.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    const res = await fetchWithAutoRefresh(`${API_BASE}/management/attention-required${qs ? `?${qs}` : ''}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to fetch attention required list'));
+    return res.json();
+  },
+
+  async getManagementAppraisalsSummary(params?: {
+    year?: number;
+    cycleId?: string;
+    departmentId?: string;
+  }): Promise<ManagementAppraisalSummaryData> {
+    const query = new URLSearchParams();
+    if (params?.year) query.set('year', String(params.year));
+    if (params?.cycleId) query.set('cycleId', params.cycleId);
+    if (params?.departmentId) query.set('departmentId', params.departmentId);
+    const qs = query.toString();
+    const res = await fetchWithAutoRefresh(`${API_BASE}/management/appraisals/summary${qs ? `?${qs}` : ''}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to fetch appraisals summary'));
+    return res.json();
+  },
+
+  async getManagementEmployeePerformance(employeeId: string): Promise<ManagementEmployeeDossier> {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/management/employee/${employeeId}/performance`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to fetch employee performance dossier'));
+    return res.json();
   },
 
   clearCache: invalidateApiCache,

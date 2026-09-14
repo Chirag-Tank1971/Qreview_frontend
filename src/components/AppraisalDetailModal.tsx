@@ -48,7 +48,10 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
 
   // Form states
   const [incrementPercent, setIncrementPercent] = useState<number>(
-    appraisal.approvedIncrementPercentage || appraisal.proposedIncrementPercentage || appraisal.suggestedIncrementMin || 12
+    appraisal.approvedIncrementPercentage ??
+      appraisal.proposedIncrementPercentage ??
+      appraisal.suggestedIncrementMin ??
+      (appraisal.averageQuarterlyScore > 0 ? 10 : 0)
   );
   const [promotionRecommended, setPromotionRecommended] = useState<boolean>(
     appraisal.promotionRecommended || false
@@ -100,10 +103,13 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
   const monthlyIncrement = revisedMonthly - currentMonthly;
 
   const userRole = currentUser?.role || 'EMPLOYEE';
-  const isManager = userRole === 'MANAGER' || userRole === 'HOD' || userRole === 'SUPER_ADMIN';
-  const isHod = userRole === 'HOD' || userRole === 'SUPER_ADMIN';
+  const isManager =
+    (userRole === 'REPORTING_MANAGER' || userRole === 'MANAGER') &&
+    (appraisal.managerId === currentUser?.employeeId || appraisal.managerId === currentUser?.id);
+  const isHod = userRole === 'HOD';
   const isHr = userRole === 'HR' || userRole === 'SUPER_ADMIN';
   const isLocked = appraisal.isLocked || appraisal.status === 'LOCKED';
+  const canEdit = !isLocked && !isHod && (isHr || isManager);
 
   // Filter promotion designations strictly to the employee's current department
   const departmentDesignations = React.useMemo(() => {
@@ -603,10 +609,10 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                       max="25"
                       step="0.5"
                       value={incrementPercent}
-                      disabled={isLocked}
+                      disabled={!canEdit}
                       onChange={(e) => setIncrementPercent(parseFloat(e.target.value))}
                       className={`w-full h-2 rounded-lg appearance-none accent-indigo-600 ${
-                        isLocked ? 'bg-slate-300 dark:bg-slate-700 opacity-60 cursor-not-allowed' : 'bg-slate-200 dark:bg-slate-700 cursor-pointer'
+                        !canEdit ? 'bg-slate-300 dark:bg-slate-700 opacity-60 cursor-not-allowed' : 'bg-slate-200 dark:bg-slate-700 cursor-pointer'
                       }`}
                     />
                   </div>
@@ -662,14 +668,14 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                       )}
                     </div>
 
-                    <label className={`flex items-center gap-2 ${isLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'}`}>
+                    <label className={`flex items-center gap-2 ${!canEdit ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'}`}>
                       <input
                         type="checkbox"
                         checked={promotionRecommended}
-                        disabled={isLocked}
+                        disabled={!canEdit}
                         onChange={(e) => setPromotionRecommended(e.target.checked)}
                         className={`w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 ${
-                          isLocked ? 'cursor-not-allowed' : ''
+                          !canEdit ? 'cursor-not-allowed' : ''
                         }`}
                       />
                       <span className="text-xs font-semibold text-slate-700 select-none">
@@ -691,10 +697,10 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                         </div>
                         <select
                           value={promotionDesignationId}
-                          disabled={isLocked}
+                          disabled={!canEdit}
                           onChange={(e) => setPromotionDesignationId(e.target.value)}
                           className={`w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none ${
-                            isLocked ? 'cursor-not-allowed bg-slate-100 dark:bg-slate-850 opacity-90' : 'focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500'
+                            !canEdit ? 'cursor-not-allowed bg-slate-100 dark:bg-slate-850 opacity-90' : 'focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500'
                           }`}
                         >
                           <option value="">-- Select Next Designation Level in {appraisal.departmentName || 'Department'} --</option>
@@ -730,11 +736,11 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                     <textarea
                       rows={3}
                       value={justification}
-                      disabled={isLocked || (userRole !== 'MANAGER' && userRole !== 'SUPER_ADMIN')}
+                      disabled={!canEdit || (!isManager && !isHr)}
                       onChange={(e) => setJustification(e.target.value)}
                       placeholder="Detail annual contributions, leadership milestones, and reason for proposed increment..."
                       className={`w-full px-3 py-2 border rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none ${
-                        isLocked
+                        !canEdit
                           ? 'bg-slate-100/90 dark:bg-slate-850 border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-90'
                           : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500'
                       }`}
@@ -756,11 +762,11 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                       <textarea
                         rows={2}
                         value={hodNotes}
-                        disabled={isLocked || (userRole !== 'HOD' && userRole !== 'SUPER_ADMIN')}
+                        disabled={!canEdit || !isHr}
                         onChange={(e) => setHodNotes(e.target.value)}
-                        placeholder="HOD normalization justification and department budget clearance notes..."
+                        placeholder="Department review notes..."
                         className={`w-full px-3 py-2 border rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none ${
-                          isLocked
+                          !canEdit || !isHr
                             ? 'bg-slate-100/90 dark:bg-slate-850 border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-90'
                             : 'bg-purple-50/30 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500'
                         }`}
@@ -823,11 +829,13 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                     <div className="text-xs text-slate-500 dark:text-slate-400">
                       Current Action Gate:{' '}
                       <strong className="text-slate-800 dark:text-slate-200">
-                        {appraisal.status === 'PENDING'
+                        {isHod
+                          ? 'Department Appraisal Monitoring (View-Only)'
+                          : appraisal.status === 'PENDING'
                           ? 'Stage 1: Manager Recommendation'
                           : appraisal.status === 'MANAGER_RECOMMENDED'
-                          ? 'Stage 2: HOD Calibration'
-                          : 'Stage 3: HR Final Approval & Lock'}
+                          ? 'Stage 2: HR Review & Approval'
+                          : 'Stage 3: Final Approval & Lock'}
                       </strong>
                     </div>
 
@@ -847,18 +855,6 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                             >
                               {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                               <span>Submit Manager Recommendation</span>
-                            </button>
-                          )}
-
-                          {isHod && appraisal.status === 'MANAGER_RECOMMENDED' && (
-                            <button
-                              type="button"
-                              disabled={isSubmitting}
-                              onClick={() => handleOpenConfirm('HOD')}
-                              className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer"
-                            >
-                              {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                              <span>Calibrate & Approve as HOD</span>
                             </button>
                           )}
 
@@ -945,10 +941,16 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                             </span>
                             <span className="font-bold text-slate-900 dark:text-white text-xs">{q.periodName}</span>
                           </div>
-                          <div className="flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-lg font-mono font-bold text-xs border border-indigo-100 dark:border-indigo-800/60">
-                            <span>{q.score.toFixed(2)}</span>
-                            <span className="text-[10px] text-indigo-400">/ 5.0</span>
-                          </div>
+                          {q.score > 0 ? (
+                            <div className="flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-lg font-mono font-bold text-xs border border-indigo-100 dark:border-indigo-800/60">
+                              <span>{q.score.toFixed(2)}</span>
+                              <span className="text-[10px] text-indigo-400">/ 5.0</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-lg font-medium text-xs border border-slate-200 dark:border-slate-600">
+                              <span>Not Yet Evaluated</span>
+                            </div>
+                          )}
                         </div>
 
                         {q.strengths && (

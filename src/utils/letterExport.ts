@@ -336,7 +336,7 @@ export function generateLetterHtml(
     <p style="margin: 8px 0;">Dear <strong>${appraisal.employeeName}</strong>,</p>
 
     <p style="margin: 8px 0;">
-      We are pleased to inform you of the final outcome of your Annual Performance Appraisal for cycle year <strong>${appraisal.appraisalYear || 2026}</strong> under the <strong>${appraisal.cycleName}</strong> cohort. Following multi-tiered performance calibration across your four quarterly review milestones, the Executive Appraisal Board has ratified your composite performance band as <span class="highlight-pill">${(appraisal.finalRating || appraisal.recommendedRating).replace(/_/g, ' ')}</span> with a rolling quarterly average of <strong>${appraisal.averageQuarterlyScore.toFixed(2)} / 5.00</strong>.
+      We are pleased to inform you of the final outcome of your Annual Performance Appraisal for cycle year <strong>${appraisal.appraisalYear || 2026}</strong> under the <strong>${appraisal.cycleName}</strong> cohort. Following multi-tiered performance calibration across your four quarterly review milestones, the Executive Appraisal Board has ratified your composite performance band as <span class="highlight-pill">${(appraisal.finalRating || appraisal.recommendedRating || 'MEETS_EXPECTATIONS').replace(/_/g, ' ')}</span> with a rolling quarterly average of <strong>${appraisal.averageQuarterlyScore.toFixed(2)} / 5.00</strong>.
     </p>
 
     ${appraisal.promotionRecommended ? `
@@ -684,7 +684,7 @@ export function generatePayrollCsv(appraisals: Appraisal[]): string {
       `"${a.cycleName}"`,
       `"${a.appraisalYear || 2026}"`,
       a.averageQuarterlyScore.toFixed(2),
-      `"${(a.finalRating || a.recommendedRating).replace(/_/g, ' ')}"`,
+      `"${(a.finalRating || a.recommendedRating || 'MEETS_EXPECTATIONS').replace(/_/g, ' ')}"`,
       currentCtc,
       oldMonthly,
       incPct,

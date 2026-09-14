@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X,
@@ -12,6 +12,7 @@ import {
   Award,
   Layers,
   FileText,
+  AlertTriangle,
 } from 'lucide-react';
 import { EmployeeReview, ReviewKraSnapshot } from '../types';
 import { api } from '../services/api';
@@ -80,13 +81,45 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
 
   const isClosed = review.isClosed;
   const isAlreadySubmitted = review.isSelfSubmitted;
+  const hasManagerSubmitted = Boolean(review.submittedAt) || (review.status !== 'ASSIGNED' && review.status !== 'MANAGER_PENDING' && review.status !== 'DRAFT');
+  const isReadOnly = isClosed || hasManagerSubmitted;
+
+  const [showUnsavedAlert, setShowUnsavedAlert] = useState(false);
+  const handleAttemptCloseRef = useRef<() => void>(() => {});
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (isReadOnly) return false;
+    if (selfStrengths !== (review.selfStrengths || '')) return true;
+    if (selfImprovements !== (review.selfImprovements || '')) return true;
+    if (selfObstacles !== (review.selfObstacles || '')) return true;
+
+    const origMap = new Map((review.kraSnapshot || []).map((k) => [k.id, k]));
+    for (const k of kraStates) {
+      const orig = origMap.get(k.id);
+      if (!orig) return true;
+      if ((k.selfRating || 0) !== (orig.selfRating || 0)) return true;
+      if ((k.selfAchievement || '') !== (orig.selfAchievement || '')) return true;
+      if ((k.selfComments || '') !== (orig.selfComments || '')) return true;
+    }
+    return false;
+  }, [isReadOnly, selfStrengths, selfImprovements, selfObstacles, kraStates, review]);
+
+  const handleAttemptClose = () => {
+    if (hasUnsavedChanges) {
+      setShowUnsavedAlert(true);
+    } else {
+      onClose();
+    }
+  };
+
+  handleAttemptCloseRef.current = handleAttemptClose;
 
   useEffect(() => {
     const origOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        handleAttemptCloseRef.current();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -94,7 +127,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
       document.body.style.overflow = origOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onClose]);
+  }, []);
 
   // Calculate live weighted self score
   const calculatedSelfScore = Number(
@@ -104,27 +137,28 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
   );
 
   const handleRatingChange = (id: string, newRating: number) => {
-    if (isClosed) return;
+    if (isReadOnly) return;
     setKraStates((prev) =>
       prev.map((k) => (k.id === id ? { ...k, selfRating: newRating } : k))
     );
   };
 
   const handleAchievementChange = (id: string, text: string) => {
-    if (isClosed) return;
+    if (isReadOnly) return;
     setKraStates((prev) =>
       prev.map((k) => (k.id === id ? { ...k, selfAchievement: text } : k))
     );
   };
 
   const handleCommentsChange = (id: string, text: string) => {
-    if (isClosed) return;
+    if (isReadOnly) return;
     setKraStates((prev) =>
       prev.map((k) => (k.id === id ? { ...k, selfComments: text } : k))
     );
   };
 
   const handleSubmit = async (isDraft: boolean) => {
+    if (isReadOnly) return;
     try {
       setIsSubmitting(true);
       setError(null);
@@ -171,29 +205,33 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
     <div
       className="fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-150"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) handleAttemptClose();
       }}
     >
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[96vh] sm:max-h-[92vh] flex flex-col overflow-hidden my-auto">
         {/* Header */}
-        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-900/70">
-          <div className="flex items-center space-x-2.5 sm:space-x-3 min-w-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
-              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-200" />
+        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+              <Sparkles className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Quarterly Self-Evaluation
+                  {isReadOnly ? 'Quarterly Review Breakdown' : isAlreadySubmitted ? 'Edit Self-Assessment' : 'Quarterly Self-Evaluation'}
                 </h3>
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
                   {review.reviewPeriodName}
                 </span>
-                {isAlreadySubmitted && (
+                {hasManagerSubmitted ? (
                   <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60">
-                    ✓ Submitted
+                    ✓ Manager Evaluated
                   </span>
-                )}
+                ) : isAlreadySubmitted ? (
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800/60">
+                    ✓ Submitted to Manager
+                  </span>
+                ) : null}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {review.employeeName} ({review.employeeCode}) • {review.designationName} • {review.departmentName}
@@ -202,7 +240,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
           </div>
 
           <button
-            onClick={onClose}
+            onClick={handleAttemptClose}
             className="w-8 h-8 rounded-lg hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -218,42 +256,59 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
             </div>
           )}
 
+          {hasManagerSubmitted && (
+            <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center space-x-2.5 text-xs text-emerald-800 dark:text-emerald-300">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>
+                <strong>Evaluation Submitted:</strong> Your reporting manager has submitted their evaluation for this quarterly review. Self-ratings and reflection are now locked and in read-only mode.
+              </span>
+            </div>
+          )}
+
           {/* Quick Score Banner */}
           <div className="bg-gradient-to-r from-slate-900 to-indigo-950 dark:from-slate-950 dark:to-indigo-950 rounded-2xl p-4 sm:p-5 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm border border-slate-800">
-            <div className="space-y-1 text-center sm:text-left">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
-                Live Self-Assessment Score
-              </span>
-              <div className="flex items-baseline space-x-2">
-                <span className="text-3xl font-extrabold tracking-tight font-mono">
-                  {calculatedSelfScore.toFixed(2)}
+            <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+                  Your Self-Rating Score
                 </span>
-                <span className="text-sm text-indigo-300">/ 5.00</span>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-800/80 text-indigo-200 border border-indigo-600/50 font-semibold ml-2">
-                  {calculatedSelfScore >= 4.5
-                    ? 'Outstanding'
-                    : calculatedSelfScore >= 3.75
-                    ? 'Exceeds Expectations'
-                    : calculatedSelfScore >= 2.75
-                    ? 'Meets Expectations'
-                    : 'Needs Improvement'}
-                </span>
+                <div className="flex items-baseline space-x-2">
+                  <span className="text-3xl font-extrabold tracking-tight font-mono">
+                    {calculatedSelfScore.toFixed(2)}
+                  </span>
+                  <span className="text-sm text-indigo-300">/ 5.00</span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-800/80 text-indigo-200 border border-indigo-600/50 font-semibold ml-2">
+                    {calculatedSelfScore >= 4.5
+                      ? 'Outstanding'
+                      : calculatedSelfScore >= 3.75
+                      ? 'Exceeds Expectations'
+                      : calculatedSelfScore >= 2.75
+                      ? 'Meets Expectations'
+                      : 'Needs Improvement'}
+                  </span>
+                </div>
               </div>
+
+              {hasManagerSubmitted && review.finalScore ? (
+                <div className="space-y-1 border-t sm:border-t-0 sm:border-l border-slate-700 pt-3 sm:pt-0 sm:pl-6">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                    Final Manager Score
+                  </span>
+                  <div className="flex items-baseline space-x-2">
+                    <span className="text-3xl font-extrabold tracking-tight font-mono text-emerald-400">
+                      {review.finalScore.toFixed(2)}
+                    </span>
+                    <span className="text-sm text-emerald-300">/ 5.00</span>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="text-center sm:text-right space-y-1">
               <p className="text-xs text-slate-300">
                 Calculated weighted composite from {kraStates.length} assigned KRAs ({kraStates.reduce((acc, k) => acc + (k.weight || 0), 0)}% total weight)
               </p>
             </div>
-
-            {review.finalScore && (
-              <div className="p-3 bg-white/10 dark:bg-white/5 rounded-xl border border-white/10 text-center sm:text-right">
-                <span className="text-[10px] text-slate-300 uppercase tracking-wider block">
-                  Manager Evaluated Score
-                </span>
-                <span className="text-xl font-bold font-mono text-emerald-300">
-                  {review.finalScore.toFixed(2)} <span className="text-xs text-slate-300">/ 5.00</span>
-                </span>
-              </div>
-            )}
           </div>
 
           {/* KRAs Self-Evaluation List */}
@@ -332,9 +387,11 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                           <button
                             key={ratingVal}
                             type="button"
-                            disabled={isClosed}
+                            disabled={isReadOnly}
                             onClick={() => handleRatingChange(kra.id, ratingVal)}
-                            className={`py-2 px-1 text-center rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                            className={`py-2 px-1 text-center rounded-xl border text-xs font-semibold transition-all ${
+                              isReadOnly ? 'cursor-default' : 'cursor-pointer'
+                            } ${
                               isSelected
                                 ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs scale-102'
                                 : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-slate-300'
@@ -359,12 +416,12 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                       Key Deliverables & Milestones Achieved (Self-Reflection):
                     </label>
                     <textarea
-                      disabled={isClosed}
+                      disabled={isReadOnly}
                       value={kra.selfAchievement}
                       onChange={(e) => handleAchievementChange(kra.id, e.target.value)}
                       placeholder="e.g. Successfully shipped sprint modules on time; resolved 12 P1 bugs; automated test runs to 92% coverage..."
                       rows={2}
-                      className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-75 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -400,12 +457,12 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   Key Strengths & Major Accomplishments:
                 </label>
                 <textarea
-                  disabled={isClosed}
+                  disabled={isReadOnly}
                   value={selfStrengths}
                   onChange={(e) => setSelfStrengths(e.target.value)}
                   placeholder="What went particularly well this quarter? What are you most proud of?"
                   rows={3}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-75 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -414,12 +471,12 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   Areas for Growth & Skill Acquisition:
                 </label>
                 <textarea
-                  disabled={isClosed}
+                  disabled={isReadOnly}
                   value={selfImprovements}
                   onChange={(e) => setSelfImprovements(e.target.value)}
                   placeholder="What skills, technical competencies, or processes do you aim to enhance?"
                   rows={3}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-75 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -429,12 +486,12 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                 Blockers, Dependencies & Manager Support Needed:
               </label>
               <textarea
-                disabled={isClosed}
+                disabled={isReadOnly}
                 value={selfObstacles}
                 onChange={(e) => setSelfObstacles(e.target.value)}
                 placeholder="What tooling, architectural clarity, or managerial support would help you unlock greater velocity next quarter?"
                 rows={2}
-                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-75 disabled:cursor-not-allowed"
               />
             </div>
           </div>
@@ -444,20 +501,34 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
         <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 order-2 sm:order-1">
             <HelpCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span>Submitting moves the review to your manager for evaluation.</span>
+            <span>
+              {isReadOnly
+                ? 'This review evaluation is finalized and view-only.'
+                : isAlreadySubmitted
+                ? 'You can update your self-assessment until your manager submits their review.'
+                : 'Submitting moves the review to your manager for evaluation.'}
+            </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end order-1 sm:order-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 sm:flex-none px-3.5 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer text-center"
-            >
-              Cancel
-            </button>
-
-            {!isClosed && (
+            {isReadOnly ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full sm:w-auto px-5 py-2 text-xs font-bold text-white bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 rounded-xl transition-all shadow-xs cursor-pointer"
+              >
+                Close
+              </button>
+            ) : (
               <>
+                <button
+                  type="button"
+                  onClick={handleAttemptClose}
+                  className="flex-1 sm:flex-none px-3.5 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer text-center"
+                >
+                  Cancel
+                </button>
+
                 <button
                   type="button"
                   disabled={isSubmitting}
@@ -475,12 +546,70 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   className="w-full sm:w-auto flex items-center justify-center space-x-1.5 px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl transition-all shadow-xs cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span>{isSubmitting ? 'Submitting...' : 'Submit to Manager'}</span>
+                  <span>{isSubmitting ? 'Submitting...' : isAlreadySubmitted ? 'Update Self-Assessment' : 'Submit to Manager'}</span>
                 </button>
               </>
             )}
           </div>
         </div>
+
+        {/* UNSAVED CHANGES CONFIRMATION ALERT */}
+        {showUnsavedAlert && (
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowUnsavedAlert(false);
+            }}
+          >
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 text-slate-900 dark:text-white transform scale-100 transition-all">
+              <div className="flex items-start space-x-4">
+                <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-2xl border border-amber-500/20 shrink-0">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Unsaved Self-Assessment
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                    You have unsaved changes in your self-evaluation. If you exit now without saving, your self-ratings and reflection entries will be lost.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-col sm:flex-row items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowUnsavedAlert(false)}
+                  className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                >
+                  Keep Editing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUnsavedAlert(false);
+                    onClose();
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-900/60 rounded-xl transition-colors cursor-pointer"
+                >
+                  Discard & Exit
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={async () => {
+                    setShowUnsavedAlert(false);
+                    await handleSubmit(true);
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Save Draft & Exit</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>,
     document.body

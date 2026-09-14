@@ -89,20 +89,27 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
 
   const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+    );
+    const unreadRemaining = notifications.filter((n) => !n.isRead && n.id !== id).length;
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('notifications-updated', { detail: { count: unreadRemaining } }));
+    }
     try {
       await api.markNotificationRead(id);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-      );
     } catch (err) {
       console.error('Failed to mark notification as read:', err);
     }
   };
 
   const handleMarkAllRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('notifications-updated', { detail: { count: 0 } }));
+    }
     try {
       await api.markAllNotificationsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     } catch (err) {
       console.error('Failed to mark all as read:', err);
     }
@@ -158,6 +165,10 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
 
     // Optimistically remove from visible list
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    const unreadRemaining = notifications.filter((n) => !n.isRead && n.id !== id).length;
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('notifications-updated', { detail: { count: unreadRemaining } }));
+    }
 
     // Start 3-second countdown
     let secondsLeft = 3;

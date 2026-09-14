@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 
 export type AppView =
   | 'portal'
+  | 'management'
   | 'ai_performance'
   | 'appraisals'
   | 'reviews'
   | 'kras'
   | 'employees'
+  | 'hierarchy'
   | 'reports'
   | 'bulk'
   | 'audit'
@@ -15,17 +17,35 @@ export type AppView =
 
 const VALID_VIEWS: AppView[] = [
   'portal',
+  'management',
   'ai_performance',
   'appraisals',
   'reviews',
   'kras',
   'employees',
+  'hierarchy',
   'reports',
   'bulk',
   'audit',
   'notifications',
   'overview',
 ];
+
+export const ROLE_ALLOWED_VIEWS: Record<string, AppView[]> = {
+  SUPER_ADMIN: ['portal', 'reviews', 'appraisals', 'ai_performance', 'reports', 'employees', 'hierarchy', 'kras', 'bulk', 'audit', 'notifications', 'overview'],
+  MANAGEMENT: ['management', 'reports', 'hierarchy', 'notifications', 'portal'],
+  HR: ['portal', 'reviews', 'appraisals', 'reports', 'employees', 'hierarchy', 'kras', 'bulk', 'audit', 'notifications', 'overview'],
+  HOD: ['portal', 'reviews', 'appraisals', 'reports', 'hierarchy', 'notifications', 'overview'],
+  REPORTING_MANAGER: ['portal', 'reviews', 'appraisals', 'notifications', 'overview'],
+  MANAGER: ['portal', 'reviews', 'appraisals', 'notifications', 'overview'],
+  EMPLOYEE: ['portal', 'reviews', 'notifications', 'overview'],
+};
+
+export function isViewPermitted(view: AppView, role?: string): boolean {
+  if (!role) return true;
+  const allowed = ROLE_ALLOWED_VIEWS[role];
+  return allowed ? allowed.includes(view) : true;
+}
 
 function getInitialView(): AppView {
   const hash = window.location.hash.replace(/^#\/?/, '').trim();
@@ -57,6 +77,8 @@ export function useUrlHashView() {
       const hash = window.location.hash.replace(/^#\/?/, '').trim();
       if (VALID_VIEWS.includes(hash as AppView)) {
         setCurrentViewState(hash as AppView);
+      } else {
+        setCurrentViewState('portal');
       }
     };
 

@@ -35,19 +35,18 @@ export const ReviewStatusBadge: React.FC<ReviewStatusBadgeProps> = ({
           <span>Mgr Completed</span>
         </span>
       );
-    case 'HOD_COMPLETED':
-      return (
-        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 flex items-center space-x-1 ${className}`}>
-          <Award className="w-3 h-3 text-purple-600 dark:text-purple-400" />
-          <span>HOD Completed</span>
-        </span>
-      );
     case 'HR_PENDING':
-    case 'HR_COMPLETED':
       return (
         <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 flex items-center space-x-1 ${className}`}>
           <UserCheck className="w-3 h-3" />
           <span>HR Review</span>
+        </span>
+      );
+    case 'HR_COMPLETED':
+      return (
+        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center space-x-1 ${className}`}>
+          <CheckCircle2 className="w-3 h-3" />
+          <span>HR Approved</span>
         </span>
       );
     case 'RETURNED':

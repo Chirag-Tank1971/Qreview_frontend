@@ -3,15 +3,16 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { Header } from './components/Header';
-import { TopNav } from './components/TopNav';
 import { LoginPage } from './components/LoginPage';
 import { LoginModal } from './components/LoginModal';
 import { ForcePasswordChangeScreen } from './components/ForcePasswordChangeScreen';
 import { MobileNavDrawer } from './components/MobileNavDrawer';
 import { ViewSkeletonFallback } from './components/ui/ViewSkeletonFallback';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { useMasterData } from './hooks/useMasterData';
-import { useUrlHashView, AppView } from './hooks/useUrlHashView';
+import { useUrlHashView, AppView, isViewPermitted } from './hooks/useUrlHashView';
 import { Loader2, ArrowLeft } from 'lucide-react';
+import { Sidebar } from './components/ui/Sidebar';
 import { KraTemplate } from './types';
 import { ReviewViewConfig } from './components/QuarterlyReviewView';
 import { AppraisalViewConfig } from './components/AppraisalManagementView';
@@ -49,8 +50,17 @@ const AuditComplianceExplorer = lazy(() =>
 const NotificationsCenterView = lazy(() =>
   import('./components/NotificationsCenterView').then((m) => ({ default: m.NotificationsCenterView }))
 );
+const ManagementDashboardView = lazy(() =>
+  import('./components/ManagementDashboardView').then((m) => ({ default: m.ManagementDashboardView }))
+);
+const DepartmentHierarchyView = lazy(() =>
+  import('./components/DepartmentHierarchyView').then((m) => ({ default: m.DepartmentHierarchyView }))
+);
 
 // Modals lazy loaded on demand
+const EmployeeModal = lazy(() =>
+  import('./components/EmployeeModal').then((m) => ({ default: m.EmployeeModal }))
+);
 const KraTemplateBuilderModal = lazy(() =>
   import('./components/KraTemplateBuilderModal').then((m) => ({ default: m.KraTemplateBuilderModal }))
 );
@@ -59,6 +69,12 @@ const KraLibraryModal = lazy(() =>
 );
 
 const VIEW_META: Record<string, { title: string; subtitle: string; tag: string; tagColor: string }> = {
+  management: {
+    title: 'Executive Management Intelligence',
+    subtitle: 'Organization-wide review progress, department rankings, quarterly rating trends, and appraisal rollups',
+    tag: 'Executive Leadership',
+    tagColor: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/60',
+  },
   portal: {
     title: 'My Space & Performance Goals',
     subtitle: 'Track your quarterly performance, complete self-reviews, and view your digital appraisal letter',
@@ -88,6 +104,12 @@ const VIEW_META: Record<string, { title: string; subtitle: string; tag: string; 
     subtitle: 'Search team members, view reporting managers, and browse department structures',
     tag: 'Team Directory',
     tagColor: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-slate-700',
+  },
+  hierarchy: {
+    title: 'Department & Manager Hierarchy',
+    subtitle: 'Organizational structure, department HODs, reporting managers, and team headcount distribution',
+    tag: 'Org Structure',
+    tagColor: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/80 dark:border-blue-800/60',
   },
   kras: {
     title: 'Goals & KRA Template Library',
@@ -135,6 +157,13 @@ function AppContent() {
   const [reportsConfig, setReportsConfig] = useState<ReportsViewConfig | null>(null);
   const [portalConfig, setPortalConfig] = useState<EmployeePortalConfig | null>(null);
 
+  // Auto-land on Executive Management Dashboard for MANAGEMENT role
+  useEffect(() => {
+    if (user?.role === 'MANAGEMENT' && (!window.location.hash || window.location.hash === '#' || window.location.hash === '#portal')) {
+      setView('management');
+    }
+  }, [user?.role, setView]);
+
   // Centralized Master Data via Custom Hook
   const {
     templates,
@@ -143,16 +172,21 @@ function AppContent() {
     designations,
     employees,
     cycles,
+    refreshMasterData,
     saveTemplate,
     saveKra,
   } = useMasterData(isAuthenticated);
+
+  // Hierarchy Employee Modal State
+  const [isHierarchyEmpModalOpen, setIsHierarchyEmpModalOpen] = useState(false);
+  const [hierarchyEditingEmployee, setHierarchyEditingEmployee] = useState<any>(null);
 
   // KRA Modals State
   const [isTemplateBuilderOpen, setIsTemplateBuilderOpen] = useState(false);
   const [isKraLibraryOpen, setIsKraLibraryOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<KraTemplate | null>(null);
 
-  const canManageKras = user?.role === 'SUPER_ADMIN' || user?.role === 'HR' || user?.role === 'HOD';
+  const canManageKras = user?.role === 'SUPER_ADMIN' || user?.role === 'HR';
 
   const handleNavigate = (tab: string, options?: any) => {
     setAppraisalConfig(tab === 'appraisals' ? options || null : null);
@@ -162,16 +196,18 @@ function AppContent() {
     setView(tab as AppView);
   };
 
-  // Auto-switch to portal if user is an employee, and reset all view configs when switching roles
+  // Proactive Role-Based Access Control (RBAC) Guard for Views
   useEffect(() => {
     setReviewConfig(null);
     setAppraisalConfig(null);
     setReportsConfig(null);
     setPortalConfig(null);
-    if (user?.role === 'EMPLOYEE') {
+
+    // If current view is not permitted for the user's role, automatically redirect to their primary allowed workspace
+    if (user?.role && !isViewPermitted(currentView, user.role)) {
       setView('portal', true);
     }
-  }, [user?.id, user?.role, setView]);
+  }, [user?.id, user?.role, currentView, setView]);
 
   if (isLoading) {
     return (
@@ -199,9 +235,17 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-slate-50 to-indigo-50/20 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-600 selection:text-white transition-colors duration-200">
-      {/* Header */}
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
+      {/* Unified Enterprise Header */}
       <Header
+        currentView={currentView}
+        onSelectView={(v) => {
+          setReviewConfig(null);
+          setAppraisalConfig(null);
+          setReportsConfig(null);
+          setPortalConfig(null);
+          setView(v as AppView);
+        }}
         onNavigate={handleNavigate}
         onOpenLogin={() => setIsLoginModalOpen(true)}
         onOpenMobileMenu={() => setIsMobileNavOpen(true)}
@@ -215,70 +259,49 @@ function AppContent() {
         onSelectView={handleNavigate}
       />
 
-      <div className="flex flex-col flex-1">
-        {/* Top Navigation - hidden on dedicated Notifications page */}
-        {currentView !== 'notifications' && (
-          <TopNav
-            currentView={currentView}
-            onSelectView={(v) => {
-              setReviewConfig(null);
-              setAppraisalConfig(null);
-              setReportsConfig(null);
-              setPortalConfig(null);
-              setView(v as AppView);
-            }}
-            userRole={user?.role}
-            onOpenMobileMenu={() => setIsMobileNavOpen(true)}
-          />
-        )}
+      <div className="flex flex-1 min-h-0">
+        {/* Persistent Desktop Sidebar */}
+        <Sidebar
+          currentView={currentView}
+          onSelectView={handleNavigate}
+        />
 
-        {/* Main Content Area */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-24 md:pb-12 overflow-x-hidden">
-          {/* View Context Banner */}
-          {VIEW_META[currentView] && (
-            <div className="mb-4 sm:mb-6 p-3.5 sm:p-5 bg-white/75 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  {currentView === 'notifications' && (
-                    <button
-                      onClick={() => handleNavigate('portal')}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 mr-2 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shadow-2xs"
-                      title="Back to Workspace"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>Back to Workspace</span>
-                    </button>
-                  )}
-                  <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
-                    {VIEW_META[currentView].title}
-                  </h2>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${VIEW_META[currentView].tagColor}`}>
-                    {VIEW_META[currentView].tag}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                  {VIEW_META[currentView].subtitle}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100/90 dark:bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-200/70 dark:border-slate-700">
-                  Role: <strong className="text-slate-900 dark:text-white">{user?.role}</strong>
-                </span>
-              </div>
+        <div className="flex flex-col flex-1 min-w-0 overflow-x-hidden">
+          {/* Main Content Area - Full width enterprise canvas */}
+          <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 pt-4 pb-20 md:pb-10">
+          {/* Notifications Return-to-Workspace Bar */}
+          {currentView === 'notifications' && (
+            <div className="mb-4">
+              <button
+                onClick={() => handleNavigate('portal')}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 transition-colors shadow-2xs cursor-pointer"
+                title="Back to Workspace"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back to Workspace</span>
+              </button>
             </div>
           )}
 
           {/* Lazy loaded domain view with fallback */}
-          <Suspense fallback={<ViewSkeletonFallback />}>
-            {currentView === 'portal' ? (
+          <ErrorBoundary>
+            <Suspense fallback={<ViewSkeletonFallback />}>
+            {currentView === 'management' && user?.role === 'MANAGEMENT' ? (
+              <ManagementDashboardView
+                currentUser={user}
+                departments={departments}
+                onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
+                onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
+              />
+            ) : currentView === 'portal' ? (
               <EmployeePortalView
                 onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
                 onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
                 initialConfig={portalConfig}
               />
-            ) : currentView === 'ai_performance' ? (
+            ) : currentView === 'ai_performance' && user?.role === 'SUPER_ADMIN' ? (
               <AiPerformanceHub currentUser={user} />
-            ) : currentView === 'appraisals' ? (
+            ) : currentView === 'appraisals' && ['SUPER_ADMIN', 'HR', 'MANAGEMENT', 'HOD', 'REPORTING_MANAGER', 'MANAGER'].includes(user?.role || '') ? (
               <AppraisalManagementView
                 currentUser={user}
                 departments={departments}
@@ -296,22 +319,22 @@ function AppContent() {
                 initialConfig={reviewConfig}
                 onClearInitialConfig={() => setReviewConfig(null)}
               />
-            ) : currentView === 'reports' ? (
+            ) : currentView === 'reports' && ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'].includes(user?.role || '') ? (
               <ReportsCenterView
                 departments={departments}
                 cycles={cycles}
                 initialConfig={reportsConfig}
               />
-            ) : currentView === 'bulk' ? (
+            ) : currentView === 'bulk' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
               <BulkImportExportManager currentUser={user} />
-            ) : currentView === 'audit' ? (
+            ) : currentView === 'audit' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
               <AuditComplianceExplorer currentUser={user} />
             ) : currentView === 'notifications' ? (
               <NotificationsCenterView
                 currentUser={user}
                 onNavigate={(tab, opts) => handleNavigate(tab as AppView, opts)}
               />
-            ) : currentView === 'kras' ? (
+            ) : currentView === 'kras' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
               <KraManagementView
                 templates={templates}
                 kras={kras}
@@ -329,7 +352,7 @@ function AppContent() {
                 }}
                 onOpenLibrary={() => setIsKraLibraryOpen(true)}
               />
-            ) : (
+            ) : currentView === 'employees' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
               <EmployeeDirectory
                 currentUser={user}
                 departments={departments}
@@ -338,12 +361,70 @@ function AppContent() {
                 kraTemplates={templates}
                 onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
                 onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
+                onNavigateToHierarchy={() => handleNavigate('hierarchy')}
                 initialConfig={portalConfig}
                 employees={employees}
               />
+            ) : currentView === 'hierarchy' && ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'].includes(user?.role || '') ? (
+              <div className="space-y-6">
+                <DepartmentHierarchyView
+                  employees={employees}
+                  departments={departments}
+                  designations={designations}
+                  cycles={cycles}
+                  isHRorAdmin={['SUPER_ADMIN', 'HR'].includes(user?.role || '')}
+                  onEditEmployee={(emp) => {
+                    setHierarchyEditingEmployee(emp);
+                    setIsHierarchyEmpModalOpen(true);
+                  }}
+                  onAddEmployee={() => {
+                    setHierarchyEditingEmployee(null);
+                    setIsHierarchyEmpModalOpen(true);
+                  }}
+                  onBackToDirectory={() => handleNavigate('employees')}
+                />
+                <Suspense fallback={null}>
+                  {isHierarchyEmpModalOpen && (
+                    <EmployeeModal
+                      isOpen={isHierarchyEmpModalOpen}
+                      onClose={() => setIsHierarchyEmpModalOpen(false)}
+                      onSaved={refreshMasterData}
+                      employeeToEdit={hierarchyEditingEmployee}
+                      departments={departments}
+                      designations={designations}
+                      cycles={cycles}
+                      allEmployees={employees}
+                      kraTemplates={templates}
+                    />
+                  )}
+                </Suspense>
+              </div>
+            ) : (
+              <EmployeePortalView
+                onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
+                onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
+                initialConfig={portalConfig}
+              />
             )}
           </Suspense>
+        </ErrorBoundary>
         </main>
+
+        {/* Footer */}
+        <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-3 mt-auto mb-16 md:mb-0">
+          <div className="w-full px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Performance & Appraisal Management</span>
+              <span className="text-slate-400">•</span>
+              <span>Enterprise Edition</span>
+            </div>
+            <div>
+              <span>Quarterly Cycles • Calibration • Audit Governance</span>
+            </div>
+          </div>
+        </footer>
+        </div>
       </div>
 
       {/* Modals */}
@@ -379,21 +460,6 @@ function AppContent() {
           />
         )}
       </Suspense>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200/70 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md py-4 mt-auto mb-16 md:mb-0">
-        <div className="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span className="font-semibold text-slate-700 dark:text-slate-300">Performance & Appraisal Management</span>
-            <span className="text-slate-400">•</span>
-            <span>Enterprise Edition</span>
-          </div>
-          <div>
-            <span>Quarterly Cycles • Calibration • Audit Governance</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

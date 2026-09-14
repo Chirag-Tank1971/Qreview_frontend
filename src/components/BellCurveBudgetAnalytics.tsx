@@ -17,6 +17,7 @@ import {
   ChevronUp,
   BarChart2,
   UserCheck,
+  AlertCircle,
 } from 'lucide-react';
 import {
   ExecutiveAnalyticsData,
@@ -212,8 +213,8 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                       </div>
                       <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex">
                         <div
-                          className="bg-emerald-400 h-full rounded-full"
-                          style={{ width: `${Math.min(100, data.bellCurveDistribution.actual.outstanding * 2)}%` }}
+                          className="bg-emerald-400 h-full rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(100, Math.max(0, data.bellCurveDistribution.actual.outstanding))}%` }}
                         />
                       </div>
                       <div className="flex items-center justify-between text-[10px] text-slate-400">
@@ -232,8 +233,8 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                       </div>
                       <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex">
                         <div
-                          className="bg-blue-400 h-full rounded-full"
-                          style={{ width: `${Math.min(100, data.bellCurveDistribution.actual.exceeds * 2)}%` }}
+                          className="bg-blue-400 h-full rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(100, Math.max(0, data.bellCurveDistribution.actual.exceeds))}%` }}
                         />
                       </div>
                       <div className="flex items-center justify-between text-[10px] text-slate-400">
@@ -252,8 +253,8 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                       </div>
                       <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex">
                         <div
-                          className="bg-indigo-400 h-full rounded-full"
-                          style={{ width: `${Math.min(100, data.bellCurveDistribution.actual.meets * 2)}%` }}
+                          className="bg-indigo-400 h-full rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(100, Math.max(0, data.bellCurveDistribution.actual.meets))}%` }}
                         />
                       </div>
                       <div className="flex items-center justify-between text-[10px] text-slate-400">
@@ -272,8 +273,8 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                       </div>
                       <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex">
                         <div
-                          className="bg-amber-400 h-full rounded-full"
-                          style={{ width: `${Math.min(100, data.bellCurveDistribution.actual.needsImprovement * 2)}%` }}
+                          className="bg-amber-400 h-full rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(100, Math.max(0, data.bellCurveDistribution.actual.needsImprovement))}%` }}
                         />
                       </div>
                       <div className="flex items-center justify-between text-[10px] text-slate-400">
@@ -350,21 +351,30 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                         {/* Distribution Visual Chart */}
                         <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                           {/* 4-bucket Stacked Visual Bar */}
-                          <div className="w-full h-7 rounded-xl overflow-hidden flex p-1 bg-slate-100 dark:bg-slate-800 gap-1">
-                            {deptCurve.buckets.map((b) => (
-                              <div
-                                key={b.ratingBand}
-                                className="h-full rounded-lg flex items-center justify-center text-[10px] font-bold text-white transition-all overflow-hidden"
-                                style={{
-                                  width: `${Math.max(8, b.actualPercent)}%`,
-                                  backgroundColor: b.color,
-                                }}
-                                title={`${b.label}: ${b.actualPercent}% (${b.actualCount} emp)`}
-                              >
-                                {b.actualPercent > 8 ? `${b.actualPercent}%` : ''}
-                              </div>
-                            ))}
-                          </div>
+                          {deptCurve.totalEmployees === 0 ? (
+                            <div className="h-7 w-full rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700/60 flex items-center justify-center text-[11px] text-slate-400 dark:text-slate-500 gap-1.5 font-medium">
+                              <AlertCircle className="w-3.5 h-3.5" />
+                              <span>No active appraisals calibrated in selected cycle/year</span>
+                            </div>
+                          ) : (
+                            <div className="w-full h-7 rounded-xl overflow-hidden flex p-1 bg-slate-100 dark:bg-slate-800 gap-1">
+                              {deptCurve.buckets
+                                .filter((b) => b.actualPercent > 0)
+                                .map((b) => (
+                                  <div
+                                    key={b.ratingBand}
+                                    className="h-full rounded-lg flex items-center justify-center text-[10px] font-bold text-white transition-all overflow-hidden"
+                                    style={{
+                                      width: `${b.actualPercent}%`,
+                                      backgroundColor: b.color,
+                                    }}
+                                    title={`${b.label}: ${b.actualPercent}% (${b.actualCount} emp)`}
+                                  >
+                                    {b.actualPercent >= 8 ? `${b.actualPercent}%` : ''}
+                                  </div>
+                                ))}
+                            </div>
+                          )}
 
                           {/* Bucket Stats Breakdown */}
                           {isExpanded && (

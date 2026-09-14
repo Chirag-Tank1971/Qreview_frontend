@@ -13,7 +13,6 @@ export const RATING_RUBRIC = [
 interface Step2ManagerSectionProps {
   snapshots: ReviewKraSnapshot[];
   canEdit: boolean;
-  isHodCompleted: boolean;
   isHrOrAdmin: boolean;
   onKraChange: (index: number, field: keyof ReviewKraSnapshot, value: any) => void;
 }
@@ -21,7 +20,6 @@ interface Step2ManagerSectionProps {
 export const Step2ManagerSection: React.FC<Step2ManagerSectionProps> = ({
   snapshots,
   canEdit,
-  isHodCompleted,
   isHrOrAdmin,
   onKraChange,
 }) => {
@@ -42,17 +40,6 @@ export const Step2ManagerSection: React.FC<Step2ManagerSectionProps> = ({
         </div>
       </div>
 
-      {isHodCompleted && !isHrOrAdmin && (
-        <div className="bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200 text-xs p-3.5 rounded-xl flex items-center gap-2.5 shadow-2xs">
-          <Lock className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
-          <div>
-            <span className="font-bold">HOD Evaluation Completed (Read-Only)</span>
-            <p className="text-[11px] text-purple-800 dark:text-purple-300 mt-0.5">
-              This quarterly review has been calibrated by HOD and submitted to HR. Goal ratings are now locked for manager and HOD roles.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Snapshot Cards */}
       <div className="space-y-4">
@@ -77,6 +64,15 @@ export const Step2ManagerSection: React.FC<Step2ManagerSectionProps> = ({
                         Self-Rated: {item.selfRating} ★
                       </span>
                     )}
+                    {(!item.rating || item.rating === 0) ? (
+                      <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-750 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
+                        Not Yet Evaluated
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60">
+                        Rated: {item.rating} ★
+                      </span>
+                    )}
                   </div>
                   {item.description && (
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{item.description}</p>
@@ -88,7 +84,11 @@ export const Step2ManagerSection: React.FC<Step2ManagerSectionProps> = ({
                     Score Contribution
                   </span>
                   <div className="text-base font-bold text-slate-900 dark:text-white font-mono mt-0.5">
-                    +{itemContribution.toFixed(2)} pts
+                    {(!item.rating || item.rating === 0) ? (
+                      <span className="text-xs font-normal text-slate-400 italic">Pending</span>
+                    ) : (
+                      `+${itemContribution.toFixed(2)} pts`
+                    )}
                   </div>
                 </div>
               </div>

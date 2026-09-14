@@ -50,8 +50,37 @@ type ReportType =
   | 'kra-performance'
   | 'audit-trail';
 
+const reportCategories = [
+  { id: 'ALL', label: 'All Reports' },
+  { id: 'REVIEWS', label: 'Reviews' },
+  { id: 'PERFORMANCE', label: 'Performance' },
+  { id: 'APPRAISALS', label: 'Appraisals' },
+  { id: 'ANALYTICS', label: 'Analytics & Audit' },
+] as const;
+
+type CategoryGroupId = (typeof reportCategories)[number]['id'];
+
+const reportNavItems: Array<{
+  id: ReportType;
+  label: string;
+  categoryGroup: 'REVIEWS' | 'PERFORMANCE' | 'APPRAISALS' | 'ANALYTICS';
+  category: string;
+  icon: any;
+}> = [
+  { id: 'quarterly-status', label: 'Review Status', categoryGroup: 'REVIEWS', category: 'Reviews', icon: CheckCircle2 },
+  { id: 'pending-overdue', label: 'Pending & Overdue', categoryGroup: 'REVIEWS', category: 'Reviews', icon: Clock },
+  { id: 'manager-completion', label: 'Manager Completion', categoryGroup: 'REVIEWS', category: 'Operations', icon: UserCheck },
+  { id: 'employee-history', label: 'Employee History', categoryGroup: 'PERFORMANCE', category: 'Performance', icon: Users },
+  { id: 'department-performance', label: 'Department Performance', categoryGroup: 'PERFORMANCE', category: 'Performance', icon: Building2 },
+  { id: 'appraisal-due', label: 'Appraisal Due', categoryGroup: 'APPRAISALS', category: 'Appraisals', icon: Award },
+  { id: 'rating-trend', label: 'Rating Trends', categoryGroup: 'ANALYTICS', category: 'Analytics', icon: TrendingUp },
+  { id: 'kra-performance', label: 'KRA Competencies', categoryGroup: 'ANALYTICS', category: 'Analytics', icon: Sliders },
+  { id: 'audit-trail', label: 'Audit Trail', categoryGroup: 'ANALYTICS', category: 'Compliance', icon: Shield },
+];
+
 export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ departments, cycles, initialConfig }) => {
   const [activeReport, setActiveReport] = useState<ReportType>('quarterly-status');
+  const [selectedCategory, setSelectedCategory] = useState<CategoryGroupId>('ALL');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
 
@@ -65,7 +94,11 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
 
   useEffect(() => {
     if (initialConfig) {
-      if (initialConfig.reportType) setActiveReport(initialConfig.reportType);
+      if (initialConfig.reportType) {
+        setActiveReport(initialConfig.reportType);
+        const item = reportNavItems.find((r) => r.id === initialConfig.reportType);
+        if (item) setSelectedCategory(item.categoryGroup);
+      }
       if (initialConfig.departmentId) setSelectedDept(initialConfig.departmentId);
       if (initialConfig.cycleId) setSelectedCycle(initialConfig.cycleId);
     }
@@ -262,93 +295,90 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
     document.body.removeChild(link);
   };
 
-  const reportNavItems: Array<{ id: ReportType; label: string; icon: any; category: string }> = [
-    { id: 'quarterly-status', label: '1. Quarterly Review Status', icon: CheckCircle2, category: 'Reviews' },
-    { id: 'pending-overdue', label: '2. Pending & Overdue Reviews', icon: Clock, category: 'Reviews' },
-    { id: 'employee-history', label: '3. Employee Performance History', icon: Users, category: 'Performance' },
-    { id: 'department-performance', label: '4. Department Performance', icon: Building2, category: 'Performance' },
-    { id: 'manager-completion', label: '5. Manager-wise Completion', icon: UserCheck, category: 'Operations' },
-    { id: 'appraisal-due', label: '6. 8-Cycle Appraisal Due', icon: Award, category: 'Appraisals' },
-    { id: 'rating-trend', label: '7. Quarterly Rating Trends', icon: TrendingUp, category: 'Analytics' },
-    { id: 'kra-performance', label: '8. KRA-wise Competency Matrix', icon: Sliders, category: 'Analytics' },
-    { id: 'audit-trail', label: '9. System Compliance Audit Log', icon: Shield, category: 'Compliance' },
-  ];
+  const recordCount =
+    data?.reportData?.length ??
+    data?.logs?.length ??
+    data?.trends?.length ??
+    0;
+  const recordCountText = `${recordCount} ${recordCount === 1 ? 'record' : 'records'}`;
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold shadow-2xs">
-            <FileText className="w-5 h-5" />
+      {/* Native Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
+              Reports & Analytics
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+              Intelligence
+            </span>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Dedicated Reports Center</h3>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 uppercase">
-                Section 16 Specification
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Generate, filter, inspect, and export all 9 mandatory organization, review, cycle, and audit compliance reports
-            </p>
-          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Performance reviews, appraisal cohorts, and organizational compliance telemetry.
+          </p>
         </div>
 
-        {/* Global Export Button */}
-        <div className="flex items-center gap-2">
+        {/* Global Actions */}
+        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
           <button
             onClick={fetchReportData}
             disabled={loading}
-            className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
+            className="p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
             title="Refresh Report Data"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-600 dark:text-indigo-400' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-blue-600 dark:text-blue-400' : ''}`} />
           </button>
 
           <button
             onClick={exportToCsv}
             disabled={loading || !data}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-all shadow-2xs disabled:opacity-50 cursor-pointer"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-3.5 h-3.5" />
             <span>Export CSV</span>
           </button>
         </div>
       </div>
 
-      {/* Reports Directory Carousel / Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-2">
-        {reportNavItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeReport === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveReport(item.id)}
-              className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between gap-2.5 cursor-pointer ${
-                isActive
-                  ? 'bg-slate-900 dark:bg-indigo-600 text-white border-slate-900 dark:border-indigo-600 shadow-xs'
-                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-400 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`} />
-                <span className={`text-[9px] font-bold uppercase tracking-wider ${isActive ? 'text-slate-400 dark:text-indigo-200' : 'text-slate-400 dark:text-slate-500'}`}>
-                  {item.category}
-                </span>
-              </div>
-              <div className="text-xs font-bold leading-snug">{item.label}</div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Dynamic Filters Bar */}
-      <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
+      {/* Report Selection & Dynamic Filters Bar */}
+      <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-2.5 flex-1">
-          <div className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-300">
-            <Filter className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+          {/* Report Dropdown Selector */}
+          <div className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300 shrink-0">
+            <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <span>Report:</span>
+          </div>
+          <select
+            value={activeReport}
+            onChange={(e) => setActiveReport(e.target.value as ReportType)}
+            className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer text-xs shadow-2xs min-w-[220px]"
+          >
+            <optgroup label="Reviews & Operations">
+              <option value="quarterly-status">Quarterly Review Status</option>
+              <option value="pending-overdue">Pending & Overdue Reviews</option>
+              <option value="manager-completion">Manager Completion Rates</option>
+            </optgroup>
+            <optgroup label="Performance">
+              <option value="employee-history">Employee Historical Performance</option>
+              <option value="department-performance">Department Performance Rankings</option>
+            </optgroup>
+            <optgroup label="Appraisals">
+              <option value="appraisal-due">Appraisal Due Cohort</option>
+            </optgroup>
+            <optgroup label="Analytics & Governance">
+              <option value="rating-trend">Organization Rating Trends</option>
+              <option value="kra-performance">KRA Competencies Performance</option>
+              <option value="audit-trail">Compliance & Audit Trail</option>
+            </optgroup>
+          </select>
+
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block" />
+
+          <div className="flex items-center gap-1.5 font-semibold text-slate-500 dark:text-slate-400 mr-1">
+            <Filter className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
             <span>Filters:</span>
           </div>
 
@@ -357,7 +387,7 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
             <select
               value={selectedDept}
               onChange={(e) => setSelectedDept(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-xs"
             >
               <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Departments</option>
               {departments.map((d) => (
@@ -373,7 +403,7 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
             <select
               value={selectedCycle}
               onChange={(e) => setSelectedCycle(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-xs"
             >
               <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All 8 Cycles (A - H)</option>
               {cycles.map((c) => (
@@ -389,7 +419,7 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-xs"
             >
               <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Review Statuses</option>
               <option value="ASSIGNED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">ASSIGNED</option>
@@ -405,7 +435,7 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
             <select
               value={selectedAuditModule}
               onChange={(e) => setSelectedAuditModule(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-xs"
             >
               <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All System Modules</option>
               <option value="REVIEWS" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">REVIEWS</option>
@@ -421,7 +451,7 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-xs"
             >
               <option value={2026} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">FY 2026</option>
               <option value={2025} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">FY 2025</option>
@@ -431,28 +461,32 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           {/* Search for employee history */}
           {activeReport === 'employee-history' && (
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
               <input
                 type="text"
                 placeholder="Search employee code/name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-48"
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-52"
               />
             </div>
           )}
         </div>
 
-        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono font-semibold">
-          Active Report: <strong className="text-slate-900 dark:text-white">{activeReport.replace('-', ' ').toUpperCase()}</strong>
-        </span>
+        {/* Record Count Badge */}
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono text-[11px]">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+            {recordCountText}
+          </span>
+        </div>
       </div>
 
       {/* Loading State */}
       {loading ? (
         <div className="py-20 text-center text-xs text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
           <RefreshCw className="w-6 h-6 animate-spin mx-auto text-indigo-600 dark:text-indigo-400" />
-          <p>Compiling specification report rows...</p>
+          <p>Loading report data...</p>
         </div>
       ) : !data ? (
         <div className="py-20 text-center text-xs text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
@@ -467,30 +501,73 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
             <div className="space-y-4">
               {/* Summary KPIs */}
               {data.summary && (
-                <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-                  <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-0.5">
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">Total Reviews</span>
-                    <div className="text-lg font-bold text-slate-900 dark:text-white font-mono">{data.summary.total}</div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-indigo-500 rounded-2xl shadow-2xs space-y-1 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+                    <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                      <span className="text-[11px] font-bold uppercase tracking-wider">Total Reviews</span>
+                      <div className="w-6 h-6 rounded-md bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                        <FileText className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight">{data.summary.total}</div>
+                    <div className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">All active cohorts</div>
                   </div>
-                  <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-0.5">
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Completed (Closed)</span>
-                    <div className="text-lg font-bold text-emerald-700 dark:text-emerald-400 font-mono">{data.summary.completed}</div>
+
+                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-emerald-500 rounded-2xl shadow-2xs space-y-1 hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors">
+                    <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+                      <span className="text-[11px] font-bold uppercase tracking-wider">Completed</span>
+                      <div className="w-6 h-6 rounded-md bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight">{data.summary.completed}</div>
+                    <div className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 font-medium">Closed & finalized</div>
                   </div>
-                  <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-0.5">
-                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase">Manager Pending</span>
-                    <div className="text-lg font-bold text-amber-700 dark:text-amber-400 font-mono">{data.summary.managerPending}</div>
+
+                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-amber-500 rounded-2xl shadow-2xs space-y-1 hover:border-amber-200 dark:hover:border-amber-800 transition-colors">
+                    <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
+                      <span className="text-[11px] font-bold uppercase tracking-wider">Manager Pending</span>
+                      <div className="w-6 h-6 rounded-md bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                        <Clock className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400 tracking-tight">{data.summary.managerPending}</div>
+                    <div className="text-[10px] text-amber-600/70 dark:text-amber-400/70 font-medium">Awaiting evaluation</div>
                   </div>
-                  <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-0.5">
-                    <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold uppercase">HR Pending</span>
-                    <div className="text-lg font-bold text-purple-700 dark:text-purple-400 font-mono">{data.summary.hrPending}</div>
+
+                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-purple-500 rounded-2xl shadow-2xs space-y-1 hover:border-purple-200 dark:hover:border-purple-800 transition-colors">
+                    <div className="flex items-center justify-between text-purple-600 dark:text-purple-400">
+                      <span className="text-[11px] font-bold uppercase tracking-wider">HR Pending</span>
+                      <div className="w-6 h-6 rounded-md bg-purple-50 dark:bg-purple-950/60 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                        <UserCheck className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight">{data.summary.hrPending}</div>
+                    <div className="text-[10px] text-purple-600/70 dark:text-purple-400/70 font-medium">Awaiting sign-off</div>
                   </div>
-                  <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-0.5">
-                    <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold uppercase">Returned Reviews</span>
-                    <div className="text-lg font-bold text-rose-700 dark:text-rose-400 font-mono">{data.summary.returned}</div>
+
+                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-rose-500 rounded-2xl shadow-2xs space-y-1 hover:border-rose-200 dark:hover:border-rose-800 transition-colors">
+                    <div className="flex items-center justify-between text-rose-600 dark:text-rose-400">
+                      <span className="text-[11px] font-bold uppercase tracking-wider">Returned</span>
+                      <div className="w-6 h-6 rounded-md bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-rose-600 dark:text-rose-400 tracking-tight">{data.summary.returned}</div>
+                    <div className="text-[10px] text-rose-600/70 dark:text-rose-400/70 font-medium">Action required</div>
                   </div>
-                  <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-0.5">
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">Avg Score</span>
-                    <div className="text-lg font-bold text-indigo-700 dark:text-indigo-400 font-mono">{data.summary.averageScore} / 5.0</div>
+
+                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-sky-500 rounded-2xl shadow-2xs space-y-1 hover:border-sky-200 dark:hover:border-sky-800 transition-colors">
+                    <div className="flex items-center justify-between text-sky-600 dark:text-sky-400">
+                      <span className="text-[11px] font-bold uppercase tracking-wider">Avg Score</span>
+                      <div className="w-6 h-6 rounded-md bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center text-sky-600 dark:text-sky-400">
+                        <Award className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-sky-600 dark:text-sky-400 tracking-tight">
+                      {data.summary.averageScore} <span className="text-xs text-slate-400 font-sans font-normal">/ 5.0</span>
+                    </div>
+                    <div className="text-[10px] text-sky-600/70 dark:text-sky-400/70 font-medium">Cohort-wide score</div>
                   </div>
                 </div>
               )}
@@ -566,22 +643,49 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           {activeReport === 'pending-overdue' && data.reportData && (
             <div className="space-y-4">
               {data.summary && (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1">
-                    <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Total Pending Reviews</span>
-                    <div className="text-2xl font-bold text-slate-900 dark:text-white font-mono">{data.summary.totalPending}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-indigo-500 rounded-2xl shadow-2xs space-y-1 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+                    <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                      <span className="text-[11px] font-bold uppercase tracking-wider">Total Pending</span>
+                      <div className="w-6 h-6 rounded-md bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                        <Clock className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight">{data.summary.totalPending}</div>
+                    <div className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Active pending reviews</div>
                   </div>
-                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1">
-                    <span className="text-xs text-amber-600 dark:text-amber-400 font-semibold">Pending with Manager</span>
-                    <div className="text-2xl font-bold text-amber-700 dark:text-amber-400 font-mono">{data.summary.managerPendingCount}</div>
+
+                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-amber-500 rounded-2xl shadow-2xs space-y-1 hover:border-amber-200 dark:hover:border-amber-800 transition-colors">
+                    <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
+                      <span className="text-[11px] font-bold uppercase tracking-wider">With Manager</span>
+                      <div className="w-6 h-6 rounded-md bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                        <Briefcase className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400 tracking-tight">{data.summary.managerPendingCount}</div>
+                    <div className="text-[10px] text-amber-600/70 dark:text-amber-400/70 font-medium">Awaiting manager input</div>
                   </div>
-                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1">
-                    <span className="text-xs text-purple-600 dark:text-purple-400 font-semibold">Pending with HR Approval</span>
-                    <div className="text-2xl font-bold text-purple-700 dark:text-purple-400 font-mono">{data.summary.hrPendingCount}</div>
+
+                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-purple-500 rounded-2xl shadow-2xs space-y-1 hover:border-purple-200 dark:hover:border-purple-800 transition-colors">
+                    <div className="flex items-center justify-between text-purple-600 dark:text-purple-400">
+                      <span className="text-[11px] font-bold uppercase tracking-wider">With HR</span>
+                      <div className="w-6 h-6 rounded-md bg-purple-50 dark:bg-purple-950/60 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                        <UserCheck className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight">{data.summary.hrPendingCount}</div>
+                    <div className="text-[10px] text-purple-600/70 dark:text-purple-400/70 font-medium">Submitted for HR sign-off</div>
                   </div>
-                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1">
-                    <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold">Critical Overdue (&gt; 30 Days)</span>
-                    <div className="text-2xl font-bold text-rose-700 dark:text-rose-400 font-mono">{data.summary.criticalOverdueCount}</div>
+
+                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-rose-500 rounded-2xl shadow-2xs space-y-1 hover:border-rose-200 dark:hover:border-rose-800 transition-colors">
+                    <div className="flex items-center justify-between text-rose-600 dark:text-rose-400">
+                      <span className="text-[11px] font-bold uppercase tracking-wider">Critical Overdue (&gt; 30d)</span>
+                      <div className="w-6 h-6 rounded-md bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold font-mono text-rose-600 dark:text-rose-400 tracking-tight">{data.summary.criticalOverdueCount}</div>
+                    <div className="text-[10px] text-rose-600/70 dark:text-rose-400/70 font-medium">Exceeded standard SLA</div>
                   </div>
                 </div>
               )}

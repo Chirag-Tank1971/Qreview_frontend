@@ -24,6 +24,7 @@ import {
   Save,
   UserCheck,
   Send,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   Step1SelfSection,
@@ -64,6 +65,10 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
   const [aiSuccessNote, setAiSuccessNote] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [showUnsavedAlert, setShowUnsavedAlert] = useState(false);
+
+  // Forward declaration ref for handleAttemptClose
+  const handleAttemptCloseRef = React.useRef<() => void>(() => {});
 
   // Scroll lock and Escape dismissal
   useEffect(() => {
@@ -72,12 +77,14 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (showStatusModal) {
+        if (showUnsavedAlert) {
+          setShowUnsavedAlert(false);
+        } else if (showStatusModal) {
           setShowStatusModal(null);
         } else if (showAuditModal) {
           setShowAuditModal(false);
         } else {
-          onClose();
+          handleAttemptCloseRef.current();
         }
       }
     };
@@ -86,7 +93,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
       document.body.style.overflow = origOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, showStatusModal, showAuditModal, onClose]);
+  }, [isOpen, showStatusModal, showAuditModal, showUnsavedAlert]);
 
   // Sync state when review prop changes
   useEffect(() => {
@@ -110,7 +117,6 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
 
       // Determine initial wizard step:
       if (
-        review.status === 'HOD_COMPLETED' ||
         review.status === 'HR_PENDING' ||
         review.status === 'HR_COMPLETED' ||
         review.status === 'CLOSED'
@@ -152,12 +158,42 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
 
   if (!isOpen || !review) return null;
 
-  // Permissions
-  const isManager = currentUser?.role === 'MANAGER';
-  const isHod = currentUser?.role === 'HOD';
-  const isHrOrAdmin = currentUser?.role === 'HR' || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'MANAGEMENT';
-  const isHodCompleted = review.status === 'HOD_COMPLETED';
-  const canEdit = !review.isClosed && (isHrOrAdmin || (!isHodCompleted && (isManager || isHod)));
+  // Permissions: Only assigned Reporting Manager or HR / Super Admin can score and edit. HOD has view-only access.
+  const isHrOrAdmin = currentUser?.role === 'HR' || currentUser?.role === 'SUPER_ADMIN';
+  const isManager =
+    (currentUser?.role === 'REPORTING_MANAGER' || currentUser?.role === 'MANAGER') &&
+    (review.managerId === currentUser?.employeeId || review.managerId === currentUser?.id);
+  const canEdit = !review.isClosed && (isHrOrAdmin || isManager);
+
+  // Detect if user has entered unsaved scores, notes, or commentary
+  const hasUnsavedChanges = useMemo(() => {
+    if (!canEdit || !review) return false;
+    if (strengths !== (review.strengths || '')) return true;
+    if (improvements !== (review.improvements || '')) return true;
+    if (managerComments !== (review.managerOverallComments || '')) return true;
+    if (hrComments !== (review.hrComments || '')) return true;
+    if (employeeComments !== (review.employeeComments || '')) return true;
+
+    const origMap = new Map((review.kraSnapshot || []).map((k) => [k.id, k]));
+    for (const s of snapshots) {
+      const orig = origMap.get(s.id);
+      if (!orig) return true;
+      if ((s.rating || 0) !== (orig.rating || 0)) return true;
+      if ((s.achievement || '') !== (orig.achievement || '')) return true;
+      if ((s.comments || '') !== (orig.comments || '')) return true;
+    }
+    return false;
+  }, [canEdit, strengths, improvements, managerComments, hrComments, employeeComments, snapshots, review]);
+
+  const handleAttemptClose = () => {
+    if (hasUnsavedChanges) {
+      setShowUnsavedAlert(true);
+    } else {
+      onClose();
+    }
+  };
+
+  handleAttemptCloseRef.current = handleAttemptClose;
 
   const handleKraChange = (index: number, field: keyof ReviewKraSnapshot, value: any) => {
     setSnapshots((prev) => {
@@ -200,20 +236,35 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
         if (res.data.suggestedManagerNarrative || res.data.executiveSummary) {
           setManagerComments(res.data.suggestedManagerNarrative || res.data.executiveSummary);
         }
-        if (!strengths && res.data.topStrengths && res.data.topStrengths.length > 0) {
+        if (res.data.topStrengths && res.data.topStrengths.length > 0) {
           setStrengths(res.data.topStrengths.map((s) => `• ${s}`).join('\n'));
         }
-        if (!improvements && res.data.growthAreas && res.data.growthAreas.length > 0) {
+        if (res.data.growthAreas && res.data.growthAreas.length > 0) {
           setImprovements(res.data.growthAreas.map((g) => `• ${g}`).join('\n'));
         }
         setAiSuccessNote('✨ Review narrative and growth recommendations drafted by Gemini AI Copilot.');
       }
     } catch (err: any) {
       console.warn('AI synthesis fallback:', err);
+      const highRatedKras = snapshots.filter((s) => (s.rating || 0) >= 3.5);
+      const lowRatedKras = snapshots.filter((s) => (s.rating || 0) > 0 && (s.rating || 0) < 3.5);
+
+      const fallbackStrengths =
+        highRatedKras.length > 0
+          ? highRatedKras.map((k) => `• Exceptional ownership and execution on ${k.kraName || k.title || 'deliverables'}.`).join('\n')
+          : `• Consistently demonstrated dependable execution on core technical deliverables.\n• Proactive team collaboration and consistent attendance in sprint milestones.`;
+
+      const fallbackGrowth =
+        lowRatedKras.length > 0
+          ? lowRatedKras.map((k) => `• Target deeper consistency and stretch SLA benchmarks for ${k.kraName || k.title || 'targeted deliverables'}.`).join('\n')
+          : `• Further enhance autonomous system design and technical documentation.\n• Expand cross-departmental impact and domain knowledge sharing.`;
+
+      setStrengths(fallbackStrengths);
+      setImprovements(fallbackGrowth);
       setManagerComments(
         `${review.employeeName} demonstrated dependable ownership and disciplined execution throughout ${review.reviewPeriodName}. Core deliverables align well with department milestones, achieving a weighted rating of ${computedScore > 0 ? computedScore.toFixed(2) : '3.50'}/5.00.`
       );
-      setAiSuccessNote('✨ Summary draft generated based on current KRA evaluation ratings.');
+      setAiSuccessNote('✨ Review narrative and growth recommendations drafted based on current KRA evaluation ratings.');
     } finally {
       setAiLoading(false);
     }
@@ -334,7 +385,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
     <div
       className="fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-xs p-4 overflow-y-auto"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) handleAttemptClose();
       }}
     >
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl my-6 flex flex-col max-h-[92vh] overflow-hidden text-slate-900 dark:text-white">
@@ -383,7 +434,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               <Printer className="w-4 h-4" />
             </button>
             <button
-              onClick={onClose}
+              onClick={handleAttemptClose}
               className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
@@ -545,7 +596,6 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
             <Step2ManagerSection
               snapshots={snapshots}
               canEdit={canEdit}
-              isHodCompleted={isHodCompleted}
               isHrOrAdmin={isHrOrAdmin}
               onKraChange={handleKraChange}
             />
@@ -565,7 +615,6 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               setHrComments={setHrComments}
               canEdit={canEdit}
               isHrOrAdmin={isHrOrAdmin}
-              isHodCompleted={isHodCompleted}
               saving={saving}
               aiLoading={aiLoading}
               aiSuccessNote={aiSuccessNote}
@@ -580,32 +629,15 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
           {/* Status Transitions for HR / Admin */}
           <div className="flex items-center space-x-2">
             {isHrOrAdmin && !review.isClosed && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setShowStatusModal('RETURNED')}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors flex items-center space-x-1 cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Return</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowStatusModal('HR_COMPLETED')}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors flex items-center space-x-1 cursor-pointer"
-                >
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>Approve (HR)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowStatusModal('CLOSED')}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center space-x-1 cursor-pointer"
-                >
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>Close</span>
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={() => setShowStatusModal('RETURNED')}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors flex items-center space-x-1 cursor-pointer"
+                title="Return review to reporting manager for revisions"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Return to Manager</span>
+              </button>
             )}
           </div>
 
@@ -613,7 +645,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
           <div className="flex items-center space-x-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleAttemptClose}
               className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
             >
               Cancel
@@ -656,15 +688,17 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                     <span>Save Draft</span>
                   </button>
 
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => setShowStatusModal('HR_COMPLETED')}
-                    className="px-3.5 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-800 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
-                  >
-                    <UserCheck className="w-3.5 h-3.5" />
-                    <span>Approve (HR)</span>
-                  </button>
+                  {review.status !== 'HR_COMPLETED' && (
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => setShowStatusModal('HR_COMPLETED')}
+                      className="px-3.5 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-800 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
+                    >
+                      <UserCheck className="w-3.5 h-3.5" />
+                      <span>Approve (HR)</span>
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -695,7 +729,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                     className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>{currentUser?.role === 'HOD' ? 'Submit HOD Calibration' : 'Submit Evaluation'}</span>
+                    <span>Submit Evaluation</span>
                   </button>
                 </>
               )
@@ -721,6 +755,64 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
           onClose={() => setShowAuditModal(false)}
           review={review}
         />
+
+        {/* UNSAVED CHANGES CONFIRMATION ALERT */}
+        {showUnsavedAlert && (
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowUnsavedAlert(false);
+            }}
+          >
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 text-slate-900 dark:text-white transform scale-100 transition-all">
+              <div className="flex items-start space-x-4">
+                <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-2xl border border-amber-500/20 shrink-0">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Unsaved Review Progress
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                    You have unsaved changes in this evaluation. If you exit now without saving, your entered scores and feedback will be lost.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-col sm:flex-row items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowUnsavedAlert(false)}
+                  className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                >
+                  Keep Editing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUnsavedAlert(false);
+                    onClose();
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-900/60 rounded-xl transition-colors cursor-pointer"
+                >
+                  Discard & Exit
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={async () => {
+                    setShowUnsavedAlert(false);
+                    await handleSaveScores(true);
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Save Draft & Exit</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>,

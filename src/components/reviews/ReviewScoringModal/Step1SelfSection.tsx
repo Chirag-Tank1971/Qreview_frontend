@@ -11,6 +11,36 @@ export const Step1SelfSection: React.FC<Step1SelfSectionProps> = ({
   review,
   snapshots,
 }) => {
+  const isSubmitted = Boolean(
+    review.selfSubmittedAt ||
+    review.isSelfSubmitted ||
+    (review.selfScore !== undefined && review.selfScore > 0) ||
+    (snapshots && snapshots.some((s) => s.selfRating && s.selfRating > 0)) ||
+    Boolean(review.selfStrengths?.trim() || review.selfImprovements?.trim() || review.selfObstacles?.trim()) ||
+    review.actionHistory?.some((a) => a.action === 'SELF_SUBMITTED')
+  );
+
+  const submittedDate = review.selfSubmittedAt
+    ? new Date(review.selfSubmittedAt).toLocaleDateString()
+    : review.actionHistory?.find((a) => a.action === 'SELF_SUBMITTED')?.performedAt
+    ? new Date(review.actionHistory.find((a) => a.action === 'SELF_SUBMITTED')!.performedAt).toLocaleDateString()
+    : null;
+
+  const displaySelfScore =
+    review.selfScore && review.selfScore > 0
+      ? review.selfScore
+      : (() => {
+          let sum = 0;
+          let count = 0;
+          snapshots.forEach((s) => {
+            if (s.selfRating && s.selfRating > 0) {
+              sum += (s.selfRating * (s.weight || 0)) / 100;
+              count++;
+            }
+          });
+          return count > 0 ? Number(sum.toFixed(2)) : null;
+        })();
+
   return (
     <div className="space-y-5">
       {/* Step Banner */}
@@ -35,10 +65,10 @@ export const Step1SelfSection: React.FC<Step1SelfSectionProps> = ({
             <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
               Self-Evaluation Status:
             </span>
-            {review.selfSubmittedAt ? (
+            {isSubmitted ? (
               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Submitted on {new Date(review.selfSubmittedAt).toLocaleDateString()}</span>
+                <span>Submitted {submittedDate ? `on ${submittedDate}` : ''}</span>
               </span>
             ) : (
               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60 flex items-center gap-1">
@@ -48,11 +78,11 @@ export const Step1SelfSection: React.FC<Step1SelfSectionProps> = ({
             )}
           </div>
 
-          {review.selfScore ? (
+          {displaySelfScore ? (
             <div className="flex items-baseline gap-1.5">
               <span className="text-xs text-slate-400 dark:text-slate-500">Self-Rating:</span>
               <span className="text-base font-bold text-slate-900 dark:text-white font-mono">
-                {review.selfScore.toFixed(2)}
+                {displaySelfScore.toFixed(2)}
               </span>
               <span className="text-xs text-slate-400 dark:text-slate-500">/ 5.00</span>
             </div>

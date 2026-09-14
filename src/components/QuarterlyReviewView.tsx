@@ -13,6 +13,7 @@ import {
 import { api } from '../services/api';
 import { ReviewScoringModal } from './ReviewScoringModal';
 import { BatchGenerateReviewsModal } from './BatchGenerateReviewsModal';
+import { CycleBadge } from './ui/CycleBadge';
 import { toast } from '../context/ToastContext';
 import {
   Sparkles,
@@ -83,7 +84,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   const [appraisalDueOnly, setAppraisalDueOnly] = useState<boolean>(false);
   const [myReportsOnly, setMyReportsOnly] = useState<boolean>(false);
   const [hideInactive, setHideInactive] = useState<boolean>(false);
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
 
   // Modals
   const [activeReviewForScoring, setActiveReviewForScoring] = useState<EmployeeReview | null>(null);
@@ -99,7 +100,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       if (initialConfig.status) {
         let normalized = initialConfig.status;
         if (normalized === 'SELF_ASSESSED') normalized = 'MANAGER_PENDING';
-        const validStatuses = ['ALL', 'MANAGER_PENDING', 'MANAGER_COMPLETED', 'HOD_COMPLETED', 'HR_PENDING', 'HR_COMPLETED', 'CLOSED', 'RETURNED', 'ASSIGNED', 'DRAFT'];
+        const validStatuses = ['ALL', 'MANAGER_PENDING', 'MANAGER_COMPLETED', 'HR_PENDING', 'HR_COMPLETED', 'CLOSED', 'RETURNED', 'ASSIGNED', 'DRAFT'];
         if (!validStatuses.includes(normalized)) normalized = 'ALL';
         setFilterStatus(normalized);
       }
@@ -120,7 +121,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
     }
   }, [initialConfig, onClearInitialConfig]);
 
-  const isSuperAdminOrHr = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'HR' || currentUser?.role === 'HOD';
+  const isSuperAdminOrHr = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'HR';
 
   // Load Review Periods on Mount or when currentUser changes
   useEffect(() => {
@@ -216,9 +217,17 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
 
   const selectedPeriod = periods.find((p) => p.id === selectedPeriodId);
 
-  const handleOpenScoring = (review: EmployeeReview) => {
+  const handleOpenScoring = async (review: EmployeeReview) => {
     setActiveReviewForScoring(review);
     setIsScoringModalOpen(true);
+    try {
+      const fresh = await api.getReviewById(review.id);
+      if (fresh) {
+        setActiveReviewForScoring(fresh);
+      }
+    } catch {
+      // quiet fallback to review passed in
+    }
   };
 
   const handleUpdatePeriodStatus = async (periodId: string, newStatus: 'ACTIVE' | 'LOCKED' | 'UPCOMING') => {
@@ -294,29 +303,63 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
     switch (status) {
       case 'DRAFT':
       case 'ASSIGNED':
-        return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">Draft</span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+            <span>Draft</span>
+          </span>
+        );
       case 'MANAGER_PENDING':
-        return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 flex items-center space-x-1"><Clock className="w-3 h-3" /><span>Mgr Pending</span></span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span>Manager Pending</span>
+          </span>
+        );
       case 'MANAGER_COMPLETED':
-        return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 flex items-center space-x-1"><CheckCircle2 className="w-3 h-3" /><span>Mgr Completed</span></span>;
-      case 'HOD_COMPLETED':
-        return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 flex items-center space-x-1"><Award className="w-3 h-3 text-purple-600 dark:text-purple-400" /><span>HOD Completed</span></span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+            <span>Mgr Submitted</span>
+          </span>
+        );
       case 'HR_PENDING':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+            <span>HR Review</span>
+          </span>
+        );
       case 'HR_COMPLETED':
-        return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200 flex items-center space-x-1"><UserCheck className="w-3 h-3" /><span>HR Review</span></span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span>HR Approved</span>
+          </span>
+        );
       case 'RETURNED':
         return (
           <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-50 text-rose-800 border border-rose-200 w-max">
-              Returned
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 w-max">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              <span>Returned</span>
             </span>
-            {managerName && <span className="text-[9px] text-slate-500 font-medium px-1">to {managerName.split(' ')[0]}</span>}
+            {managerName && <span className="text-[9px] text-slate-400 font-medium px-1">to {managerName.split(' ')[0]}</span>}
           </div>
         );
       case 'CLOSED':
-        return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center space-x-1"><Lock className="w-3 h-3" /><span>Closed</span></span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span>Closed</span>
+          </span>
+        );
       default:
-        return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">{status}</span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+            <span>{status}</span>
+          </span>
+        );
     }
   };
 
@@ -326,23 +369,23 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
     switch (empStatus) {
       case 'INACTIVE':
         return (
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 tracking-wide flex items-center gap-0.5">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60">
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-            <span>INACTIVE</span>
+            <span>Inactive</span>
           </span>
         );
       case 'NOTICE':
         return (
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 tracking-wide flex items-center gap-0.5">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            <span>NOTICE</span>
+            <span>Notice</span>
           </span>
         );
       case 'PROBATION':
         return (
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 tracking-wide flex items-center gap-0.5">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-            <span>PROBATION</span>
+            <span>Probation</span>
           </span>
         );
       default:
@@ -353,20 +396,18 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   // Helper for score badge
   const getScoreBadge = (score?: number) => {
     if (!score || score === 0) {
-      return <span className="text-xs text-slate-400 font-medium">Pending Rating</span>;
+      return <span className="text-xs text-slate-400 font-medium">Pending</span>;
     }
-    let color = 'bg-slate-100 text-slate-800 border-slate-300';
-    if (score >= 4.5) color = 'bg-emerald-50 text-emerald-800 border-emerald-300';
-    else if (score >= 3.5) color = 'bg-indigo-50 text-indigo-800 border-indigo-300';
-    else if (score >= 2.5) color = 'bg-blue-50 text-blue-800 border-blue-300';
-    else color = 'bg-rose-50 text-rose-800 border-rose-300';
+    let color = 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+    if (score >= 4.5) color = 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60';
+    else if (score >= 3.5) color = 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60';
+    else if (score >= 2.5) color = 'bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border-sky-200 dark:border-sky-800/60';
+    else color = 'bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800/60';
 
     return (
-      <div className="flex items-center space-x-1.5">
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${color}`}>
-          {score.toFixed(2)} / 5.0
-        </span>
-      </div>
+      <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded-md border ${color}`}>
+        {score.toFixed(2)} / 5.0
+      </span>
     );
   };
 
@@ -375,84 +416,85 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       
       {/* Error Banner */}
       {errorMessage && (
-        <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-center justify-between text-xs text-rose-800">
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-3.5 flex items-center justify-between text-xs text-rose-700 dark:text-rose-300">
           <div className="flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
             <span>{errorMessage}</span>
           </div>
           <button
             onClick={() => loadReviewPeriods()}
-            className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-md font-medium text-xs shadow-2xs transition-colors"
+            className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-medium transition-colors cursor-pointer"
           >
-            Retry Loading
+            Retry
           </button>
         </div>
       )}
 
-      {/* 1. TOP BAR: PERIOD SELECTOR & PRIMARY ACTIONS */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center space-x-2">
-            <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Review Period</span>
+      {/* 1. NATIVE PAGE HEADER: TITLE, PERIOD SELECTOR & ACTIONS */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
+              {currentUser?.role === 'EMPLOYEE' ? 'My Performance Reviews' : 'Team Reviews'}
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Quarterly Cadence
+            </span>
           </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Goal assessment, manager evaluation scoring, and rolling appraisal calibration.
+          </p>
+        </div>
 
-          <select
-            value={selectedPeriodId}
-            onChange={(e) => setSelectedPeriodId(e.target.value)}
-            disabled={periods.length === 0}
-            className="text-sm font-bold text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
-          >
-            {periods.length === 0 ? (
-              <option value="">No Active Periods</option>
-            ) : (
-              periods.map((p) => (
-                <option key={p.id} value={p.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
-                  {p.name} {p.status === 'ACTIVE' ? '🟢 (ACTIVE)' : `(${p.status})`}
-                </option>
-              ))
-            )}
-          </select>
-
-          {selectedPeriod && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
+        {/* PERIOD SELECTOR & ACTIONS */}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {/* Period Selector Dropdown */}
+          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-lg px-2.5 py-1">
+            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <select
+              value={selectedPeriodId}
+              onChange={(e) => setSelectedPeriodId(e.target.value)}
+              disabled={periods.length === 0}
+              aria-label="Select quarterly review period"
+              className="text-xs font-semibold text-slate-800 dark:text-slate-200 bg-transparent border-0 focus:ring-0 focus:outline-none cursor-pointer pr-1 disabled:opacity-50"
+            >
+              {periods.length === 0 ? (
+                <option value="">No Active Periods</option>
+              ) : (
+                periods.map((p) => (
+                  <option key={p.id} value={p.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+                    {p.name} {p.status === 'ACTIVE' ? '• Active' : `(${p.status})`}
+                  </option>
+                ))
+              )}
+            </select>
+            {selectedPeriod && (
+              <span className={`text-[10px] font-medium px-1.5 py-0.2 rounded border ${
                 selectedPeriod.status === 'ACTIVE'
-                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                  : selectedPeriod.status === 'LOCKED'
-                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
               }`}>
                 {selectedPeriod.status}
               </span>
+            )}
+          </div>
 
-              {selectedPeriod.dueDate && (
-                <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center space-x-1">
-                  <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
-                  <span>Evaluation Closes: <strong className="text-slate-800 dark:text-slate-200">{new Date(selectedPeriod.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</strong></span>
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ACTIONS */}
-        <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={() => loadReviewPeriods()}
-            title="Refresh cohort and periods"
-            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors"
+            title="Refresh review records"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
           >
-            <RotateCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RotateCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
           <button
             onClick={handleExportCSV}
             disabled={reviews.length === 0}
-            className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg shadow-2xs transition-colors flex items-center space-x-1.5 disabled:opacity-50"
+            className="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
           >
-            <Download className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-            <span>Export CSV</span>
+            <Download className="w-3.5 h-3.5 text-slate-400" />
+            <span>Export</span>
           </button>
 
           {isSuperAdminOrHr && (
@@ -460,18 +502,18 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               <button
                 onClick={() => setIsPeriodModalOpen(true)}
                 title="Manage Review Period Lifecycles"
-                className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg shadow-2xs transition-colors flex items-center space-x-1.5"
+                className="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center space-x-1.5 cursor-pointer"
               >
-                <Settings2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                <span>Manage Periods</span>
+                <Settings2 className="w-3.5 h-3.5 text-slate-400" />
+                <span>Periods</span>
               </button>
 
               <button
                 onClick={() => setIsBatchModalOpen(true)}
-                className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors flex items-center space-x-1.5"
+                className="px-3 py-1.5 text-xs font-medium text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white rounded-lg transition-colors flex items-center space-x-1.5 shadow-2xs cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Initiate Batch Reviews</span>
+                <Sparkles className="w-3.5 h-3.5 text-amber-400 dark:text-amber-600" />
+                <span>Initiate Batch</span>
               </button>
             </>
           )}
@@ -480,53 +522,59 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
 
       {/* 2. STATS & ANALYTICS CARDS */}
       {stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           {/* Card 1: Total Cohort Reviews */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-indigo-500 p-4 shadow-2xs">
             <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
               <span>Cohort Reviews</span>
-              <Users className="w-4 h-4 text-indigo-500" />
+              <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                <Users className="w-3.5 h-3.5" />
+              </div>
             </div>
             <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-slate-900 dark:text-white">{stats.total}</span>
+              <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono">{stats.total}</span>
               <span className="text-xs text-slate-500 dark:text-slate-400">records</span>
             </div>
             <div className="mt-2 flex items-center text-[11px] text-slate-500 dark:text-slate-400 space-x-2">
-              <span className="text-amber-600 dark:text-amber-400 font-medium">{stats.managerPending} pending mgr</span>
+              <span className="text-amber-700 dark:text-amber-400 font-medium">{stats.managerPending} pending mgr</span>
               <span>•</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-medium">{stats.closed} closed</span>
+              <span className="text-emerald-700 dark:text-emerald-400 font-medium">{stats.closed} closed</span>
             </div>
           </div>
 
           {/* Card 2: Evaluation Progress */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-sky-500 p-4 shadow-2xs">
             <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
               <span>Manager Completion</span>
-              <CheckCircle2 className="w-4 h-4 text-blue-500" />
+              <div className="w-7 h-7 rounded-lg bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center text-sky-600 dark:text-sky-400">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              </div>
             </div>
             <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-slate-900 dark:text-white">{stats.completionRate}%</span>
+              <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono">{stats.completionRate}%</span>
               <span className="text-xs text-slate-500 dark:text-slate-400">completed</span>
             </div>
             <div className="mt-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
               <div
-                className="bg-blue-600 h-1.5 rounded-full transition-all duration-500"
+                className="bg-sky-500 h-1.5 rounded-full transition-all duration-500"
                 style={{ width: `${stats.completionRate}%` }}
               />
             </div>
           </div>
 
           {/* Card 3: Average Cohort Score */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-emerald-500 p-4 shadow-2xs">
             <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
               <span>Avg Weighted Score</span>
-              <Award className="w-4 h-4 text-emerald-500" />
+              <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <Award className="w-3.5 h-3.5" />
+              </div>
             </div>
             <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-slate-900 dark:text-white">
+              <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono">
                 {stats.averageScore > 0 ? stats.averageScore.toFixed(2) : '—'}
               </span>
-              <span className="text-xs text-slate-400 dark:text-slate-500">/ 5.00</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">/ 5.00</span>
             </div>
             <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
               {stats.distribution.outstanding} Outstanding • {stats.distribution.exceeds} Exceeds
@@ -534,13 +582,15 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
           </div>
 
           {/* Card 4: Appraisal Triggers */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-amber-500 p-4 shadow-2xs">
             <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
               <span>Appraisal Month Due</span>
-              <Sparkles className="w-4 h-4 text-amber-500" />
+              <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <Sparkles className="w-3.5 h-3.5" />
+              </div>
             </div>
             <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-slate-900 dark:text-white">
+              <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono">
                 {reviews.filter((r) => r.isAppraisalMonthDue).length}
               </span>
               <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">cohort employees</span>
@@ -553,7 +603,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       )}
 
       {/* 3. FILTERS & SEARCH BAR */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs space-y-3">
+      <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 p-3.5 shadow-2xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           
           {/* SEARCH */}
@@ -596,7 +646,6 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Statuses</option>
               <option value="MANAGER_PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Manager Pending</option>
               <option value="MANAGER_COMPLETED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Manager Completed</option>
-              <option value="HOD_COMPLETED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HOD Completed</option>
               <option value="HR_PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR Pending</option>
               <option value="HR_COMPLETED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR Completed</option>
               <option value="ASSIGNED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Assigned</option>
@@ -747,7 +796,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
         ) : viewMode === 'cards' ? (
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/50 dark:bg-slate-950/40">
             {displayedReviews.map((r) => {
-              const isPendingMyAction = currentUser?.role === 'MANAGER' && r.status === 'MANAGER_PENDING';
+              const isPendingMyAction = (currentUser?.role === 'REPORTING_MANAGER' || currentUser?.role === 'MANAGER') && r.status === 'MANAGER_PENDING';
               return (
                 <div
                   key={r.id}
@@ -790,10 +839,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                         <Building2 className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                         <span>{r.departmentName}</span>
                       </span>
-                      <span className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: r.cycleColor || '#4f46e5' }} />
-                        <span>Cycle {r.cycleCode}</span>
-                      </span>
+                      <CycleBadge code={r.cycleCode} />
                     </div>
 
                     {/* Scores & Progress */}
@@ -819,11 +865,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                       <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-300 ${
-                            r.status === 'COMPLETED'
-                              ? 'bg-emerald-500'
-                              : r.status === 'HOD_APPROVED'
-                              ? 'bg-blue-500'
-                              : r.status === 'MANAGER_SUBMITTED'
+                            r.status === 'MANAGER_SUBMITTED'
                               ? 'bg-amber-500'
                               : 'bg-indigo-500'
                           }`}
@@ -861,7 +903,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                         }`}
                       >
                         <Edit3 className="w-3.5 h-3.5" />
-                        <span>{isPendingMyAction ? 'Score Review Now' : 'Open Review Sheet'}</span>
+                        <span>{currentUser?.role === 'HOD' ? 'View Review' : isPendingMyAction ? 'Score Review Now' : 'Open Review Sheet'}</span>
                         <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
                       </button>
                     )}
@@ -928,13 +970,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                     {/* Appraisal Cycle */}
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-1.5">
-                        <span
-                          className="w-5 h-5 rounded-md text-white font-bold flex items-center justify-center text-[10px]"
-                          style={{ backgroundColor: r.cycleColor || '#1e3a8a' }}
-                        >
-                          {r.cycleCode}
-                        </span>
-                        <span className="text-slate-700 dark:text-slate-300 font-medium">Cycle {r.cycleCode}</span>
+                        <CycleBadge code={r.cycleCode} />
                       </div>
                       {r.isAppraisalMonthDue && (
                         <span className="inline-block mt-0.5 text-[10px] text-amber-700 dark:text-amber-300 font-semibold bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-800">
@@ -976,7 +1012,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                           className="px-3 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 rounded-lg border border-indigo-200 dark:border-indigo-800 transition-colors inline-flex items-center space-x-1 cursor-pointer"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
-                          <span>Score / View</span>
+                          <span>{currentUser?.role === 'HOD' ? 'View Review' : 'Score / View'}</span>
                         </button>
                       )}
                     </td>

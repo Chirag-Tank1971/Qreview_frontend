@@ -41,6 +41,7 @@ import { AppraisalDetailModal } from './AppraisalDetailModal';
 import { AppraisalLetterModal } from './AppraisalLetterModal';
 import { BatchLetterExportModal } from './BatchLetterExportModal';
 import { BellCurveBudgetAnalytics } from './BellCurveBudgetAnalytics';
+import { CycleBadge } from './ui/CycleBadge';
 import { downloadAppraisalPdf, downloadPayrollCsv } from '../utils/letterExport';
 
 export interface AppraisalViewConfig {
@@ -72,7 +73,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
   onClearInitialConfig,
 }) => {
   const [activeSection, setActiveSection] = useState<'appraisals' | 'bellCurveAnalytics'>('appraisals');
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const [appraisals, setAppraisals] = useState<Appraisal[]>([]);
   const [stats, setStats] = useState<AppraisalSummaryStats | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -139,6 +140,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
   const userRole = currentUser?.role || 'EMPLOYEE';
   const canInitiate = userRole === 'SUPER_ADMIN' || userRole === 'HR';
   const canBatchExport = userRole === 'SUPER_ADMIN' || userRole === 'HR' || userRole === 'EXECUTIVE_MANAGEMENT';
+  const canViewBellCurve = ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'].includes(userRole);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -225,42 +227,42 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
     switch (status) {
       case 'PENDING':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200">
-            <AlertCircle className="w-3 h-3" />
-            <span>Pending Manager</span>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span>Pending Mgr</span>
           </span>
         );
       case 'MANAGER_RECOMMENDED':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
-            <Sliders className="w-3 h-3" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
             <span>Mgr Recommended</span>
           </span>
         );
       case 'HOD_CALIBRATED':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-purple-50 text-purple-700 border-purple-200">
-            <CheckCircle2 className="w-3 h-3" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-purple-50 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
             <span>HOD Calibrated</span>
           </span>
         );
       case 'HR_APPROVED':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
-            <CheckCircle2 className="w-3 h-3" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             <span>HR Approved</span>
           </span>
         );
       case 'LOCKED':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-slate-900 text-white border-slate-900">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border border-slate-900 dark:border-slate-100">
             <Lock className="w-3 h-3" />
             <span>Locked & Released</span>
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-slate-100 text-slate-700 border-slate-200">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
             <span>{status}</span>
           </span>
         );
@@ -269,40 +271,39 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
 
   return (
     <div className="space-y-6">
-      {/* Top Banner / Actions Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 rounded-2xl shadow-sm border border-slate-800">
-        <div className="space-y-1.5">
+      {/* Native Page Header: Title, Subtitle, and Primary Actions */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+        <div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/30 text-indigo-300 border border-indigo-400/30 uppercase tracking-wide">
-              Official Letter Engine & Batch Export
+            <h1 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
+              Appraisals & Increments
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Annual Calibration
             </span>
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           </div>
-          <h2 className="text-xl font-bold tracking-tight text-white">
-            Annual Appraisal & Salary Increment Calibration
-          </h2>
-          <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-            Automated rolling 4-quarter performance rollups, 8-Cycle (A-H) annual cohort grouping, manager & HOD budget calibration, high-resolution PDF compensation letters, and batch ZIP/CSV payroll exports.
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Rolling 4-quarter performance rollups, 8-Cycle cohort grouping, and official compensation letters.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <button
             onClick={loadData}
-            className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors text-xs font-medium flex items-center gap-1.5"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
             title="Refresh Appraisals"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
 
           {canBatchExport && (
             <button
               onClick={() => setIsBatchExportModalOpen(true)}
-              className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+              className="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
               title="Bulk export formatted PDF letters, ZIP archives, and payroll sheets"
             >
-              <Archive className="w-4 h-4" />
+              <Archive className="w-3.5 h-3.5 text-slate-400" />
               <span>Batch Export Letters</span>
             </button>
           )}
@@ -310,9 +311,9 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
           {canInitiate && (
             <button
               onClick={() => setIsInitiateModalOpen(true)}
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2 cursor-pointer"
+              className="px-3 py-1.5 text-xs font-medium text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-400 dark:text-amber-600" />
               <span>Initiate 8-Cycle Cohort</span>
             </button>
           )}
@@ -320,39 +321,38 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
       </div>
 
       {/* View Mode Toggle: Annual Appraisals vs Bell Curve Calibration & Budget Controls */}
-      <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700/60 overflow-x-auto">
-        <button
-          onClick={() => setActiveSection('appraisals')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
-            activeSection === 'appraisals'
-              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-slate-700/80 font-semibold'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
-          }`}
-        >
-          <Sliders className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-          <span>Annual Appraisal & Increment Calibration List</span>
-          <span className="text-[10px] px-1.5 py-0.2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded font-semibold">
-            {appraisals.length} Records
-          </span>
-        </button>
+      {canViewBellCurve && (
+        <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-800/80 rounded-lg border border-slate-200 dark:border-slate-700/80 overflow-x-auto w-max max-w-full">
+          <button
+            onClick={() => setActiveSection('appraisals')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
+              activeSection === 'appraisals'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Sliders className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+            <span>Appraisal & Increment List</span>
+            <span className="text-[10px] px-1.5 py-0.2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded font-semibold">
+              {appraisals.length}
+            </span>
+          </button>
 
-        <button
-          onClick={() => setActiveSection('bellCurveAnalytics')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
-            activeSection === 'bellCurveAnalytics'
-              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-slate-700/80 font-semibold'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
-          }`}
-        >
-          <BarChart3 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-          <span>Bell Curve Calibration, Budget Pools & Executive Analytics</span>
-          <span className="text-[10px] px-1.5 py-0.2 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 rounded font-semibold border border-purple-200 dark:border-purple-800">
-            Analytics
-          </span>
-        </button>
-      </div>
+          <button
+            onClick={() => setActiveSection('bellCurveAnalytics')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
+              activeSection === 'bellCurveAnalytics'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+            <span>Bell Curve & Budget Calibration</span>
+          </button>
+        </div>
+      )}
 
-      {activeSection === 'bellCurveAnalytics' ? (
+      {canViewBellCurve && activeSection === 'bellCurveAnalytics' ? (
         <BellCurveBudgetAnalytics
           departments={departments}
           cycles={cycles}
@@ -362,91 +362,97 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
         <>
           {/* KPI & Metric Cards */}
           {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
-          {/* Total Appraisals */}
-          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-              <span className="text-[11px] font-semibold uppercase tracking-wider">Cohort Size</span>
-              <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+              {/* Total Appraisals */}
+              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-indigo-500 rounded-lg shadow-2xs space-y-1">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                  <span className="text-[11px] font-medium uppercase tracking-wider">Cohort Size</span>
+                  <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                    <Users className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="text-2xl font-bold text-slate-900 dark:text-white font-mono">{stats.total}</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                  <span>{stats.locked} locked / released</span>
+                </div>
+              </div>
+
+              {/* Average 4-Quarter Score */}
+              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-amber-500 rounded-lg shadow-2xs space-y-1">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                  <span className="text-[11px] font-medium uppercase tracking-wider">Avg 4-Qtr Score</span>
+                  <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                    <Award className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="text-2xl font-bold text-slate-900 dark:text-white font-mono">{stats.averageScore.toFixed(2)}</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">Scale of 5.00</div>
+              </div>
+
+              {/* Average Increment % */}
+              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-emerald-500 rounded-lg shadow-2xs space-y-1">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                  <span className="text-[11px] font-medium uppercase tracking-wider">Avg Increment</span>
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 font-mono">+{stats.averageIncrement}%</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">Performance-calibrated</div>
+              </div>
+
+              {/* Total Budget Increment Impact */}
+              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-sky-500 rounded-lg shadow-2xs space-y-1">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                  <span className="text-[11px] font-medium uppercase tracking-wider">Annual CTC Revision</span>
+                  <div className="w-7 h-7 rounded-lg bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center text-sky-600 dark:text-sky-400">
+                    <DollarSign className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="text-xl font-bold text-slate-900 dark:text-white font-mono">
+                  +{currencySymbol}{(stats.totalIncrementBudgetImpact / 100000).toFixed(2)}L
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">Payroll budget impact</div>
+              </div>
+
+              {/* Promotions */}
+              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-purple-500 rounded-lg shadow-2xs space-y-1 col-span-2 lg:col-span-1">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                  <span className="text-[11px] font-medium uppercase tracking-wider">Promotions</span>
+                  <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/60 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                    <Briefcase className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="text-2xl font-bold text-purple-700 dark:text-purple-400 font-mono">{stats.promotionsCount}</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">Role level upgrades</div>
+              </div>
             </div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white font-mono">{stats.total}</div>
-            <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-              <span>{stats.locked} Locked / Released</span>
+          )}
+
+          {/* Standard Increment Matrix Reference Bar */}
+          <div className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 rounded-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium">
+              <Sliders className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span>Increment Matrix Guideline:</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 rounded-md text-[11px] font-medium">
+                <strong className="font-semibold">Outstanding (4.50+):</strong> 15% - 20%
+              </span>
+              <span className="px-2.5 py-0.5 bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60 rounded-md text-[11px] font-medium">
+                <strong className="font-semibold">Exceeds (3.80 - 4.49):</strong> 10% - 14%
+              </span>
+              <span className="px-2.5 py-0.5 bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 rounded-md text-[11px] font-medium">
+                <strong className="font-semibold">Meets (2.80 - 3.79):</strong> 5% - 9%
+              </span>
+              <span className="px-2.5 py-0.5 bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 rounded-md text-[11px] font-medium">
+                <strong className="font-semibold">Improvement (&lt;2.80):</strong> 0% - 4%
+              </span>
             </div>
           </div>
 
-          {/* Average 4-Quarter Score */}
-          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-              <span className="text-[11px] font-semibold uppercase tracking-wider">Avg 4-Qtr Score</span>
-              <Award className="w-4 h-4 text-amber-500" />
-            </div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white font-mono">{stats.averageScore.toFixed(2)}</div>
-            <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Out of 5.00 composite scale</div>
-          </div>
-
-          {/* Average Increment % */}
-          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-              <span className="text-[11px] font-semibold uppercase tracking-wider">Avg Increment</span>
-              <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 font-mono">+{stats.averageIncrement}%</div>
-            <div className="text-[11px] text-slate-500 dark:text-slate-400">Performance-calibrated avg</div>
-          </div>
-
-          {/* Total Budget Increment Impact */}
-          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-              <span className="text-[11px] font-semibold uppercase tracking-wider">Annual CTC Revision</span>
-              <DollarSign className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <div className="text-xl font-bold text-slate-900 dark:text-white font-mono">
-              +{currencySymbol}{(stats.totalIncrementBudgetImpact / 100000).toFixed(2)}L
-            </div>
-            <div className="text-[11px] text-slate-500 dark:text-slate-400">Total payroll impact</div>
-          </div>
-
-          {/* Promotions */}
-          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1 col-span-2 lg:col-span-1">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-              <span className="text-[11px] font-semibold uppercase tracking-wider">Promotions</span>
-              <Briefcase className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-            </div>
-            <div className="text-2xl font-bold text-purple-700 dark:text-purple-400 font-mono">{stats.promotionsCount}</div>
-            <div className="text-[11px] text-slate-500 dark:text-slate-400">Elevated to higher levels</div>
-          </div>
-        </div>
-      )}
-
-      {/* Standard Increment Matrix Reference Card */}
-      <div className="p-4 bg-slate-100/70 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-xs">
-        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold">
-          <Sliders className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-          <span>8-Cycle Performance Increment Matrix Reference:</span>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full md:w-auto">
-          <div className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg text-[11px]">
-            <span className="font-bold text-emerald-800 dark:text-emerald-300">Outstanding (4.50+):</span>{' '}
-            <span className="text-emerald-700 dark:text-emerald-400 font-mono font-semibold">15% - 20%</span>
-          </div>
-          <div className="px-3 py-1.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg text-[11px]">
-            <span className="font-bold text-blue-800 dark:text-blue-300">Exceeds (3.80 - 4.49):</span>{' '}
-            <span className="text-blue-700 dark:text-blue-400 font-mono font-semibold">10% - 14%</span>
-          </div>
-          <div className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg text-[11px]">
-            <span className="font-bold text-amber-800 dark:text-amber-300">Meets (2.80 - 3.79):</span>{' '}
-            <span className="text-amber-700 dark:text-amber-400 font-mono font-semibold">5% - 9%</span>
-          </div>
-          <div className="px-3 py-1.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg text-[11px]">
-            <span className="font-bold text-red-800 dark:text-red-300">Improvement (&lt;2.80):</span>{' '}
-            <span className="text-red-700 dark:text-red-400 font-mono font-semibold">0% - 4%</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter Bar */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3">
+          {/* Filter Bar */}
+          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-lg border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Cycle Selector */}
           <div className="space-y-1">
@@ -603,7 +609,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
             <RefreshCw className="w-7 h-7 animate-spin text-indigo-600 mx-auto" />
             <p className="text-xs text-slate-500">Loading appraisal cohorts...</p>
           </div>
-        ) : appraisals.length === 0 ? (
+        ) : displayedAppraisals.length === 0 ? (
           <div className="py-16 text-center space-y-4 max-w-sm mx-auto">
             <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
               <Award className="w-6 h-6" />
@@ -626,21 +632,20 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
         ) : viewMode === 'cards' ? (
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/50 dark:bg-slate-900/50">
             {displayedAppraisals.map((appr) => {
-              const incPct = appr.approvedIncrementPercentage || appr.proposedIncrementPercentage || appr.recommendedIncrementPercentage || 10;
-              const currentCtc = appr.currentCtc || 1800000;
-              const revisedCtc = appr.revisedCtc || currentCtc + Math.round((currentCtc * incPct) / 100);
+              const incPct = appr.approvedIncrementPercentage ?? appr.proposedIncrementPercentage ?? appr.recommendedIncrementPercentage ?? 0;
+              const currentCtc = appr.currentCtc || 0;
+              const revisedCtc = appr.revisedCtc || (currentCtc + Math.round((currentCtc * incPct) / 100));
               const isEligibleForLetter = appr.status === 'HR_APPROVED' || appr.status === 'LOCKED' || appr.isLocked;
               const isPendingMyAction =
-                (currentUser?.role === 'HOD' && appr.status === 'MANAGER_RECOMMENDED') ||
-                (currentUser?.role === 'MANAGER' && appr.status === 'PENDING') ||
-                (['SUPER_ADMIN', 'HR'].includes(currentUser?.role || '') && appr.status === 'HOD_CALIBRATED');
+                ((currentUser?.role === 'REPORTING_MANAGER' || currentUser?.role === 'MANAGER') && appr.status === 'PENDING') ||
+                (['SUPER_ADMIN', 'HR'].includes(currentUser?.role || '') && (appr.status === 'MANAGER_RECOMMENDED' || appr.status === 'HOD_CALIBRATED'));
 
               return (
                 <div
                   key={appr.id}
                   onClick={() => setSelectedAppraisalForDetail(appr)}
-                  className={`bg-white dark:bg-slate-900 rounded-2xl border p-5 shadow-2xs hover:shadow-md transition-all duration-150 cursor-pointer flex flex-col justify-between space-y-4 group ${
-                    isPendingMyAction ? 'border-indigo-300 dark:border-indigo-500/50 ring-2 ring-indigo-500/10 dark:ring-indigo-500/20' : 'border-slate-200/90 dark:border-slate-800'
+                  className={`bg-white dark:bg-slate-900 rounded-lg border p-4 shadow-2xs hover:shadow-sm transition-all duration-150 cursor-pointer flex flex-col justify-between space-y-4 group ${
+                    isPendingMyAction ? 'border-indigo-400 dark:border-indigo-500/50 ring-2 ring-indigo-500/10 dark:ring-indigo-500/20' : 'border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                   }`}
                 >
                   {/* Top: Identity & Status */}
@@ -679,17 +684,10 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                         <Building2 className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
                         <span className="truncate">{appr.departmentName}</span>
                       </span>
-                      <span
-                        className="text-[11px] px-2 py-0.5 rounded-full font-semibold border inline-flex items-center gap-1 font-mono"
-                        style={{
-                          backgroundColor: `${appr.cycleColor || '#4f46e5'}15`,
-                          color: appr.cycleColor || '#4f46e5',
-                          borderColor: `${appr.cycleColor || '#4f46e5'}30`,
-                        }}
-                      >
-                        <span>{appr.cycleName}</span>
-                        <span className="text-[9px] opacity-75">(M{appr.appraisalMonth})</span>
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <CycleBadge code={appr.cycleCode || appr.cycleName?.replace('Cycle ', '')} />
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">M{appr.appraisalMonth}</span>
+                      </div>
                     </div>
 
                     {/* Performance & Score Box */}
@@ -713,7 +711,9 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                           </span>
                           <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-md border inline-block mt-0.5 ${
-                              appr.averageQuarterlyScore >= 4.5
+                              appr.averageQuarterlyScore <= 0 || (!appr.finalRating && (!appr.recommendedRating || appr.recommendedRating === 'PENDING'))
+                                ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                                : appr.averageQuarterlyScore >= 4.5
                                 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                                 : appr.averageQuarterlyScore >= 3.8
                                 ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
@@ -722,7 +722,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                                 : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
                             }`}
                           >
-                            {(appr.finalRating || appr.recommendedRating).replace(/_/g, ' ')}
+                            {(appr.finalRating || appr.recommendedRating || 'PENDING').replace(/_/g, ' ')}
                           </span>
                         </div>
                       </div>
@@ -760,9 +760,15 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                         <div className="text-right">
                           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium block">Increment</span>
                           <div className="flex items-center justify-end gap-1 mt-0.5">
-                            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800 font-mono">
-                              +{incPct.toFixed(1)}%
-                            </span>
+                            {incPct > 0 ? (
+                              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800 font-mono">
+                                +{incPct.toFixed(1)}%
+                              </span>
+                            ) : (
+                              <span className="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                                Pending
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -829,13 +835,13 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                     >
                       <Sliders className="w-3.5 h-3.5" />
                       <span>
-                        {currentUser?.role === 'HOD' && appr.status === 'MANAGER_RECOMMENDED'
-                          ? 'Calibrate Compensation'
-                          : currentUser?.role === 'MANAGER' && appr.status === 'PENDING'
+                        {currentUser?.role === 'HOD'
+                          ? 'View Appraisal'
+                          : (currentUser?.role === 'REPORTING_MANAGER' || currentUser?.role === 'MANAGER') && appr.status === 'PENDING'
                           ? 'Recommend Increment'
-                          : ['SUPER_ADMIN', 'HR'].includes(currentUser?.role || '') && appr.status === 'HOD_CALIBRATED'
+                          : ['SUPER_ADMIN', 'HR'].includes(currentUser?.role || '') && (appr.status === 'MANAGER_RECOMMENDED' || appr.status === 'HOD_CALIBRATED')
                           ? 'Review & Approve'
-                          : 'View & Calibrate'}
+                          : 'View Appraisal'}
                       </span>
                       <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
                     </button>
@@ -862,9 +868,9 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
                 {displayedAppraisals.map((appr) => {
-                  const incPct = appr.approvedIncrementPercentage || appr.proposedIncrementPercentage || 12;
-                  const currentCtc = appr.currentCtc || 1800000;
-                  const revisedCtc = appr.revisedCtc || currentCtc + Math.round((currentCtc * incPct) / 100);
+                  const incPct = appr.approvedIncrementPercentage ?? appr.proposedIncrementPercentage ?? 0;
+                  const currentCtc = appr.currentCtc || 0;
+                  const revisedCtc = appr.revisedCtc || (currentCtc + Math.round((currentCtc * incPct) / 100));
                   const isEligibleForLetter = appr.status === 'HR_APPROVED' || appr.status === 'LOCKED' || appr.isLocked;
 
                   return (
@@ -893,16 +899,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
 
                       {/* 8-Cycle */}
                       <td className="py-3.5 px-3">
-                        <span
-                          className="text-[11px] px-2 py-0.5 rounded-full font-semibold border inline-flex items-center gap-1"
-                          style={{
-                            backgroundColor: `${appr.cycleColor || '#4f46e5'}15`,
-                            color: appr.cycleColor || '#4f46e5',
-                            borderColor: `${appr.cycleColor || '#4f46e5'}30`,
-                          }}
-                        >
-                          <span>{appr.cycleName}</span>
-                        </span>
+                        <CycleBadge code={appr.cycleCode || appr.cycleName?.replace('Cycle ', '')} />
                       </td>
 
                       {/* 4-Quarter Rolling Score */}
@@ -922,7 +919,9 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                         <div className="space-y-1">
                           <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-md border inline-block ${
-                              appr.averageQuarterlyScore >= 4.5
+                              appr.averageQuarterlyScore <= 0 || (!appr.finalRating && (!appr.recommendedRating || appr.recommendedRating === 'PENDING'))
+                                ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                                : appr.averageQuarterlyScore >= 4.5
                                 ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                                 : appr.averageQuarterlyScore >= 3.8
                                 ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
@@ -931,7 +930,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                                 : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
                             }`}
                           >
-                            {(appr.finalRating || appr.recommendedRating).replace(/_/g, ' ')}
+                            {(appr.finalRating || appr.recommendedRating || 'PENDING').replace(/_/g, ' ')}
                           </span>
                           {appr.promotionRecommended && (
                             <div className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-1">
@@ -949,9 +948,15 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
 
                       {/* Increment % */}
                       <td className="py-3.5 px-3 text-right">
-                        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-100 dark:border-emerald-800">
-                          +{incPct.toFixed(1)}%
-                        </span>
+                        {incPct > 0 ? (
+                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-100 dark:border-emerald-800">
+                            +{incPct.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="font-mono text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                            --
+                          </span>
+                        )}
                       </td>
 
                       {/* Revised CTC */}
@@ -1001,7 +1006,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                             onClick={() => setSelectedAppraisalForDetail(appr)}
                             className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
                           >
-                            <span>Calibrate</span>
+                            <span>{currentUser?.role === 'HOD' ? 'View' : 'Review / Calibrate'}</span>
                             <ChevronRight className="w-3.5 h-3.5" />
                           </button>
                         </div>

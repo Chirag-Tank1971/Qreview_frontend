@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Employee, Department, Designation, Cycle, KraTemplate } from '../types';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { toast } from '../context/ToastContext';
 import { EmployeeModal } from './EmployeeModal';
 import { MastersManagement } from './MastersManagement';
 import {
@@ -21,8 +22,18 @@ import {
   Key,
   LayoutGrid,
   List,
+  Trash2,
+  UserMinus,
+  X,
+  Calendar,
+  ChevronDown,
+  Layers,
+  Crown,
+  Briefcase,
+  UserCheck,
 } from 'lucide-react';
 import { User } from '../types';
+import { CycleBadge } from './ui/CycleBadge';
 
 interface EmployeeDirectoryProps {
   currentUser?: User | null;
@@ -32,11 +43,15 @@ interface EmployeeDirectoryProps {
   kraTemplates?: KraTemplate[];
   onNavigateToAppraisals?: (options?: any) => void;
   onNavigateToReviews?: (options?: any) => void;
+  onNavigateToHierarchy?: () => void;
+  initialConfig?: any;
+  employees?: Employee[];
 }
 
-export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
+export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ onNavigateToHierarchy }) => {
   const { user } = useAuth();
   const isHRorAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'HR';
+  const isAdmin = user?.role === 'SUPER_ADMIN';
 
   // Data State
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -46,6 +61,10 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
   const [kraTemplates, setKraTemplates] = useState<KraTemplate[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Delete Employee Modal State
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDept, setSelectedDept] = useState('');
@@ -54,11 +73,12 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'employees' | 'masters' | 'cycles'>('employees');
+  const [activeTab, setActiveTab] = useState<'employees' | 'masters'>('employees');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [isRehireInitial, setIsRehireInitial] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -86,11 +106,36 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
     loadData();
   }, []);
 
+  const handleConfirmDeleteEmployee = async () => {
+    if (!employeeToDelete) return;
+    if (!isAdmin) {
+      toast.error('Access denied: Only System Administrators can delete and archive employee data.', 'Permission Denied');
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      const res = await api.deleteEmployee(employeeToDelete.id);
+      toast.success(res.message || `Employee "${employeeToDelete.name}" archived as Past Employee and performance data deleted.`, 'Employee Archived');
+      setEmployeeToDelete(null);
+      await loadData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete employee data', 'Action Failed');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   // Filtered employees calculation
   const filteredEmployees = employees.filter((emp) => {
     if (selectedDept && emp.departmentId !== selectedDept) return false;
-    if (selectedCycle && emp.cycleId !== selectedCycle) return false;
-    if (selectedStatus && emp.status !== selectedStatus) return false;
+    if (selectedCycle && emp.cycleId !== selectedCycle && emp.cycleCode !== selectedCycle) return false;
+    if (selectedStatus) {
+      if (selectedStatus === 'INACTIVE') {
+        if (emp.status !== 'INACTIVE' && !emp.isPastEmployee) return false;
+      } else if (emp.status !== selectedStatus) {
+        return false;
+      }
+    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const match =
@@ -110,7 +155,14 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
   const uniqueDeptCount = new Set(employees.map((e) => e.departmentId).filter(Boolean)).size || departments.length;
   const hasActiveFilters = Boolean(searchQuery || selectedDept || selectedCycle || selectedStatus);
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, isPastEmployee?: boolean) => {
+    if (status === 'INACTIVE' || isPastEmployee) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-medium">
+          <UserMinus className="w-3 h-3 text-slate-400 dark:text-slate-500" /> Past Employee
+        </span>
+      );
+    }
     switch (status) {
       case 'ACTIVE':
         return (
@@ -130,12 +182,6 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
             <AlertTriangle className="w-3 h-3 text-rose-600 dark:text-rose-400" /> Notice
           </span>
         );
-      case 'INACTIVE':
-        return (
-          <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-medium">
-            Inactive
-          </span>
-        );
       default:
         return (
           <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
@@ -147,52 +193,59 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner & Navigation */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-5 rounded-2xl shadow-xs">
+      {/* Native Page Header & Navigation */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            Organization & Employee Masters
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage employee directories, 8-Cycle appraisal cohorts, departments, and reviewer hierarchies
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+              Employee Directory & Masters
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Directory
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Headcount directory, 8-Cycle appraisal cohorts, departments, and reviewer assignments.
           </p>
         </div>
 
-        {/* View Switcher */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700">
-          <button
-            onClick={() => setActiveTab('employees')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-              activeTab === 'employees'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs border border-slate-200/80 dark:border-slate-700'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            Employee Directory ({employees.length})
-          </button>
-          {isHRorAdmin && (
+        {/* View Switcher and Primary Action */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700/80">
             <button
-              onClick={() => setActiveTab('masters')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                activeTab === 'masters'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs border border-slate-200/80 dark:border-slate-700'
+              onClick={() => setActiveTab('employees')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${activeTab === 'employees'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
+                }`}
             >
-              Departments & Roles
+              Employees ({employees.length})
+            </button>
+            {isHRorAdmin && (
+              <button
+                onClick={() => setActiveTab('masters')}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${activeTab === 'masters'
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+              >
+                Departments & Roles
+              </button>
+            )}
+          </div>
+
+          {isHRorAdmin && activeTab === 'employees' && (
+            <button
+              onClick={() => {
+                setEditingEmployee(null);
+                setIsModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" /> Add Employee
             </button>
           )}
-          <button
-            onClick={() => setActiveTab('cycles')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-              activeTab === 'cycles'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs border border-slate-200/80 dark:border-slate-700'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            8-Cycle Cohort Map
-          </button>
         </div>
       </div>
 
@@ -202,206 +255,237 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
           {/* Summary Metric Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
             {/* Total Employees Box */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-xs relative overflow-hidden flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   Total Employees
-                </p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                    {totalEmployeesCount}
-                  </span>
-                  {hasActiveFilters && (
-                    <span className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded-full border border-indigo-100 dark:border-indigo-900/50">
-                      {filteredEmployees.length} filtered
-                    </span>
-                  )}
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center shrink-0">
+                  <Users className="w-4 h-4" />
                 </div>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                  {hasActiveFilters ? 'Filtered view active' : 'Active registered headcount'}
-                </p>
               </div>
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center shrink-0">
-                <Users className="w-5 h-5 sm:w-6 sm:h-6" />
+              <div className="flex items-baseline gap-2 mt-2">
+                <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono tracking-tight">
+                  {totalEmployeesCount}
+                </span>
+                {hasActiveFilters && (
+                  <span className="text-[10px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 px-1.5 py-0.5 rounded">
+                    {filteredEmployees.length} filtered
+                  </span>
+                )}
               </div>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                {hasActiveFilters ? 'Active filters applied' : 'Registered headcount'}
+              </p>
             </div>
 
             {/* Active Workforce Box */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-xs flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   Active Workforce
-                </p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight">
-                    {activeEmployeesCount}
-                  </span>
-                  <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-900/50">
-                    {totalEmployeesCount > 0 ? Math.round((activeEmployeesCount / totalEmployeesCount) * 100) : 0}%
-                  </span>
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-4 h-4" />
                 </div>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                  Active status members
-                </p>
               </div>
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" />
+              <div className="flex items-baseline gap-2 mt-2">
+                <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono tracking-tight">
+                  {activeEmployeesCount}
+                </span>
+                <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-1.5 py-0.5 rounded">
+                  {totalEmployeesCount > 0 ? Math.round((activeEmployeesCount / totalEmployeesCount) * 100) : 0}%
+                </span>
               </div>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                Active member ratio
+              </p>
             </div>
 
             {/* Departments Box */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-xs flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <div
+              onClick={() => {
+                if (onNavigateToHierarchy) {
+                  onNavigateToHierarchy();
+                } else {
+                  window.location.hash = '#hierarchy';
+                }
+              }}
+              className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 shadow-2xs hover:border-blue-400 dark:hover:border-blue-600 transition-colors cursor-pointer group"
+              title="Click to view Department & Manager Hierarchy"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                   Departments
-                </p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                    {departments.length || uniqueDeptCount}
-                  </span>
-                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
-                    {designations.length} roles
-                  </span>
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/50 group-hover:text-blue-600 transition-colors">
+                  <Building2 className="w-4 h-4" />
                 </div>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                  Active business units
-                </p>
               </div>
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 flex items-center justify-center shrink-0">
-                <Building2 className="w-5 h-5 sm:w-6 sm:h-6" />
+              <div className="flex items-baseline gap-2 mt-2">
+                <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono tracking-tight">
+                  {departments.length || uniqueDeptCount}
+                </span>
+                <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded">
+                  {designations.length} roles
+                </span>
               </div>
+              <p className="text-[11px] text-blue-600 dark:text-blue-400 group-hover:underline flex items-center gap-0.5 mt-1 font-medium">
+                View Org & Manager Hierarchy →
+              </p>
             </div>
 
             {/* Review Cohorts Box */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-xs flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   Review Cohorts
-                </p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                    {cycles.length || 8}
-                  </span>
-                  <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-full border border-amber-100 dark:border-amber-900/50">
-                    Cycles A-H
-                  </span>
+                </span>
+                <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 flex items-center justify-center shrink-0">
+                  <Calendar className="w-4 h-4" />
                 </div>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                  Staggered quarterly cycles
-                </p>
               </div>
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 flex items-center justify-center shrink-0">
-                <Shield className="w-5 h-5 sm:w-6 sm:h-6" />
+              <div className="flex items-baseline gap-2 mt-2">
+                <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono tracking-tight">
+                  {cycles.length || 8}
+                </span>
+                <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 px-1.5 py-0.5 rounded">
+                  Cycles A–H
+                </span>
               </div>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                Staggered review schedules
+              </p>
             </div>
           </div>
 
           {/* Controls Bar */}
-          <div className="flex flex-col lg:flex-row gap-3 items-center justify-between bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-3.5 rounded-2xl shadow-xs">
-            {/* Search */}
-            <div className="relative w-full lg:w-80">
-              <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-2.5 rounded-xl shadow-2xs flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-2.5">
+            {/* Search Input */}
+            <div className="relative flex-1 min-w-[240px] max-w-md">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search name, employee code, email..."
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-indigo-500/20 focus:border-slate-400 dark:focus:border-slate-600"
+                className="w-full h-9 pl-9 pr-8 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs p-0.5 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
-            {/* Filter Dropdowns */}
-            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 rounded-xl">
-                <Building2 className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+            {/* Filter Dropdowns and Actions Cluster */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Department Select */}
+              <div className="relative">
                 <select
                   value={selectedDept}
                   onChange={(e) => setSelectedDept(e.target.value)}
-                  className="bg-transparent text-xs text-slate-700 dark:text-slate-200 focus:outline-none font-medium cursor-pointer"
+                  className="h-9 pl-2.5 pr-7 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 appearance-none cursor-pointer"
                 >
-                  <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Departments</option>
+                  <option value="">All Departments</option>
                   {departments.map((d) => (
-                    <option key={d.id} value={d.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+                    <option key={d.id} value={d.id}>
                       {d.name}
                     </option>
                   ))}
                 </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
 
-              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 rounded-xl">
-                <Shield className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              {/* Cycle Select */}
+              <div className="relative">
                 <select
                   value={selectedCycle}
                   onChange={(e) => setSelectedCycle(e.target.value)}
-                  className="bg-transparent text-xs text-slate-700 dark:text-slate-200 focus:outline-none font-medium cursor-pointer"
+                  className="h-9 pl-2.5 pr-7 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 appearance-none cursor-pointer"
                 >
-                  <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Cycles (A-H)</option>
+                  <option value="">All Cycles (A-H)</option>
                   {cycles.map((c) => (
-                    <option key={c.id} value={c.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+                    <option key={c.id} value={c.id}>
                       {c.name.startsWith('Cycle') ? c.name : `Cycle ${c.code} (${c.name})`}
                     </option>
                   ))}
                 </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
 
-              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 rounded-xl">
-                <Filter className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+              {/* Status Select */}
+              <div className="relative">
                 <select
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="bg-transparent text-xs text-slate-700 dark:text-slate-200 focus:outline-none font-medium cursor-pointer"
+                  className="h-9 pl-2.5 pr-7 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 appearance-none cursor-pointer"
                 >
-                  <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Statuses</option>
-                  <option value="ACTIVE" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Active</option>
-                  <option value="PROBATION" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Probation</option>
-                  <option value="NOTICE" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Notice</option>
-                  <option value="INACTIVE" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Inactive</option>
+                  <option value="">All Statuses</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="PROBATION">Probation</option>
+                  <option value="NOTICE">Notice</option>
+                  <option value="INACTIVE">Past Employees</option>
                 </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
 
+              {/* Clear filters button if active */}
+              {hasActiveFilters && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedDept('');
+                    setSelectedCycle('');
+                    setSelectedStatus('');
+                  }}
+                  className="h-9 px-2.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg border border-rose-200 dark:border-rose-900/50 font-medium transition-colors cursor-pointer"
+                  title="Reset all filters"
+                >
+                  Reset
+                </button>
+              )}
+
+              <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block mx-0.5" />
+
+              {/* Refresh button */}
               <button
                 onClick={loadData}
                 title="Refresh Directory"
-                className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                className="h-9 w-9 flex items-center justify-center rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
               >
                 <RotateCw className="w-3.5 h-3.5" />
               </button>
 
               {/* Cards / Table View Toggle */}
-              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
                 <button
                   onClick={() => setViewMode('cards')}
-                  className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
-                    viewMode === 'cards' ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs' : 'text-slate-500'
-                  }`}
-                  title="Card View (Recommended for Mobile)"
+                  className={`h-7 px-2.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${viewMode === 'cards'
+                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-semibold'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  title="Card View"
                 >
                   <LayoutGrid className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline text-[11px]">Cards</span>
                 </button>
                 <button
                   onClick={() => setViewMode('table')}
-                  className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
-                    viewMode === 'table' ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs' : 'text-slate-500'
-                  }`}
+                  className={`h-7 px-2.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${viewMode === 'table'
+                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-semibold'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    }`}
                   title="Table View"
                 >
                   <List className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline text-[11px]">Table</span>
                 </button>
               </div>
-
-              {isHRorAdmin && (
-                <button
-                  onClick={() => {
-                    setEditingEmployee(null);
-                    setIsModalOpen(true);
-                  }}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors ml-auto lg:ml-0 cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" /> Add Employee
-                </button>
-              )}
             </div>
           </div>
 
@@ -418,7 +502,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
                 </div>
               ) : (
                 filteredEmployees.map((emp) => {
-                  const cycleInfo = cycles.find((c) => c.id === emp.cycleId);
+                  const cycleInfo = cycles.find((c) => c.id === emp.cycleId || c.code === emp.cycleCode);
                   return (
                     <div
                       key={emp.id}
@@ -435,7 +519,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
                               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate">{emp.employeeCode} • {emp.email}</p>
                             </div>
                           </div>
-                          {getStatusBadge(emp.status)}
+                          {getStatusBadge(emp.status, emp.isPastEmployee)}
                         </div>
 
                         <div className="space-y-1 text-xs">
@@ -444,9 +528,9 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
                             <span className="truncate">{emp.designationName || 'Role'} • {emp.departmentName || 'Dept'}</span>
                           </div>
                           {cycleInfo && (
-                            <div className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cycleInfo.color || '#6366f1' }} />
-                              <span>{cycleInfo.name.startsWith('Cycle') ? cycleInfo.name : `Cycle ${cycleInfo.code} (${cycleInfo.name})`}</span>
+                            <div className="flex items-center gap-1.5">
+                              <CycleBadge code={emp.cycleCode || cycleInfo.code} />
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400">({cycleInfo.name})</span>
                             </div>
                           )}
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
@@ -456,7 +540,22 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
                       </div>
 
                       <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                        {isHRorAdmin ? (
+                        {(emp.status === 'INACTIVE' || emp.isPastEmployee) ? (
+                          <div>
+                            <span className="text-[10px] text-rose-500 dark:text-rose-400 font-semibold block leading-tight">
+                              Relieved On
+                            </span>
+                            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                              {(emp.relievingDate || emp.pastEmployeeDate)
+                                ? new Date(emp.relievingDate || emp.pastEmployeeDate!).toLocaleDateString(undefined, {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })
+                                : 'Date not recorded'}
+                            </span>
+                          </div>
+                        ) : isHRorAdmin ? (
                           <div>
                             <span className="text-[10px] text-slate-400 block leading-tight">Starting CTC</span>
                             <span className="font-mono font-bold text-slate-900 dark:text-white">
@@ -470,15 +569,40 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
                         )}
 
                         {isHRorAdmin && (
-                          <button
-                            onClick={() => {
-                              setEditingEmployee(emp);
-                              setIsModalOpen(true);
-                            }}
-                            className="p-1.5 px-2.5 rounded-lg text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 font-semibold text-xs flex items-center gap-1 transition-colors"
-                          >
-                            <Edit2 className="w-3 h-3" /> Edit
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            {(emp.status === 'INACTIVE' || emp.isPastEmployee) && (
+                              <button
+                                onClick={() => {
+                                  setEditingEmployee(emp);
+                                  setIsRehireInitial(true);
+                                  setIsModalOpen(true);
+                                }}
+                                className="p-1.5 px-2.5 rounded-lg text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                                title="Rehire past employee and reactivate profile"
+                              >
+                                <UserCheck className="w-3 h-3" /> Rehire
+                              </button>
+                            )}
+                            <button
+                              onClick={() => {
+                                setEditingEmployee(emp);
+                                setIsRehireInitial(false);
+                                setIsModalOpen(true);
+                              }}
+                              className="p-1.5 px-2.5 rounded-lg text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                            >
+                              <Edit2 className="w-3 h-3" /> Edit
+                            </button>
+                            {isAdmin && emp.status !== 'INACTIVE' && !emp.isPastEmployee && (
+                              <button
+                                onClick={() => setEmployeeToDelete(emp)}
+                                className="p-1.5 px-2 rounded-lg text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors cursor-pointer"
+                                title="Delete employee data & archive as past employee (Admin Only)"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -492,158 +616,199 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider text-[11px]">
-                    <th className="px-5 py-3.5">Employee</th>
-                    <th className="px-4 py-3.5">Department & Role</th>
-                    <th className="px-4 py-3.5">Appraisal Cycle</th>
-                    <th className="px-4 py-3.5">Reporting Hierarchy</th>
-                    {isHRorAdmin && <th className="px-4 py-3.5">Starting CTC</th>}
-                    <th className="px-4 py-3.5">Status</th>
-                    <th className="px-4 py-3.5">Joining Date</th>
-                    {isHRorAdmin && <th className="px-4 py-3.5 text-right">Actions</th>}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={isHRorAdmin ? 8 : 6} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
-                        Loading employee records...
-                      </td>
+                      <th className="px-5 py-3.5">Employee</th>
+                      <th className="px-4 py-3.5">Department & Role</th>
+                      <th className="px-4 py-3.5">Appraisal Cycle</th>
+                      <th className="px-4 py-3.5">Reporting Hierarchy</th>
+                      {isHRorAdmin && <th className="px-4 py-3.5">Starting CTC</th>}
+                      <th className="px-4 py-3.5">Status</th>
+                      <th className="px-4 py-3.5">Joining / Relieving Date</th>
+                      {isHRorAdmin && <th className="px-4 py-3.5 text-right">Actions</th>}
                     </tr>
-                  ) : filteredEmployees.length === 0 ? (
-                    <tr>
-                      <td colSpan={isHRorAdmin ? 8 : 6} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
-                        No employees found matching the filters.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredEmployees.map((emp) => {
-                      const cycleInfo = cycles.find((c) => c.id === emp.cycleId);
-                      return (
-                        <tr
-                          key={emp.id}
-                          className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors group"
-                        >
-                          {/* Employee Info */}
-                          <td className="px-5 py-3.5">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-800 dark:text-slate-200 font-bold text-xs shadow-2xs">
-                                {emp.name.charAt(0)}
-                              </div>
-                              <div>
-                                <div className="font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                                  {emp.name}
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                    {loading ? (
+                      <tr>
+                        <td colSpan={isHRorAdmin ? 8 : 6} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
+                          Loading employee records...
+                        </td>
+                      </tr>
+                    ) : filteredEmployees.length === 0 ? (
+                      <tr>
+                        <td colSpan={isHRorAdmin ? 8 : 6} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
+                          No employees found matching the filters.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredEmployees.map((emp) => {
+                        const cycleInfo = cycles.find((c) => c.id === emp.cycleId || c.code === emp.cycleCode);
+                        return (
+                          <tr
+                            key={emp.id}
+                            className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors group"
+                          >
+                            {/* Employee Info */}
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-800 dark:text-slate-200 font-bold text-xs shadow-2xs">
+                                  {emp.name.charAt(0)}
                                 </div>
-                                <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                                  {emp.employeeCode} • {emp.email}
-                                </div>
-                                {(emp.location || emp.phone) && (
-                                  <div className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mt-0.5">
-                                    {emp.location && (
-                                      <span className="flex items-center gap-0.5">
-                                        <MapPin className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500" />
-                                        {emp.location}
-                                      </span>
-                                    )}
-                                    {emp.phone && <span>• {emp.phone}</span>}
+                                <div>
+                                  <div className="font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                    {emp.name}
                                   </div>
+                                  <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                                    {emp.employeeCode} • {emp.email}
+                                  </div>
+                                  {(emp.location || emp.phone) && (
+                                    <div className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                      {emp.location && (
+                                        <span className="flex items-center gap-0.5">
+                                          <MapPin className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500" />
+                                          {emp.location}
+                                        </span>
+                                      )}
+                                      {emp.phone && <span>• {emp.phone}</span>}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Dept & Role */}
+                            <td className="px-4 py-3.5">
+                              <div className="text-slate-900 dark:text-slate-200 font-medium flex items-center gap-1.5 flex-wrap">
+                                <span>{emp.designationName || 'Designation'}</span>
+                                {emp.hasLoginAccount && (
+                                  <span
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                                    title={`Portal Sign-In Active (${emp.systemRole || 'User'})`}
+                                  >
+                                    <Key className="w-2.5 h-2.5 text-indigo-500 dark:text-indigo-400" />
+                                    {emp.systemRole || 'Portal Active'}
+                                  </span>
                                 )}
                               </div>
-                            </div>
-                          </td>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                                <Building2 className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                                {emp.departmentName || 'Department'}
+                              </div>
+                            </td>
 
-                          {/* Dept & Role */}
-                          <td className="px-4 py-3.5">
-                            <div className="text-slate-900 dark:text-slate-200 font-medium flex items-center gap-1.5 flex-wrap">
-                              <span>{emp.designationName || 'Designation'}</span>
-                              {emp.hasLoginAccount && (
-                                <span
-                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
-                                  title={`Portal Sign-In Active (${emp.systemRole || 'User'})`}
-                                >
-                                  <Key className="w-2.5 h-2.5 text-indigo-500 dark:text-indigo-400" />
-                                  {emp.systemRole || 'Portal Active'}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                              <Building2 className="w-3 h-3 text-slate-400 dark:text-slate-500" />
-                              {emp.departmentName || 'Department'}
-                            </div>
-                          </td>
-
-                          {/* Cycle */}
-                          <td className="px-4 py-3.5">
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold text-[11px]">
-                              <span>Cycle {emp.cycleCode || cycleInfo?.code || 'A'}</span>
-                              <span className="text-indigo-900/60 dark:text-indigo-300/60 font-normal">
-                                ({emp.cycleName || cycleInfo?.name})
-                              </span>
-                            </div>
-                          </td>
-
-                          {/* Hierarchy */}
-                          <td className="px-4 py-3.5">
-                            <div className="text-[11px] text-slate-700 dark:text-slate-300">
-                              <span className="text-slate-400 dark:text-slate-500">Manager:</span>{' '}
-                              <span className="font-semibold text-slate-900 dark:text-white">
-                                {emp.managerName || 'Direct'}
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                              <span className="text-slate-400 dark:text-slate-500">HOD:</span> {emp.hodName || 'Dept Head'}
-                            </div>
-                          </td>
-
-                          {/* Compensation */}
-                          {isHRorAdmin && (
+                            {/* Cycle */}
                             <td className="px-4 py-3.5">
-                              <div className="font-semibold text-slate-900 dark:text-white font-mono text-[11px]">
-                                {emp.currency || '₹'}{(emp.currentCtc || 1600000).toLocaleString()}
+                              <CycleBadge code={emp.cycleCode || cycleInfo?.code || 'A'} />
+                            </td>
+
+                            {/* Hierarchy */}
+                            <td className="px-4 py-3.5">
+                              <div className="text-[11px] text-slate-700 dark:text-slate-300">
+                                <span className="text-slate-400 dark:text-slate-500">Manager:</span>{' '}
+                                <span className="font-semibold text-slate-900 dark:text-white">
+                                  {emp.managerName || 'Direct'}
+                                </span>
                               </div>
-                              <div className="text-[10px] text-slate-400 dark:text-slate-500">
-                                Annual CTC
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                <span className="text-slate-400 dark:text-slate-500">HOD:</span> {emp.hodName || 'Dept Head'}
                               </div>
                             </td>
-                          )}
 
-                          {/* Status */}
-                          <td className="px-4 py-3.5">{getStatusBadge(emp.status)}</td>
+                            {/* Compensation */}
+                            {isHRorAdmin && (
+                              <td className="px-4 py-3.5">
+                                <div className="font-semibold text-slate-900 dark:text-white font-mono text-[11px]">
+                                  {emp.currency || '₹'}{(emp.currentCtc || 1600000).toLocaleString()}
+                                </div>
+                                <div className="text-[10px] text-slate-400 dark:text-slate-500">
+                                  Annual CTC
+                                </div>
+                              </td>
+                            )}
 
-                          {/* Joining Date */}
-                          <td className="px-4 py-3.5 text-slate-500 dark:text-slate-400 text-[11px]">
-                            {new Date(emp.joiningDate).toLocaleDateString(undefined, {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                            })}
-                          </td>
+                            {/* Status */}
+                            <td className="px-4 py-3.5">{getStatusBadge(emp.status, emp.isPastEmployee)}</td>
 
-                          {/* Actions */}
-                          {isHRorAdmin && (
-                            <td className="px-4 py-3.5 text-right">
-                              <button
-                                onClick={() => {
-                                  setEditingEmployee(emp);
-                                  setIsModalOpen(true);
-                                }}
-                                className="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                                title="Edit employee & cycle assignment"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
+                            {/* Joining / Relieving Date */}
+                            <td className="px-4 py-3.5 text-slate-500 dark:text-slate-400 text-[11px]">
+                              <div>
+                                <span className="text-slate-400 dark:text-slate-500">Joined: </span>
+                                <span className="text-slate-700 dark:text-slate-300 font-medium">
+                                  {emp.joiningDate
+                                    ? new Date(emp.joiningDate).toLocaleDateString(undefined, {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                    })
+                                    : '—'}
+                                </span>
+                              </div>
+                              {(emp.status === 'INACTIVE' || emp.isPastEmployee) && (
+                                <div className="mt-1 flex items-center gap-1 text-rose-600 dark:text-rose-400 font-medium">
+                                  <span className="text-rose-500/80">Relieved: </span>
+                                  <span>
+                                    {(emp.relievingDate || emp.pastEmployeeDate)
+                                      ? new Date(emp.relievingDate || emp.pastEmployeeDate!).toLocaleDateString(undefined, {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric',
+                                      })
+                                      : 'Not set'}
+                                  </span>
+                                </div>
+                              )}
                             </td>
-                          )}
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+
+                            {/* Actions */}
+                            {isHRorAdmin && (
+                              <td className="px-4 py-3.5 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {(emp.status === 'INACTIVE' || emp.isPastEmployee) && (
+                                    <button
+                                      onClick={() => {
+                                        setEditingEmployee(emp);
+                                        setIsRehireInitial(true);
+                                        setIsModalOpen(true);
+                                      }}
+                                      className="px-2 py-1 rounded-lg text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 font-semibold text-[11px] flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                                      title="Rehire past employee and reactivate profile"
+                                    >
+                                      <UserCheck className="w-3 h-3" /> Rehire
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => {
+                                      setEditingEmployee(emp);
+                                      setIsRehireInitial(false);
+                                      setIsModalOpen(true);
+                                    }}
+                                    className="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                    title="Edit employee & cycle assignment"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  {isAdmin && emp.status !== 'INACTIVE' && !emp.isPastEmployee && (
+                                    <button
+                                      onClick={() => setEmployeeToDelete(emp)}
+                                      className="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                      title="Delete employee data & archive as past employee (Admin Only)"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-    )}
+          )}
+        </div>
+      )}
 
       {/* VIEW 2: MASTERS (DEPARTMENTS & DESIGNATIONS) */}
       {activeTab === 'masters' && isHRorAdmin && (
@@ -656,64 +821,157 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = () => {
         />
       )}
 
-      {/* VIEW 3: 8-CYCLE OVERVIEW & MAPPING */}
-      {activeTab === 'cycles' && (
-        <div className="space-y-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 shadow-xs">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-1">
-              <Shield className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              8-Cycle Framework (Cohorts A through H)
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
-              Employees are grouped into 8 rolling quarterly cohorts to distribute appraisal workloads
-              evenly across the calendar year.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {cycles.map((c) => {
-                const count = employees.filter((e) => e.cycleId === c.id || e.cycleCode === c.code).length;
-                return (
-                  <div
-                    key={c.id}
-                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold font-mono px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 border border-slate-200 dark:border-slate-700 shadow-2xs">
-                          Cycle {c.code}
-                        </span>
-                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                          {count} Employees
-                        </span>
-                      </div>
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white">{c.name}</h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{c.description}</p>
-                    </div>
-
-                    <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                      <span>Appraisal: Month {c.appraisalMonth}</span>
-                      <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Active Cohort</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Edit / Add Employee Modal */}
       <EmployeeModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setIsRehireInitial(false);
+        }}
         onSaved={loadData}
         employeeToEdit={editingEmployee}
+        initialRehire={isRehireInitial}
         departments={departments}
         designations={designations}
         cycles={cycles}
         allEmployees={employees}
         kraTemplates={kraTemplates}
       />
+
+      {/* Delete Employee Confirmation Modal */}
+      {employeeToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl border bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800 shrink-0">
+                  <UserMinus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Delete Employee & Archive as Past Employee
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Purge performance data while keeping directory record
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => !deleteLoading && setEmployeeToDelete(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4">
+              {/* Employee Summary Card */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 font-bold text-sm text-slate-800 dark:text-slate-200 flex items-center justify-center shrink-0">
+                    {employeeToDelete.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                      {employeeToDelete.name}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      {employeeToDelete.designationName || 'Designation'} • {employeeToDelete.departmentName || 'Department'}
+                    </p>
+                    <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 block truncate">
+                      {employeeToDelete.employeeCode} • {employeeToDelete.email}
+                    </span>
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  {getStatusBadge(employeeToDelete.status, employeeToDelete.isPastEmployee)}
+                </div>
+              </div>
+
+              {/* Leadership Impact Notice (If HOD or Manager) */}
+              {(() => {
+                const managedReports = employees.filter((e) => e.managerId === employeeToDelete.id && e.status !== 'INACTIVE');
+                const ledDepartments = departments.filter((d) => d.hodId === employeeToDelete.id);
+                if (managedReports.length === 0 && ledDepartments.length === 0) return null;
+
+                return (
+                  <div className="p-3 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-xl text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span>Leadership Assignment Impact:</span>
+                    </div>
+                    {managedReports.length > 0 && (
+                      <p className="text-[11px] text-amber-700 dark:text-amber-300/90 leading-relaxed">
+                        Reporting Manager for <strong>{managedReports.length} active employee(s)</strong> ({managedReports.slice(0, 3).map((e) => e.name).join(', ')}{managedReports.length > 3 ? ` +${managedReports.length - 3} more` : ''}). Their manager will automatically be set to <strong>&quot;Unassigned&quot;</strong>.
+                      </p>
+                    )}
+                    {ledDepartments.length > 0 && (
+                      <p className="text-[11px] text-amber-700 dark:text-amber-300/90 leading-relaxed">
+                        Designated HOD for <strong>{ledDepartments.map((d) => d.name).join(', ')}</strong>. The department HOD will be reset to <strong>&quot;Unassigned&quot;</strong>.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Data Purge Breakdown Notice */}
+              <div className="space-y-2.5">
+                <div className="p-3 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl text-xs text-rose-800 dark:text-rose-300 space-y-2">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+                    <span>The following data will be PERMANENTLY deleted:</span>
+                  </div>
+                  <ul className="text-[11px] space-y-1 text-rose-700 dark:text-rose-300/90 pl-4 list-disc">
+                    <li>All 4-quarter reviews, ratings, and self-evaluation submissions</li>
+                    <li>All annual appraisal decision records and compensation letters</li>
+                    <li>All 360-degree peer feedback requests and responses</li>
+                    <li>User portal login account & credentials (portal sign-in revoked)</li>
+                    <li>Unassigned as manager or HOD for any direct reports</li>
+                  </ul>
+                </div>
+
+                <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-xl text-xs text-emerald-800 dark:text-emerald-300 space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>What will be preserved:</span>
+                  </div>
+                  <p className="text-[11px] text-emerald-700 dark:text-emerald-300/90 leading-relaxed">
+                    Identity details (Name, Employee Code, Department, Designation, and Joining Date) will remain preserved in the directory with status <strong>Past Employee</strong> for corporate compliance and historical service reference.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={deleteLoading}
+                onClick={() => setEmployeeToDelete(null)}
+                className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteLoading}
+                onClick={handleConfirmDeleteEmployee}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {deleteLoading ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>{deleteLoading ? 'Purging & Archiving...' : 'Confirm Deletion & Archive'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

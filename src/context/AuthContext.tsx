@@ -174,6 +174,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setEmployeeProfile(null);
       setPermissions([]);
       setToken(null);
+      // Cleanly clear previous view hash so next logged in persona lands on their own default workspace
+      window.location.hash = '';
       toast.info('You have logged out successfully.', 'Session Closed');
     } catch (err: any) {
       toast.error(err.message || 'Logout encountered an issue.');

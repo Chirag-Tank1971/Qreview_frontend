@@ -55,6 +55,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
     SUPER_ADMIN: { label: 'Super Admin', icon: Shield, badgeColor: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' },
     HR: { label: 'HR Manager', icon: UserCheck, badgeColor: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' },
     MANAGER: { label: 'Reporting Manager', icon: Briefcase, badgeColor: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800' },
+    REPORTING_MANAGER: { label: 'Reporting Manager', icon: Briefcase, badgeColor: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800' },
     HOD: { label: 'Dept Head (HOD)', icon: Building2, badgeColor: 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800' },
     EMPLOYEE: { label: 'Employee (ESS)', icon: Layers, badgeColor: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800' },
     MANAGEMENT: { label: 'Executive Management', icon: Sparkles, badgeColor: 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800' },
@@ -66,32 +67,39 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
   // Primary Workspaces
   const primaryNavItems = [
     {
+      id: 'management',
+      label: 'Executive Dashboard',
+      subtitle: 'Organization-wide KPIs, department matrix & trends',
+      icon: Sparkles,
+      roles: ['MANAGEMENT'],
+    },
+    {
       id: 'portal',
       label: 'My Space',
       subtitle: 'Goals, self-evaluations & appraisal letters',
       icon: UserIcon,
-      roles: ['SUPER_ADMIN', 'HR', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'],
+      roles: ['SUPER_ADMIN', 'HR', 'REPORTING_MANAGER', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'],
     },
     {
       id: 'reviews',
       label: userRole === 'EMPLOYEE' ? 'My Reviews' : 'Quarterly Reviews',
       subtitle: 'Score KRAs and track performance cycles',
       icon: Award,
-      roles: ['SUPER_ADMIN', 'HR', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'],
+      roles: ['SUPER_ADMIN', 'HR', 'REPORTING_MANAGER', 'MANAGER', 'HOD', 'EMPLOYEE'],
     },
     {
       id: 'appraisals',
       label: 'Annual Appraisals',
       subtitle: 'Cohort calibrations & salary increment proposals',
       icon: TrendingUp,
-      roles: ['SUPER_ADMIN', 'HR', 'MANAGER', 'HOD', 'MANAGEMENT'],
+      roles: ['SUPER_ADMIN', 'HR', 'HOD', 'REPORTING_MANAGER', 'MANAGER'],
     },
     {
       id: 'ai_performance',
       label: 'AI Copilot & 360',
       subtitle: 'AI review assistant & continuous praise',
       icon: Sparkles,
-      roles: ['SUPER_ADMIN', 'HR', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'],
+      roles: ['SUPER_ADMIN'],
       isAiBadge: true,
     },
     {
@@ -106,25 +114,32 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
       label: 'Notifications & Alerts',
       subtitle: 'Actionable tasks & email delivery audit',
       icon: Bell,
-      roles: ['SUPER_ADMIN', 'HR', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'],
+      roles: ['SUPER_ADMIN', 'HR', 'REPORTING_MANAGER', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'],
     },
   ];
 
-  // Admin & System Settings items
+  // Admin & System Settings items (Super Admin & HR)
   const adminNavItems = [
     {
       id: 'employees',
       label: 'Employee Directory',
-      subtitle: 'Organization hierarchy & profiles',
+      subtitle: 'Organization directory & profiles',
       icon: Users,
-      roles: ['SUPER_ADMIN', 'HR', 'MANAGEMENT'],
+      roles: ['SUPER_ADMIN', 'HR'],
+    },
+    {
+      id: 'hierarchy',
+      label: 'Department & Hierarchy',
+      subtitle: 'Org tree, HODs, & reporting lines',
+      icon: Layers,
+      roles: ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'],
     },
     {
       id: 'kras',
       label: 'Goal Templates (KRAs)',
       subtitle: 'Standard metrics & 100% weight rubrics',
       icon: Target,
-      roles: ['SUPER_ADMIN', 'HR', 'MANAGER', 'HOD'],
+      roles: ['SUPER_ADMIN', 'HR'],
     },
     {
       id: 'bulk',
@@ -135,10 +150,10 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
     },
     {
       id: 'audit',
-      label: 'Compliance & Audit Trail',
-      subtitle: 'Security logs & tamper-evident history',
+      label: userRole === 'HR' ? 'Appraisal Lifecycle' : 'Audit Trail & Lifecycle',
+      subtitle: userRole === 'HR' ? 'Employee appraisal evolution timeline' : 'Decision history & master audit stream',
       icon: Shield,
-      roles: ['SUPER_ADMIN', 'HR', 'MANAGEMENT'],
+      roles: ['SUPER_ADMIN', 'HR'],
     },
   ];
 

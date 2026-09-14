@@ -67,15 +67,20 @@ export function downloadPipDossierPdf(pip: PipRecord): void {
 
   // Row 3 (Status)
   doc.setFont('helvetica', 'bold');
-  const statusLabel = pip.status === 'completed_successfully'
+  const normalizedStatus = String(pip.status || '').toLowerCase();
+  const isCompleted = normalizedStatus === 'completed_successfully' || normalizedStatus === 'successful';
+  const isEscalated = normalizedStatus === 'escalated_action' || normalizedStatus === 'failed';
+  const isExtended = normalizedStatus === 'extended';
+
+  const statusLabel = isCompleted
     ? 'PASSED & RESTORED TO ACTIVE STATUS'
-    : pip.status === 'escalated_action'
+    : isEscalated
     ? 'SEPARATED (FAILED PIP CRITERIA)'
-    : pip.status === 'extended'
+    : isExtended
     ? 'EXTENDED (+30 DAYS)'
     : 'ACTIVE IN PROGRESS';
 
-  doc.setTextColor(pip.status === 'completed_successfully' ? 4 : 225, pip.status === 'completed_successfully' ? 120 : 29, pip.status === 'completed_successfully' ? 87 : 72);
+  doc.setTextColor(isCompleted ? 4 : 225, isCompleted ? 120 : 29, isCompleted ? 87 : 72);
   doc.text(`Governance Status: ${statusLabel} (${pip.overallProgress}% Completed)`, margin + 8, curY + 20);
 
   curY += 30;
