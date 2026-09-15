@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Clock,
   Check,
+  Minus,
   ChevronDown,
   ChevronRight,
   Info,
@@ -372,6 +373,7 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                   const isOverridden = event.status === 'OVERRIDDEN';
                   const isPending = event.status === 'PENDING';
                   const isFlagged = event.status === 'FLAGGED';
+                  const isNotApplicable = event.status === 'NOT_APPLICABLE';
 
                   return (
                     <div key={event.id} className="relative group">
@@ -382,6 +384,8 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                             ? 'border-amber-500 text-amber-600 dark:text-amber-400 ring-4 ring-amber-50 dark:ring-amber-950/40'
                             : isFlagged
                             ? 'border-rose-500 text-rose-600 dark:text-rose-400 ring-4 ring-rose-50 dark:ring-rose-950/40'
+                            : isNotApplicable
+                            ? 'border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 bg-slate-100/80 dark:bg-slate-800/80'
                             : isPending
                             ? 'border-slate-300 dark:border-slate-700 text-slate-400'
                             : 'border-emerald-600 dark:border-emerald-500 text-emerald-600 dark:text-emerald-400 ring-4 ring-emerald-50 dark:ring-emerald-950/40'
@@ -389,6 +393,8 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                       >
                         {isOverridden ? (
                           <Scale className="w-3 h-3" />
+                        ) : isNotApplicable ? (
+                          <Minus className="w-3 h-3 stroke-[2.5]" />
                         ) : isPending ? (
                           <Clock className="w-3 h-3" />
                         ) : (
@@ -401,6 +407,8 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                         className={`rounded-xl border p-4 transition-all ${
                           isOverridden
                             ? 'bg-amber-50/40 dark:bg-amber-950/30 border-amber-200/80 dark:border-amber-800/50 shadow-xs'
+                            : isNotApplicable
+                            ? 'bg-slate-50/40 dark:bg-slate-900/30 border-slate-200/60 dark:border-slate-800/60 opacity-80'
                             : isPending
                             ? 'bg-slate-50/60 dark:bg-slate-800/40 border-dashed border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400'
                             : 'bg-white dark:bg-slate-850 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
@@ -413,12 +421,14 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                               className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                                 isOverridden
                                   ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
+                                  : isNotApplicable
+                                  ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
                                   : isPending
                                   ? 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                                   : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
                               }`}
                             >
-                              {event.status}
+                              {event.status === 'NOT_APPLICABLE' ? 'NOT APPLICABLE' : event.status}
                             </span>
                           </div>
 
@@ -437,6 +447,8 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                                     hour: '2-digit',
                                     minute: '2-digit',
                                   })
+                                : event.status === 'NOT_APPLICABLE'
+                                ? 'Not Applicable'
                                 : 'Scheduled'}
                             </span>
                           </div>

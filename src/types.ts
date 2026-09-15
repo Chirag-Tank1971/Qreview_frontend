@@ -832,7 +832,7 @@ export interface AiTalentInsightsResult {
 
 export interface AuditTimelineEvent {
   id: string;
-  timestamp: string;
+  timestamp?: string;
   action?: string;
   actorName: string;
   actorRole: string;
