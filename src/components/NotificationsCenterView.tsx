@@ -90,9 +90,9 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
   const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+      prev.map((n) => (n.id === id || (n as any)._id === id ? { ...n, isRead: true } : n))
     );
-    const unreadRemaining = notifications.filter((n) => !n.isRead && n.id !== id).length;
+    const unreadRemaining = notifications.filter((n) => !n.isRead && n.id !== id && (n as any)._id !== id).length;
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('notifications-updated', { detail: { count: unreadRemaining } }));
     }
@@ -387,7 +387,7 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
   const filteredNotifications = useMemo(() => {
     return notifications.filter((notif) => {
       // Tab filter
-      if (activeTab === 'unread' && notif.isRead) return false;
+      if (activeTab === 'unread' && (notif.isRead === true || String(notif.isRead) === 'true')) return false;
       if (activeTab === 'reviews') {
         const reviewTypes = ['REVIEW_ASSIGNED', 'DUE_SOON', 'OVERDUE', 'MANAGER_SUBMITTED', 'RETURNED', 'HR_COMPLETED'];
         if (!reviewTypes.includes(notif.type)) return false;
@@ -757,11 +757,11 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
                 )}
               </div>
             ) : (
-              filteredNotifications.map((notif) => {
-                const target = getWorkflowTarget(notif);
-                return (
-                  <div
-                    key={notif.id}
+              filteredNotifications.map((notif, idx) => {
+              const target = getWorkflowTarget(notif);
+              return (
+                <div
+                  key={`${notif.id || (notif as any)._id || 'notif'}_${idx}`}
                     className={`p-4 sm:p-5 rounded-2xl transition-all border ${
                       notif.isRead
                         ? 'bg-white dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700 shadow-2xs'

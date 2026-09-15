@@ -1064,24 +1064,18 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                       Appraisal Cycle Cohort <span className="text-rose-500">*</span>
                     </label>
-                    {suggestedCycle && (
-                      isSelectedSuggested ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded-md border border-indigo-200/60 dark:border-indigo-800/60">
-                          <Sparkles className="w-2.5 h-2.5" /> Auto-suggested
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCycleId(suggestedCycle.id);
-                            setHasUserManuallyChangedCycle(false);
-                          }}
-                          className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline cursor-pointer"
-                          title={`Reset to suggested ${suggestedCycle.name}`}
-                        >
-                          <RotateCcw className="w-2.5 h-2.5" /> Reset (Cycle {suggestedCycle.code})
-                        </button>
-                      )
+                    {suggestedCycle && !isSelectedSuggested && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCycleId(suggestedCycle.id);
+                          setHasUserManuallyChangedCycle(false);
+                        }}
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline cursor-pointer"
+                        title={`Reset to suggested ${suggestedCycle.name}`}
+                      >
+                        <RotateCcw className="w-2.5 h-2.5" /> Reset (Cycle {suggestedCycle.code})
+                      </button>
                     )}
                   </div>
                   <div className="relative">

@@ -204,9 +204,9 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
 
   const handleMarkAsRead = async (id: string) => {
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+      prev.map((n) => (n.id === id || (n as any)._id === id ? { ...n, isRead: true } : n))
     );
-    const unreadRemaining = notifications.filter((n) => !n.isRead && n.id !== id).length;
+    const unreadRemaining = notifications.filter((n) => !n.isRead && n.id !== id && (n as any)._id !== id).length;
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('notifications-updated', { detail: { count: unreadRemaining } }));
     }
@@ -603,11 +603,11 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
               <p className="text-[11px] text-slate-400 dark:text-slate-500">No pending workflow actions for your role.</p>
             </div>
           ) : (
-            notifications.map((notif) => {
+            notifications.map((notif, idx) => {
               const target = getWorkflowTarget(notif);
               return (
                 <div
-                  key={notif.id}
+                  key={`${notif.id || (notif as any)._id || 'notif'}_${idx}`}
                   className={`pt-3 first:pt-0 p-3.5 rounded-xl transition-all border ${notif.isRead
                       ? 'bg-white dark:bg-slate-800/60 border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-300'
                       : 'bg-indigo-50/40 dark:bg-indigo-950/40 border-indigo-100 dark:border-indigo-900/60 text-slate-900 dark:text-white shadow-2xs'
