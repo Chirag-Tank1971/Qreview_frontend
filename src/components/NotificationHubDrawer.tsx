@@ -329,8 +329,8 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
           config: {
             activeSection: 'appraisals',
             status: 'ALL',
-            appraisalId: meta.appraisalId || 'appr_2026_emp_hod_eng',
-            openLetter: meta.openLetter !== undefined ? meta.openLetter : true,
+            appraisalId: meta.appraisalId || '',
+            openLetter: meta.openLetter !== undefined ? meta.openLetter : !!meta.appraisalId,
             ...meta,
           },
         };

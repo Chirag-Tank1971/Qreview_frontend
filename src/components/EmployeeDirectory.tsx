@@ -48,18 +48,37 @@ interface EmployeeDirectoryProps {
   employees?: Employee[];
 }
 
-export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ onNavigateToHierarchy }) => {
+export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
+  onNavigateToHierarchy,
+  departments: initialDepartments,
+  designations: initialDesignations,
+  cycles: initialCycles,
+  kraTemplates: initialKraTemplates,
+  employees: initialEmployees,
+}) => {
   const { user } = useAuth();
   const isHRorAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'HR';
   const isAdmin = user?.role === 'SUPER_ADMIN';
 
-  // Data State
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [designations, setDesignations] = useState<Designation[]>([]);
-  const [cycles, setCycles] = useState<Cycle[]>([]);
-  const [kraTemplates, setKraTemplates] = useState<KraTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Data State initialized from props when available
+  const [employees, setEmployees] = useState<Employee[]>(initialEmployees || []);
+  const [departments, setDepartments] = useState<Department[]>(initialDepartments || []);
+  const [designations, setDesignations] = useState<Designation[]>(initialDesignations || []);
+  const [cycles, setCycles] = useState<Cycle[]>(initialCycles || []);
+  const [kraTemplates, setKraTemplates] = useState<KraTemplate[]>(initialKraTemplates || []);
+  const [loading, setLoading] = useState(
+    !(initialEmployees && initialEmployees.length > 0 && initialDepartments && initialDepartments.length > 0)
+  );
+
+  // Sync with incoming master data props
+  useEffect(() => {
+    if (initialEmployees && initialEmployees.length > 0) setEmployees(initialEmployees);
+    if (initialDepartments && initialDepartments.length > 0) setDepartments(initialDepartments);
+    if (initialDesignations && initialDesignations.length > 0) setDesignations(initialDesignations);
+    if (initialCycles && initialCycles.length > 0) setCycles(initialCycles);
+    if (initialKraTemplates && initialKraTemplates.length > 0) setKraTemplates(initialKraTemplates);
+    if (initialEmployees && initialEmployees.length > 0) setLoading(false);
+  }, [initialEmployees, initialDepartments, initialDesignations, initialCycles, initialKraTemplates]);
 
   // Delete Employee Modal State
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
@@ -103,7 +122,10 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ onNavigate
   };
 
   useEffect(() => {
-    loadData();
+    // Only trigger remote fetch if props were not provided
+    if (!initialEmployees || initialEmployees.length === 0) {
+      loadData();
+    }
   }, []);
 
   const handleConfirmDeleteEmployee = async () => {
