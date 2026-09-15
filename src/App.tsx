@@ -235,7 +235,7 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
+    <div className="h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
       {/* Unified Enterprise Header */}
       <Header
         currentView={currentView}
@@ -259,16 +259,16 @@ function AppContent() {
         onSelectView={handleNavigate}
       />
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Persistent Desktop Sidebar */}
         <Sidebar
           currentView={currentView}
           onSelectView={handleNavigate}
         />
 
-        <div className="flex flex-col flex-1 min-w-0 overflow-x-hidden">
+        <div className="flex flex-col flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden">
           {/* Main Content Area - Full width enterprise canvas */}
-          <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 pt-4 pb-20 md:pb-10">
+          <main className="flex-1 w-full pl-2 sm:pl-3 pr-4 sm:pr-6 lg:pr-8 pt-4 pb-20 md:pb-10">
           {/* Notifications Return-to-Workspace Bar */}
           {currentView === 'notifications' && (
             <div className="mb-4">
