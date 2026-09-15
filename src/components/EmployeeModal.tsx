@@ -135,21 +135,47 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     }
   }, [isOpen, kraTemplates]);
 
-  // Helper to check if designation is managerial
-  const isManagerDesignation = (desName?: string) => {
+  // Helper to check if an employee is an HOD
+  const isEmployeeHod = (emp: Employee) => {
+    if (emp.systemRole === 'HOD' || (emp as any).role === 'HOD') return true;
+    if (departments.some((d) => d.hodId === emp.id)) return true;
+    const empDes = designations.find((d) => d.id === emp.designationId);
+    const desName = (emp.designationName || empDes?.name || '').toLowerCase();
+    const empName = (emp.name || '').toLowerCase();
+    if (
+      desName.includes('hod') ||
+      desName.includes('head of') ||
+      desName.includes('director') ||
+      desName.includes('vp') ||
+      desName.includes('vice president') ||
+      (empDes && empDes.level >= 4)
+    ) {
+      return true;
+    }
+    if (empName.includes('_hod') || empName.includes(' hod')) return true;
+    return false;
+  };
+
+  // Helper to check if designation is a reporting manager/lead designation
+  const isReportingManagerDesignation = (desName?: string) => {
     if (!desName) return false;
     const lower = desName.toLowerCase();
+    // Exclude HOD / executive titles
+    if (
+      lower.includes('hod') ||
+      lower.includes('head of') ||
+      lower.includes('vp') ||
+      lower.includes('vice president') ||
+      lower.includes('director')
+    ) {
+      return false;
+    }
     return (
       lower.includes('manager') ||
       lower.includes('lead') ||
-      lower.includes('head') ||
-      lower.includes('director') ||
-      lower.includes('vp') ||
       lower.includes('supervisor') ||
-      lower.includes('principal') ||
-      lower.includes('chief') ||
       lower.includes('coordinator') ||
-      lower.includes('hod')
+      lower.includes('principal')
     );
   };
 
@@ -356,28 +382,31 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     }
   }, [departmentId, designations]);
 
-  // Filter available managers to managers/leads of selected department
+  // Filter available managers to ONLY reporting managers (HODs strictly excluded because HODs do not conduct employee reviews)
   const departmentManagers = allEmployees
     .filter((emp) => {
       if (employeeToEdit && emp.id === employeeToEdit.id) return false;
       if (departmentId && emp.departmentId !== departmentId) return false;
       if (emp.status === 'INACTIVE' || emp.isPastEmployee) return false;
 
-      const empDes = designations.find((d) => d.id === emp.designationId);
-      const isDeptHod = selectedDeptObj?.hodId === emp.id;
-      const isAlreadyManaging = allEmployees.some((other) => other.managerId === emp.id && other.status !== 'INACTIVE');
-      const isMgrTitle = isManagerDesignation(emp.designationName || empDes?.name);
-      const isMgrRole = emp.systemRole === 'MANAGER' || emp.systemRole === 'HOD';
+      // Strictly exclude HODs from reporting manager options
+      if (isEmployeeHod(emp)) {
+        // If this manager was already saved on this employee previously, keep it visible in edit mode
+        if (employeeToEdit && employeeToEdit.managerId === emp.id) return true;
+        return false;
+      }
 
-      return isDeptHod || isAlreadyManaging || isMgrTitle || isMgrRole;
+      const empDes = designations.find((d) => d.id === emp.designationId);
+      const isAlreadyManaging = allEmployees.some((other) => other.managerId === emp.id && other.status !== 'INACTIVE');
+      const isMgrTitle = isReportingManagerDesignation(emp.designationName || empDes?.name);
+      const isMgrRole =
+        emp.systemRole === 'MANAGER' ||
+        (emp as any).role === 'MANAGER' ||
+        (emp as any).role === 'REPORTING_MANAGER';
+
+      return isAlreadyManaging || isMgrTitle || isMgrRole;
     })
-    .sort((a, b) => {
-      const aIsOfficial = selectedDeptObj?.hodId === a.id;
-      const bIsOfficial = selectedDeptObj?.hodId === b.id;
-      if (aIsOfficial && !bIsOfficial) return -1;
-      if (!aIsOfficial && bIsOfficial) return 1;
-      return (a.name || '').localeCompare(b.name || '');
-    });
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   // Filter available HODs
   const departmentHods = allEmployees
@@ -1238,14 +1267,11 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                     className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                   >
                     <option value="">None / Self-Managed</option>
-                    {departmentManagers.map((emp) => {
-                      const isOfficialHod = emp.id === selectedDeptObj?.hodId;
-                      return (
-                        <option key={emp.id} value={emp.id}>
-                          {emp.name} ({emp.designationName || 'Manager'}){isOfficialHod ? ' (Dept HOD)' : ''}
-                        </option>
-                      );
-                    })}
+                    {departmentManagers.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.name} ({emp.designationName || 'Reporting Manager'})
+                      </option>
+                    ))}
                   </select>
                 </div>
 

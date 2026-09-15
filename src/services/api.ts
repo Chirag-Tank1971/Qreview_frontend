@@ -242,9 +242,9 @@ export const api = {
   },
 
   async switchRole(role?: string, userId?: string) {
-    const res = await fetch(`${API_BASE}/auth/switch-role`, {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/auth/switch-role`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ role, userId }),
     });
     if (!res.ok) {
@@ -1055,7 +1055,7 @@ export const api = {
 
   // Automated Notifications & Workflow Hub (Phase 5)
   async getNotifications(): Promise<any[]> {
-    const res = await fetch(`${API_BASE}/notifications`, {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/notifications`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error('Failed to fetch notifications');
@@ -1063,7 +1063,7 @@ export const api = {
   },
 
   async markNotificationRead(id: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/notifications/${id}/read`, {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/notifications/${id}/read`, {
       method: 'PUT',
       headers: getAuthHeaders(),
     });
@@ -1076,7 +1076,7 @@ export const api = {
   },
 
   async markAllNotificationsRead(): Promise<any> {
-    const res = await fetch(`${API_BASE}/notifications/read-all`, {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/notifications/read-all`, {
       method: 'PUT',
       headers: getAuthHeaders(),
     });
@@ -1089,7 +1089,7 @@ export const api = {
   },
 
   async deleteNotification(id: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/notifications/${id}`, {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/notifications/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     });
@@ -1102,7 +1102,7 @@ export const api = {
   },
 
   async completeNotification(id: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/notifications/${id}/complete`, {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/notifications/${id}/complete`, {
       method: 'POST',
       headers: getAuthHeaders(),
     });
@@ -1116,7 +1116,7 @@ export const api = {
 
   // Email Notification & Delivery Logs
   async getEmailLogs(limit: number = 50): Promise<{ logs: any[] }> {
-    const res = await fetch(`${API_BASE}/emails/logs?limit=${limit}`, {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/emails/logs?limit=${limit}`, {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error('Failed to fetch email delivery logs');
@@ -1124,7 +1124,7 @@ export const api = {
   },
 
   async sendTestEmail(email?: string, name?: string): Promise<any> {
-    const res = await fetch(`${API_BASE}/emails/test`, {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/emails/test`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ email, name }),
