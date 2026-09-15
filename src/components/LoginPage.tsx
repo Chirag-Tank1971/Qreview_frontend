@@ -334,72 +334,72 @@ export const LoginPage: React.FC = () => {
           <span>Role-Based Control</span>
         </div>
 
-        {/* Collapsible Demo Personas Accordion (Preserves fast-testing capability) */}
-        <div className="mt-6 border-t border-slate-200 dark:border-slate-800/80 pt-4 text-center">
-          <button
-            type="button"
-            onClick={() => setShowDemoDrawer(!showDemoDrawer)}
-            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 font-medium cursor-pointer transition-colors"
-          >
-            <span>Demo Personas & Test Accounts</span>
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showDemoDrawer ? 'rotate-180' : ''}`} />
-          </button>
+        {/* Collapsible Demo Personas Accordion (Development/Demo only) */}
+        {(!import.meta.env.PROD || import.meta.env.VITE_ENABLE_DEMO_PERSONAS === 'true') && (
+          <div className="mt-6 border-t border-slate-200 dark:border-slate-800/80 pt-4 text-center">
+            <button
+              type="button"
+              onClick={() => setShowDemoDrawer(!showDemoDrawer)}
+              className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 font-medium cursor-pointer transition-colors"
+            >
+              <span>Demo Personas & Test Accounts</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showDemoDrawer ? 'rotate-180' : ''}`} />
+            </button>
 
-          {showDemoDrawer && (
-            <div className="mt-3 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs text-left space-y-2.5 animate-fadeIn">
-              <div className="flex items-center justify-between text-[11px] text-slate-400 pb-2 border-b border-slate-100 dark:border-slate-800">
-                <span>Default Password for all: <code className="text-slate-700 dark:text-slate-300 font-mono font-bold">password123</code></span>
-              </div>
+            {showDemoDrawer && (
+              <div className="mt-3 p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs text-left space-y-2.5 animate-fadeIn">
+                <div className="flex items-center justify-between text-[11px] text-slate-400 pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <span>Default Password for all: <code className="text-slate-700 dark:text-slate-300 font-mono font-bold">password123</code></span>
+                </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {QUICK_ROLES.map((qr) => {
-                  const Icon = qr.icon;
-                  return (
-                    <div
-                      key={qr.role}
-                      className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-2"
-                    >
-                      <div className="min-w-0 flex items-center gap-2">
-                        <div className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
-                          <Icon className="w-3.5 h-3.5" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {QUICK_ROLES.map((qr) => {
+                    const Icon = qr.icon;
+                    return (
+                      <div
+                        key={qr.role}
+                        className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0 flex items-center gap-2">
+                          <div className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+                            <Icon className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-[11px] font-semibold text-slate-800 dark:text-slate-200 truncate">
+                              {qr.title}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">
+                              {qr.email}
+                            </div>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <div className="text-[11px] font-semibold text-slate-800 dark:text-slate-200 truncate">
-                            {qr.title}
-                          </div>
-                          <div className="text-[10px] text-slate-400 truncate">
-                            {qr.email}
-                          </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleAutofillForm(qr.email)}
+                            className="px-1.5 py-1 text-[10px] font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded cursor-pointer"
+                            title="Auto-fill form credentials"
+                          >
+                            Fill
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickLogin(qr)}
+                            disabled={isActionLocked}
+                            className="px-2 py-1 text-[10px] font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors disabled:opacity-50 cursor-pointer"
+                          >
+                            Sign In
+                          </button>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleAutofillForm(qr.email)}
-                          className="px-1.5 py-1 text-[10px] font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded cursor-pointer"
-                          title="Fill credentials into form"
-                        >
-                          Fill
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isActionLocked}
-                          onClick={() => handleQuickLogin(qr)}
-                          className="px-2 py-1 text-[10px] font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded cursor-pointer disabled:opacity-50 flex items-center gap-0.5"
-                          title="Direct Login"
-                        >
-                          <span>Sign in</span>
-                          <ArrowRight className="w-2.5 h-2.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </main>
 
       {/* Footer */}

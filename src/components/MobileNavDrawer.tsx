@@ -323,36 +323,38 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
             </div>
           )}
 
-          {/* Quick Persona Demo Switcher */}
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-            <div className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center justify-between">
-              <span>Quick Role Switch</span>
-              <span className="text-[9px] text-indigo-500 font-semibold">Demo</span>
+          {/* Quick Persona Demo Switcher (Development/Demo only) */}
+          {(!import.meta.env.PROD || import.meta.env.VITE_ENABLE_DEMO_PERSONAS === 'true') && (
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center justify-between">
+                <span>Quick Role Switch</span>
+                <span className="text-[9px] text-indigo-500 font-semibold">Demo</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {quickPersonas.map((p) => {
+                  const isCurrent = user?.role === p.role;
+                  return (
+                    <button
+                      key={p.role}
+                      onClick={() => {
+                        switchRole(p.role, p.userId);
+                        onClose();
+                      }}
+                      disabled={isLoading}
+                      className={`px-2 py-1.5 rounded-lg text-left text-[11px] font-semibold border transition-all cursor-pointer ${
+                        isCurrent
+                          ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300'
+                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      <div className="truncate font-bold">{p.title}</div>
+                      <div className="text-[9px] text-slate-400 truncate">{p.name}</div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {quickPersonas.map((p) => {
-                const isCurrent = user?.role === p.role;
-                return (
-                  <button
-                    key={p.role}
-                    onClick={() => {
-                      switchRole(p.role, p.userId);
-                      onClose();
-                    }}
-                    disabled={isLoading}
-                    className={`px-2 py-1.5 rounded-lg text-left text-[11px] font-semibold border transition-all cursor-pointer ${
-                      isCurrent
-                        ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300'
-                        : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    <div className="truncate font-bold">{p.title}</div>
-                    <div className="text-[9px] text-slate-400 truncate">{p.name}</div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Drawer Footer */}
