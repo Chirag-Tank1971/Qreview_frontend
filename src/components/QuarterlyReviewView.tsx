@@ -13,6 +13,7 @@ import {
 import { api } from '../services/api';
 import { ReviewScoringModal } from './ReviewScoringModal';
 import { BatchGenerateReviewsModal } from './BatchGenerateReviewsModal';
+import { InitiateReviewModal } from './InitiateReviewModal';
 import { CycleBadge } from './ui/CycleBadge';
 import { toast } from '../context/ToastContext';
 import {
@@ -90,6 +91,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   const [activeReviewForScoring, setActiveReviewForScoring] = useState<EmployeeReview | null>(null);
   const [isScoringModalOpen, setIsScoringModalOpen] = useState<boolean>(false);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState<boolean>(false);
+  const [isInitiateModalOpen, setIsInitiateModalOpen] = useState<boolean>(false);
   const [isPeriodModalOpen, setIsPeriodModalOpen] = useState<boolean>(false);
   const [updatingPeriodId, setUpdatingPeriodId] = useState<string | null>(null);
   const handledReviewIdRef = useRef<string | null>(null);
@@ -514,6 +516,15 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-400 dark:text-amber-600" />
                 <span>Initiate Batch</span>
+              </button>
+
+              <button
+                onClick={() => setIsInitiateModalOpen(true)}
+                className="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-lg transition-colors flex items-center space-x-1.5 shadow-2xs cursor-pointer"
+                title="Initiate single employee review with tenure check and manual override"
+              >
+                <UserCheck className="w-3.5 h-3.5 text-indigo-200" />
+                <span>Initiate Review</span>
               </button>
             </>
           )}
@@ -1047,6 +1058,20 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
           departments={departments}
           cycles={cycles}
           employees={employees}
+        />
+      )}
+
+      {isInitiateModalOpen && (
+        <InitiateReviewModal
+          isOpen={isInitiateModalOpen}
+          onClose={() => setIsInitiateModalOpen(false)}
+          onGenerated={() => {
+            setIsInitiateModalOpen(false);
+            loadReviewsAndStats();
+          }}
+          periods={periods}
+          employees={employees}
+          initialPeriodId={selectedPeriodId}
         />
       )}
 

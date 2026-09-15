@@ -704,6 +704,73 @@ export const api = {
     return res.json();
   },
 
+  async checkReviewEligibility(employeeId: string, reviewPeriodId: string): Promise<{
+    eligible: boolean;
+    canInitiateManually: boolean;
+    requiresManualOverride: boolean;
+    tenureDays: number;
+    minTenureDays: number;
+    reason?: string;
+    checks: {
+      statusActive: boolean;
+      hasManager: boolean;
+      hasKraTemplate: boolean;
+      alreadyHasReview: boolean;
+      periodActiveOrUpcoming: boolean;
+      tenureMet: boolean;
+    };
+    employee: {
+      id: string;
+      name: string;
+      employeeCode: string;
+      status: string;
+      joiningDate?: string;
+      managerName?: string;
+      departmentName?: string;
+      designationName?: string;
+    };
+    period: {
+      id: string;
+      name: string;
+      quarter: number;
+      year: number;
+      startDate: string;
+      endDate: string;
+      status: string;
+    };
+  }> {
+    const res = await fetch(
+      `${API_BASE}/reviews/check-eligibility?employeeId=${encodeURIComponent(employeeId)}&reviewPeriodId=${encodeURIComponent(reviewPeriodId)}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to check eligibility' }));
+      throw new Error(err.error || 'Failed to check eligibility');
+    }
+    return res.json();
+  },
+
+  async initiateSingleReview(data: {
+    employeeId: string;
+    reviewPeriodId: string;
+    reason?: string;
+  }): Promise<{ message: string; review: EmployeeReview }> {
+    invalidateApiCache('/reviews');
+    invalidateApiCache('/notifications');
+    const res = await fetch(`${API_BASE}/reviews/initiate`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to initiate review' }));
+      throw new Error(err.error || 'Failed to initiate review');
+    }
+    return res.json();
+  },
+
   async scoreReview(
     id: string,
     data: {
