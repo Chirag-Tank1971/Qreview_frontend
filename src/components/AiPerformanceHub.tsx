@@ -1,47 +1,27 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
-  Award,
-  Heart,
-  ShieldCheck,
-  AlertTriangle,
   TrendingUp,
   Target,
   Users,
-  Send,
   CheckCircle2,
   RefreshCw,
   Copy,
   Check,
-  Filter,
   Layers,
-  Flame,
   ArrowUpRight,
-  BookOpen,
-  UserCheck,
   HelpCircle,
-  Clock,
-  ThumbsUp,
-  MessageSquare,
-  Compass,
   FileText,
   ChevronRight,
-  Plus,
+  MessageSquare,
 } from 'lucide-react';
 import { api } from '../services/api';
-import { PipCard, PipInitiateModal, PipConcludeModal } from './pip';
 import {
   User,
   Employee,
-  FeedbackEntry,
-  PipRecord,
   TalentRecord,
   AiReviewSynthesisResult,
-  AiBiasCheckResult,
-  AiGrowthPlanResult,
   AiTalentInsightsResult,
-  KudosBadgeCategory,
-  FeedbackType,
 } from '../types';
 
 interface AiPerformanceHubProps {
@@ -49,7 +29,7 @@ interface AiPerformanceHubProps {
 }
 
 export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser }) => {
-  const [activeTab, setActiveTab] = useState<'synthesis' | 'bias' | 'feedback_wall' | 'nine_box_pip' | 'growth_plan'>('synthesis');
+  const [activeTab, setActiveTab] = useState<'synthesis' | 'nine_box'>('synthesis');
 
   // Common data
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -62,64 +42,11 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
   const [synthesisPerspective, setSynthesisPerspective] = useState<'manager' | 'self' | 'executive'>('manager');
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
-  // 2. AI Tone & Bias Harmonizer State
-  const [biasInputText, setBiasInputText] = useState<string>(
-    'Rohan always performs well but sometimes he is too quiet in meetings. Needs to be more like a rockstar communicator and show better aggression in quarterly planning.'
-  );
-  const [biasRatingScore, setBiasRatingScore] = useState<number>(4.2);
-  const [analyzingBias, setAnalyzingBias] = useState<boolean>(false);
-  const [biasResult, setBiasResult] = useState<AiBiasCheckResult | null>(null);
-
-  // 3. Continuous 360 Feedback State
-  const [feedbackList, setFeedbackList] = useState<FeedbackEntry[]>([]);
-  const [feedbackFilterType, setFeedbackFilterType] = useState<string>('ALL');
-  const [feedbackRecipientId, setFeedbackRecipientId] = useState<string>('');
-  const [feedbackType, setFeedbackType] = useState<FeedbackType>('kudos');
-  const [badgeCategory, setBadgeCategory] = useState<KudosBadgeCategory>('technical_excellence');
-  const [feedbackMessage, setFeedbackMessage] = useState<string>('');
-  const [isPublicFeedback, setIsPublicFeedback] = useState<boolean>(true);
-  const [sendingFeedback, setSendingFeedback] = useState<boolean>(false);
-  const [feedbackSuccessNotice, setFeedbackSuccessNotice] = useState<string | null>(null);
-
-  // 4. 9-Box & PIP State
+  // 2. 9-Box State
   const [talentRecords, setTalentRecords] = useState<TalentRecord[]>([]);
-  const [pips, setPips] = useState<PipRecord[]>([]);
   const [selectedTalent, setSelectedTalent] = useState<TalentRecord | null>(null);
   const [generatingInsights, setGeneratingInsights] = useState<boolean>(false);
   const [talentInsights, setTalentInsights] = useState<AiTalentInsightsResult | null>(null);
-  const [activePipModal, setActivePipModal] = useState<PipRecord | null>(null);
-  const [newCheckinNotes, setNewCheckinNotes] = useState<string>('');
-  const [newCheckinRating, setNewCheckinRating] = useState<number>(3.5);
-  const [newCheckinActions, setNewCheckinActions] = useState<string>('');
-  const [savingCheckin, setSavingCheckin] = useState<boolean>(false);
-
-  // PIP Enhanced Governance & Historical State
-  const [pipFilterTab, setPipFilterTab] = useState<'ACTIVE' | 'COMPLETED' | 'SEPARATED' | 'ALL'>('ACTIVE');
-  const [isInitiatePipOpen, setIsInitiatePipOpen] = useState<boolean>(false);
-  const [concludePipTarget, setConcludePipTarget] = useState<PipRecord | null>(null);
-
-  const filteredPips = useMemo(() => {
-    switch (pipFilterTab) {
-      case 'ACTIVE':
-        return pips.filter((p) => p.status === 'active' || p.status === 'extended' || p.status === 'under_review');
-      case 'COMPLETED':
-        return pips.filter((p) => p.status === 'completed_successfully');
-      case 'SEPARATED':
-        return pips.filter((p) => p.status === 'escalated_action');
-      case 'ALL':
-      default:
-        return pips;
-    }
-  }, [pips, pipFilterTab]);
-
-  const activePipCount = pips.filter((p) => p.status === 'active' || p.status === 'extended' || p.status === 'under_review').length;
-  const completedPipCount = pips.filter((p) => p.status === 'completed_successfully').length;
-  const separatedPipCount = pips.filter((p) => p.status === 'escalated_action').length;
-
-  // 5. Growth Plan State
-  const [growthTargetRole, setGrowthTargetRole] = useState<string>('Staff / Lead Systems Architect');
-  const [generatingGrowthPlan, setGeneratingGrowthPlan] = useState<boolean>(false);
-  const [growthPlanResult, setGrowthPlanResult] = useState<AiGrowthPlanResult | null>(null);
 
   const isNormalEmployee = currentUser.role === 'EMPLOYEE';
 
@@ -131,16 +58,12 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
   const loadBaseData = async () => {
     setLoadingEmployees(true);
     try {
-      const [empResult, fbResult, pipResult, talentResult] = await Promise.allSettled([
+      const [empResult, talentResult] = await Promise.allSettled([
         api.getEmployees(),
-        api.getFeedback(),
-        api.getPips(),
         api.getTalentRecords(),
       ]);
 
       const empData = empResult.status === 'fulfilled' ? empResult.value : [];
-      const fbData = fbResult.status === 'fulfilled' ? fbResult.value : [];
-      const pipData = pipResult.status === 'fulfilled' ? pipResult.value : [];
       const talentData = talentResult.status === 'fulfilled' ? talentResult.value : [];
 
       let accessibleEmployees = empData || [];
@@ -159,16 +82,10 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
       }
 
       setEmployees(accessibleEmployees);
-      if (!isNormalEmployee && accessibleEmployees.length > 0) {
+      if (accessibleEmployees.length > 0) {
         setSelectedEmployeeId(accessibleEmployees[0].id);
-        setFeedbackRecipientId(empData?.[1]?.id || accessibleEmployees[0].id);
-      } else if (isNormalEmployee && accessibleEmployees.length > 0) {
-        setSelectedEmployeeId(accessibleEmployees[0].id);
-        setFeedbackRecipientId(accessibleEmployees[0].id);
       }
 
-      setFeedbackList(fbData || []);
-      setPips(pipData || []);
       setTalentRecords(talentData || []);
       if (talentData && talentData.length > 0) {
         setSelectedTalent(talentData[0]);
@@ -205,9 +122,6 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
           { title: 'Code Review & Team Velocity', weightage: 30, target: '24-hour turnaround on PR reviews' },
           { title: 'Innovation & Documentation', weightage: 30, target: 'Publish 4 technical RFCs and optimization docs' },
         ],
-        kudosReceived: feedbackList
-          .filter((f) => f.toEmployeeId === selectedEmployee.id)
-          .map((f) => ({ category: f.badgeCategory, text: f.message })),
         perspective: synthesisPerspective,
       };
 
@@ -222,68 +136,7 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
     }
   };
 
-  // 2. Trigger Bias & Tone Analysis
-  const handleRunBiasAnalysis = async () => {
-    if (!biasInputText.trim()) return;
-    setAnalyzingBias(true);
-    try {
-      const res = await api.analyzeAiBiasAndTone({
-        reviewText: biasInputText,
-        employeeName: selectedEmployee ? selectedEmployee.name : 'Employee',
-        ratingScore: biasRatingScore,
-      });
-      if (res.success && res.data) {
-        setBiasResult(res.data);
-      }
-    } catch (err: any) {
-      console.error('Bias check error:', err);
-    } finally {
-      setAnalyzingBias(false);
-    }
-  };
-
-  // 3. Send 360 Feedback
-  const handleSendFeedback = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!feedbackRecipientId || !feedbackMessage.trim()) return;
-    setSendingFeedback(true);
-
-    try {
-      const recipient = employees.find((emp) => emp.id === feedbackRecipientId);
-      const newEntry = await api.sendFeedback({
-        fromUserId: currentUser.id,
-        fromUserName: currentUser.name,
-        fromUserRole: currentUser.role,
-        toEmployeeId: feedbackRecipientId,
-        toEmployeeName: recipient ? recipient.name : 'Team Member',
-        toDepartment: recipient?.departmentName || recipient?.departmentId || 'General',
-        type: feedbackType,
-        badgeCategory,
-        message: feedbackMessage,
-        isPublic: isPublicFeedback,
-      });
-
-      setFeedbackList([newEntry, ...feedbackList]);
-      setFeedbackMessage('');
-      setFeedbackSuccessNotice('Recognition successfully posted to the Continuous Feedback stream!');
-      setTimeout(() => setFeedbackSuccessNotice(null), 4000);
-    } catch (err: any) {
-      console.error('Feedback submit error:', err);
-    } finally {
-      setSendingFeedback(false);
-    }
-  };
-
-  const handleLikeFeedback = async (feedbackId: string) => {
-    try {
-      const updated = await api.reactToFeedback(feedbackId, currentUser.id);
-      setFeedbackList((prev) => prev.map((f) => (f.id === feedbackId ? updated : f)));
-    } catch (err) {
-      console.error('Reaction error:', err);
-    }
-  };
-
-  // 4. Generate Strategic Talent Insights
+  // 2. Generate Strategic Talent Insights
   const handleRunTalentInsights = async () => {
     setGeneratingInsights(true);
     try {
@@ -314,86 +167,10 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
     }
   };
 
-  // 5. Generate Career Growth Plan
-  const handleRunGrowthPlan = async () => {
-    if (!selectedEmployee) return;
-    setGeneratingGrowthPlan(true);
-    try {
-      const res = await api.generateAiGrowthPlan({
-        employeeName: selectedEmployee.name,
-        designation: selectedEmployee.designationName || selectedEmployee.designationId || 'Specialist',
-        department: selectedEmployee.departmentName || selectedEmployee.departmentId || 'Engineering',
-        currentScore: 4.5,
-        strengths: ['High architectural rigor', 'Fast milestone delivery', 'Strong code quality'],
-        weaknesses: ['Cross-functional executive communication', 'Broader system capacity planning'],
-        aspirationalRole: growthTargetRole,
-      });
-
-      if (res.success && res.data) {
-        setGrowthPlanResult(res.data);
-      }
-    } catch (err) {
-      console.error('Growth plan error:', err);
-    } finally {
-      setGeneratingGrowthPlan(false);
-    }
-  };
-
-  // Add PIP Check-in
-  const handleSavePipCheckin = async () => {
-    if (!activePipModal || !newCheckinNotes.trim()) return;
-    setSavingCheckin(true);
-    try {
-      const updated = await api.addPipCheckin(activePipModal.id, {
-        managerNotes: newCheckinNotes,
-        ratingOutOf5: newCheckinRating,
-        actionItems: newCheckinActions,
-        employeeComments: 'Employee acknowledged feedback and agreed to priority action items.',
-      });
-
-      setPips((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-      setActivePipModal(updated);
-      setNewCheckinNotes('');
-      setNewCheckinActions('');
-    } catch (err) {
-      console.error('Checkin save error:', err);
-    } finally {
-      setSavingCheckin(false);
-    }
-  };
-
   const copyToClipboard = (text: string, sectionId: string) => {
     navigator.clipboard.writeText(text);
     setCopiedSection(sectionId);
     setTimeout(() => setCopiedSection(null), 2500);
-  };
-
-  const filteredFeedbacks = feedbackList.filter((f) => {
-    if (feedbackFilterType === 'ALL') return true;
-    return f.type === feedbackFilterType;
-  });
-
-  const getBadgeIcon = (cat: KudosBadgeCategory) => {
-    switch (cat) {
-      case 'leadership':
-        return <Award className="w-4 h-4 text-amber-600" />;
-      case 'customer_first':
-        return <Heart className="w-4 h-4 text-rose-600" />;
-      case 'technical_excellence':
-        return <Sparkles className="w-4 h-4 text-indigo-600" />;
-      case 'team_collaboration':
-        return <Users className="w-4 h-4 text-emerald-600" />;
-      case 'innovation':
-        return <Flame className="w-4 h-4 text-orange-600" />;
-      case 'speed_execution':
-        return <TrendingUp className="w-4 h-4 text-blue-600" />;
-      default:
-        return <Award className="w-4 h-4 text-indigo-600" />;
-    }
-  };
-
-  const getBadgeLabel = (cat: KudosBadgeCategory) => {
-    return cat.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
   return (
@@ -411,9 +188,9 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                 Gemini 3.8 Flash Engine
               </span>
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">AI Performance & Continuous Feedback Hub</h1>
+            <h1 className="text-2xl font-bold text-white tracking-tight">AI Review & Talent Intelligence Hub</h1>
             <p className="text-slate-300 text-sm mt-1 max-w-3xl">
-              Harmonize annual appraisal narratives, perform bias checks, facilitate real-time peer recognitions, and optimize talent mobility using Google GenAI models.
+              Harmonize appraisal review narratives and analyze strategic 9-box talent mobility using Google GenAI models.
             </p>
           </div>
 
@@ -446,58 +223,16 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
         </button>
 
         <button
-          id="tab_btn_bias"
-          onClick={() => setActiveTab('bias')}
-          className={`pb-3 px-4 text-sm font-semibold border-b-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
-            activeTab === 'bias'
-              ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-          }`}
-        >
-          <ShieldCheck className="w-4 h-4" />
-          Tone & Bias Harmonizer
-        </button>
-
-        <button
-          id="tab_btn_feedback"
-          onClick={() => setActiveTab('feedback_wall')}
-          className={`pb-3 px-4 text-sm font-semibold border-b-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
-            activeTab === 'feedback_wall'
-              ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-          }`}
-        >
-          <Award className="w-4 h-4" />
-          Continuous 360° Kudos Wall
-          <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold">
-            {feedbackList.length}
-          </span>
-        </button>
-
-        <button
           id="tab_btn_nine_box"
-          onClick={() => setActiveTab('nine_box_pip')}
+          onClick={() => setActiveTab('nine_box')}
           className={`pb-3 px-4 text-sm font-semibold border-b-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
-            activeTab === 'nine_box_pip'
+            activeTab === 'nine_box'
               ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
               : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
           }`}
         >
           <Layers className="w-4 h-4" />
-          9-Box Matrix & PIP Tracker
-        </button>
-
-        <button
-          id="tab_btn_growth"
-          onClick={() => setActiveTab('growth_plan')}
-          className={`pb-3 px-4 text-sm font-semibold border-b-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
-            activeTab === 'growth_plan'
-              ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-          }`}
-        >
-          <Compass className="w-4 h-4" />
-          Career Growth & Upskilling
+          9-Box Talent Matrix
         </button>
       </div>
 
@@ -563,12 +298,6 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                       Rolling 4-Quarter Rollup Score:{' '}
                       <span className="font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded">
                         4.55 / 5.00 (Outstanding)
-                      </span>
-                    </div>
-                    <div className="text-slate-600 dark:text-slate-400">
-                      Peer Kudos Count:{' '}
-                      <span className="font-bold text-indigo-700 dark:text-indigo-400">
-                        {feedbackList.filter((f) => f.toEmployeeId === selectedEmployee.id).length} recognitions
                       </span>
                     </div>
                   </div>
@@ -716,380 +445,15 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
         </div>
       )}
 
-      {/* TAB 2: TONE & BIAS HARMONIZER */}
-      {activeTab === 'bias' && (
-        <div id="tab_content_bias" className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-b-xl p-6 shadow-sm">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Input Panel */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    Review Feedback Draft to Audit
-                  </h3>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">Unconscious Bias & Tone Audit</span>
-                </div>
-
-                <textarea
-                  id="textarea_bias_input"
-                  rows={6}
-                  value={biasInputText}
-                  onChange={(e) => setBiasInputText(e.target.value)}
-                  placeholder="Paste or type performance feedback comments here to audit for vague language, recency bias, or subjective phrasing..."
-                  className="w-full p-3.5 text-xs text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none leading-relaxed"
-                />
-
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
-                      Assigned Performance Rating
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="range"
-                        min="1"
-                        max="5"
-                        step="0.1"
-                        value={biasRatingScore}
-                        onChange={(e) => setBiasRatingScore(parseFloat(e.target.value))}
-                        className="w-full accent-indigo-600"
-                      />
-                      <span className="px-2.5 py-1 text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900 rounded-lg min-w-[50px] text-center">
-                        {biasRatingScore} / 5
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    id="btn_audit_bias"
-                    onClick={handleRunBiasAnalysis}
-                    disabled={analyzingBias || !biasInputText.trim()}
-                    className="mt-4 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-xs font-semibold shadow-sm flex items-center gap-2 transition-all"
-                  >
-                    {analyzingBias ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        Auditing Tone...
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                        Audit Tone & Bias
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Analysis Result Panel */}
-              <div className="space-y-4">
-                {!biasResult && !analyzingBias && (
-                  <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl min-h-[300px]">
-                    <ShieldCheck className="w-10 h-10 text-indigo-300 dark:text-indigo-500 mb-2" />
-                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">AI Bias & Tone Evaluation</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-1">
-                      Analyze review narratives to flag ambiguous words, emotional bias, and receive a compliant, objective rewrite instantly.
-                    </p>
-                  </div>
-                )}
-
-                {biasResult && (
-                  <div className="space-y-4 animate-in fade-in duration-200">
-                    {/* Compliance & Bias Score Header */}
-                    <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between">
-                      <div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Compliance Assessment</div>
-                        <div className="text-base font-bold text-slate-900 dark:text-white mt-0.5 capitalize flex items-center gap-2">
-                          {biasResult.complianceRating === 'COMPLIANT' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                              Compliant & Objective
-                            </span>
-                          )}
-                          {biasResult.complianceRating === 'NEEDS_REVISION' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                              Revision Suggested
-                            </span>
-                          )}
-                          {biasResult.complianceRating === 'FLAGGED' && (
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-                              Flagged for Bias
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">Bias Risk Index</div>
-                        <div className={`text-xl font-extrabold ${biasResult.biasScore > 35 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                          {biasResult.biasScore} / 100
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Detected Issues */}
-                    {biasResult.detectedIssues.length > 0 && (
-                      <div className="p-4 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl space-y-2">
-                        <div className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                          Detected Ambiguities / Subjective Phrases
-                        </div>
-                        <div className="space-y-2">
-                          {biasResult.detectedIssues.map((iss, idx) => (
-                            <div key={idx} className="text-xs bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-amber-200/80 dark:border-amber-800/60">
-                              <div className="font-semibold text-rose-700 dark:text-rose-400">"{iss.phrase}"</div>
-                              <div className="text-slate-600 dark:text-slate-300 mt-0.5">{iss.suggestion}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Compliant Rewrite Card */}
-                    <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 rounded-xl space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                          AI Suggested Objective Rewrite
-                        </span>
-                        <button
-                          onClick={() => {
-                            setBiasInputText(biasResult.suggestedRevisedText);
-                            copyToClipboard(biasResult.suggestedRevisedText, 'rewrite');
-                          }}
-                          className="text-xs text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100 font-semibold flex items-center gap-1"
-                        >
-                          <Copy className="w-3 h-3" />
-                          Apply & Copy
-                        </button>
-                      </div>
-                      <p className="text-xs text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800 p-3 rounded-lg border border-emerald-100 dark:border-emerald-900/50 font-serif leading-relaxed">
-                        "{biasResult.suggestedRevisedText}"
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: CONTINUOUS 360° KUDOS & RECOGNITION WALL */}
-      {activeTab === 'feedback_wall' && (
-        <div id="tab_content_feedback" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left: Give Recognition Form */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
-                <Award className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Send 360° Feedback / Kudos</h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Recognize peer contributions and link to KRA milestones</p>
-                </div>
-              </div>
-
-              {feedbackSuccessNotice && (
-                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs text-emerald-800 dark:text-emerald-300 font-medium flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  {feedbackSuccessNotice}
-                </div>
-              )}
-
-              <form onSubmit={handleSendFeedback} className="space-y-3.5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Recipient</label>
-                  <select
-                    id="select_kudos_recipient"
-                    value={feedbackRecipientId}
-                    onChange={(e) => setFeedbackRecipientId(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    required
-                  >
-                    {employees.map((emp) => (
-                      <option key={emp.id} value={emp.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
-                        {emp.name} ({emp.departmentName || emp.departmentId})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Feedback Category</label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {[
-                      { id: 'technical_excellence', label: 'Tech Excellence', icon: Sparkles },
-                      { id: 'team_collaboration', label: 'Team Collaboration', icon: Users },
-                      { id: 'customer_first', label: 'Customer First', icon: Heart },
-                      { id: 'leadership', label: 'Leadership', icon: Award },
-                      { id: 'innovation', label: 'Innovation', icon: Flame },
-                      { id: 'speed_execution', label: 'Speed & Execution', icon: TrendingUp },
-                    ].map((b) => (
-                      <button
-                        type="button"
-                        key={b.id}
-                        id={`badge_select_${b.id}`}
-                        onClick={() => setBadgeCategory(b.id as KudosBadgeCategory)}
-                        className={`p-2 rounded-lg text-[11px] font-semibold border flex items-center gap-1.5 transition-all text-left ${
-                          badgeCategory === b.id
-                            ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300'
-                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60'
-                        }`}
-                      >
-                        <b.icon className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate">{b.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Recognition Message</label>
-                  <textarea
-                    id="input_feedback_message"
-                    rows={4}
-                    value={feedbackMessage}
-                    onChange={(e) => setFeedbackMessage(e.target.value)}
-                    placeholder="Highlight specific milestone accomplishments, impact on project deadlines, or peer coaching..."
-                    className="w-full p-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none leading-relaxed"
-                    required
-                  />
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isPublicFeedback}
-                      onChange={(e) => setIsPublicFeedback(e.target.checked)}
-                      className="rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span>Post to Company Kudos Wall</span>
-                  </label>
-
-                  <button
-                    type="submit"
-                    id="submit_feedback_btn"
-                    disabled={sendingFeedback || !feedbackMessage.trim()}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-xs font-semibold shadow-sm flex items-center gap-1.5 transition-all"
-                  >
-                    {sendingFeedback ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                    Post Recognition
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* Right: Live Stream */}
-            <div className="lg:col-span-2 space-y-4">
-              {/* Filter bar */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 shadow-sm flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                    <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    Feed Stream
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500 dark:text-slate-400">Filter:</span>
-                  <select
-                    id="filter_feedback_type"
-                    value={feedbackFilterType}
-                    onChange={(e) => setFeedbackFilterType(e.target.value)}
-                    className="px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg focus:outline-none"
-                  >
-                    <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Recognitions</option>
-                    <option value="kudos" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Kudos Only</option>
-                    <option value="growth_suggestion" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Growth Suggestions</option>
-                    <option value="peer_review" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Peer Reviews</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Kudos Stream Items */}
-              <div className="space-y-3">
-                {filteredFeedbacks.length === 0 && (
-                  <div className="p-8 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
-                    <Award className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-                    <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">No recognitions found matching this filter.</div>
-                  </div>
-                )}
-
-                {filteredFeedbacks.map((item) => (
-                  <div
-                    key={item.id}
-                    id={`feedback_card_${item.id}`}
-                    className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm hover:border-indigo-200 dark:hover:border-indigo-800 transition-all space-y-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-full bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-900 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-xs">
-                          {item.fromUserName.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                            <span>{item.fromUserName}</span>
-                            <span className="text-slate-400 font-normal">→</span>
-                            <span className="text-indigo-700 dark:text-indigo-400">{item.toEmployeeName}</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                            {item.toDepartment} • {new Date(item.createdAt).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-300">
-                        {getBadgeIcon(item.badgeCategory)}
-                        <span className="text-[11px] font-semibold">{getBadgeLabel(item.badgeCategory)}</span>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed pl-11 font-serif">
-                      "{item.message}"
-                    </p>
-
-                    {item.linkedKraTitle && (
-                      <div className="ml-11 px-2.5 py-1 bg-slate-50 dark:bg-slate-800/80 rounded-md border border-slate-100 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                        <Target className="w-3 h-3 text-indigo-500 dark:text-indigo-400" />
-                        <span>Linked KRA: {item.linkedKraTitle}</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 pl-11 text-xs">
-                      <button
-                        onClick={() => handleLikeFeedback(item.id)}
-                        className={`flex items-center gap-1.5 text-[11px] font-semibold transition-colors ${
-                          item.likedBy?.includes(currentUser.id)
-                            ? 'text-rose-600 dark:text-rose-400'
-                            : 'text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400'
-                        }`}
-                      >
-                        <ThumbsUp className="w-3.5 h-3.5" />
-                        <span>{item.likesCount || 0} {item.likesCount === 1 ? 'High-Five' : 'High-Fives'}</span>
-                      </button>
-
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                        Quarter {item.quarter || 'Q2'} Cycle
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: 9-BOX TALENT MATRIX & PIP TRACKER */}
-      {activeTab === 'nine_box_pip' && (
+      {/* TAB 2: 9-BOX TALENT MATRIX */}
+      {activeTab === 'nine_box' && (
         <div id="tab_content_nine_box" className="space-y-6">
           {/* Executive Insights Banner */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Layers className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                9-Box Succession & Performance Improvement (PIP) Intelligence
+                9-Box Succession & Executive Talent Intelligence
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Strategic workforce stratification mapping rolling quarterly performance against future leadership potential.
@@ -1171,7 +535,7 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
             </div>
           )}
 
-          {/* 9-Box Grid & PIP Split */}
+          {/* 9-Box Grid & Succession Profile */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* 9-Box Matrix Visualizer (2 Cols) */}
             <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
@@ -1427,374 +791,11 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
               )}
             </div>
           </div>
-
-          {/* Performance Improvement Plan (PIP) Active Cases & Historical Archive */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                  Performance Improvement Plans (PIP) & Talent Governance
-                </h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Structured coaching milestones, bi-weekly check-ins, repeat cycle retention, and legal PDF dossiers.
-                </p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
-                {!isNormalEmployee && (
-                  <button
-                    onClick={() => setIsInitiatePipOpen(true)}
-                    className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Initiate New PIP</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Historical Archive & Status Tabs */}
-            <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
-              <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => setPipFilterTab('ACTIVE')}
-                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    pipFilterTab === 'ACTIVE'
-                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs font-bold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  Active Plans ({activePipCount})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPipFilterTab('COMPLETED')}
-                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    pipFilterTab === 'COMPLETED'
-                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs font-bold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  Completed / Restored ({completedPipCount})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPipFilterTab('SEPARATED')}
-                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    pipFilterTab === 'SEPARATED'
-                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs font-bold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  Separated ({separatedPipCount})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPipFilterTab('ALL')}
-                  className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    pipFilterTab === 'ALL'
-                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs font-bold'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  All History ({pips.length})
-                </button>
-              </div>
-
-              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                Showing {filteredPips.length} record{filteredPips.length === 1 ? '' : 's'}
-              </span>
-            </div>
-
-            {/* List of PIP Cards */}
-            <div className="space-y-3 pt-2">
-              {filteredPips.length === 0 ? (
-                <div className="text-center py-12 bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 p-6 space-y-2">
-                  <ShieldCheck className="w-8 h-8 text-slate-400 mx-auto" />
-                  <div className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    No {pipFilterTab.toLowerCase()} PIP records found
-                  </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                    {pipFilterTab === 'ACTIVE'
-                      ? 'All employees are meeting expectations. No performance improvement plans are currently active.'
-                      : 'No historical records under this filter view.'}
-                  </p>
-                  {!isNormalEmployee && pipFilterTab === 'ACTIVE' && (
-                    <button
-                      onClick={() => setIsInitiatePipOpen(true)}
-                      className="mt-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1 shadow-2xs cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Initiate PIP for an Employee
-                    </button>
-                  )}
-                </div>
-              ) : (
-                filteredPips.map((pip) => (
-                  <PipCard
-                    key={pip.id}
-                    pip={pip}
-                    currentUser={currentUser}
-                    onOpenCheckin={(target) => setActivePipModal(target)}
-                    onOpenConclude={(target) => setConcludePipTarget(target)}
-                    onUpdated={(updated) => {
-                      setPips((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-                    }}
-                  />
-                ))
-              )}
-            </div>
-          </div>
         </div>
       )}
 
-      {/* TAB 5: CAREER GROWTH & UPSKILLING ROADMAP */}
-      {activeTab === 'growth_plan' && (
-        <div id="tab_content_growth" className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-b-xl p-6 shadow-sm">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Form Column */}
-              <div className="space-y-4 border-r border-slate-100 dark:border-slate-800 pr-0 lg:pr-6">
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Employee Profile
-                  </label>
-                  <select
-                    id="select_growth_employee"
-                    value={selectedEmployeeId}
-                    onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  >
-                    {employees.map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.name} ({emp.designationName || emp.designationId || 'Specialist'})
-                      </option>
-                    ))}
-                  </select>
-                </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Aspirational Target Role
-                  </label>
-                  <input
-                    type="text"
-                    id="input_growth_role"
-                    value={growthTargetRole}
-                    onChange={(e) => setGrowthTargetRole(e.target.value)}
-                    placeholder="e.g. Principal Architect / Engineering Director"
-                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  />
-                </div>
 
-                <button
-                  id="btn_generate_growth_plan"
-                  onClick={handleRunGrowthPlan}
-                  disabled={generatingGrowthPlan || !selectedEmployee}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-xs font-semibold shadow-sm flex items-center justify-center gap-2 transition-all"
-                >
-                  {generatingGrowthPlan ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      Generating Career Roadmap...
-                    </>
-                  ) : (
-                    <>
-                      <Compass className="w-3.5 h-3.5" />
-                      Generate 6-Month Growth Roadmap
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Roadmap Output Column */}
-              <div className="lg:col-span-2 space-y-4">
-                {!growthPlanResult && !generatingGrowthPlan && (
-                  <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl min-h-[300px]">
-                    <Compass className="w-10 h-10 text-indigo-300 mb-2" />
-                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">AI Upskilling & Progression Planner</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-1">
-                      Synthesize a chronological milestone roadmap, recommended executive certifications, and high-visibility stretch projects tailored to the employee's current performance score.
-                    </p>
-                  </div>
-                )}
-
-                {growthPlanResult && (
-                  <div className="space-y-4 animate-in fade-in duration-200">
-                    <div className="p-4 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 rounded-xl flex items-center justify-between">
-                      <div>
-                        <div className="text-xs font-bold text-indigo-900 dark:text-indigo-300 uppercase">Recommended Track</div>
-                        <div className="text-sm font-bold text-indigo-700 dark:text-indigo-400 mt-0.5">
-                          {growthPlanResult.recommendedTrack}
-                        </div>
-                      </div>
-                      <span className="px-3 py-1 bg-white dark:bg-slate-800 rounded-full text-xs font-bold text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shadow-2xs">
-                        {growthPlanResult.timeframe}
-                      </span>
-                    </div>
-
-                    {/* Milestones timeline */}
-                    <div className="space-y-3">
-                      {growthPlanResult.milestones.map((m, idx) => (
-                        <div key={idx} className="p-3.5 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl shadow-2xs space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950/80 text-indigo-800 dark:text-indigo-300 border border-transparent dark:border-indigo-800">
-                              {m.month}
-                            </span>
-                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{m.focusArea}</span>
-                          </div>
-                          <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                            {m.actionableTask}
-                          </p>
-                          <div className="text-[11px] text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded border border-emerald-100 dark:border-emerald-900/60 flex items-center gap-1.5">
-                            <BookOpen className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                            <span>Course/Cert: {m.recommendedCertificationOrCourse}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Stretch Project & Mentor */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl text-xs space-y-1">
-                        <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                          <UserCheck className="w-4 h-4 text-indigo-600" />
-                          Matched Mentor Profile
-                        </div>
-                        <p className="text-slate-600 dark:text-slate-400">{growthPlanResult.mentorProfileMatch}</p>
-                      </div>
-
-                      <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl text-xs space-y-1">
-                        <div className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                          <Flame className="w-4 h-4 text-orange-600" />
-                          Recommended Stretch Project
-                        </div>
-                        <p className="text-slate-600 dark:text-slate-400">{growthPlanResult.stretchProjectIdea}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* PIP Check-in Modal */}
-      {activePipModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 animate-in zoom-in-95 duration-150 text-slate-900 dark:text-slate-100">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Record PIP Milestone Check-in
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {activePipModal.employeeName} ({activePipModal.employeeCode})
-                </p>
-              </div>
-              <button
-                onClick={() => setActivePipModal(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm font-bold p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Manager Progress Notes & Feedback
-                </label>
-                <textarea
-                  rows={3}
-                  value={newCheckinNotes}
-                  onChange={(e) => setNewCheckinNotes(e.target.value)}
-                  placeholder="Summarize improvements observed during the last bi-weekly period..."
-                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Bi-Weekly Coaching Rating (1 - 5)
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min="1"
-                    max="5"
-                    step="0.5"
-                    value={newCheckinRating}
-                    onChange={(e) => setNewCheckinRating(parseFloat(e.target.value))}
-                    className="w-full accent-indigo-600"
-                  />
-                  <span className="font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-1 rounded border border-indigo-100 dark:border-indigo-900 min-w-[50px] text-center">
-                    {newCheckinRating} / 5
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Priority Action Items for Next Period
-                </label>
-                <input
-                  type="text"
-                  value={newCheckinActions}
-                  onChange={(e) => setNewCheckinActions(e.target.value)}
-                  placeholder="e.g. Apply MEDDIC criteria to top 10 enterprise deals"
-                  className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-              <button
-                onClick={() => setActivePipModal(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSavePipCheckin}
-                disabled={savingCheckin || !newCheckinNotes.trim()}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-xs font-semibold shadow-sm flex items-center gap-1.5"
-              >
-                {savingCheckin ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                Save Check-in
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* PIP Initiate Modal */}
-      {isInitiatePipOpen && (
-        <PipInitiateModal
-          isOpen={isInitiatePipOpen}
-          onClose={() => setIsInitiatePipOpen(false)}
-          employees={employees}
-          existingPips={pips}
-          onCreated={(newPip) => {
-            setPips((prev) => [newPip, ...prev]);
-          }}
-        />
-      )}
-
-      {/* PIP Conclude Modal */}
-      {concludePipTarget && (
-        <PipConcludeModal
-          isOpen={!!concludePipTarget}
-          onClose={() => setConcludePipTarget(null)}
-          pip={concludePipTarget}
-          onConcluded={(updated) => {
-            setPips((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-          }}
-        />
-      )}
     </div>
   );
 };

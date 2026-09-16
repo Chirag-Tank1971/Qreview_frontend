@@ -14,15 +14,9 @@ import {
   Appraisal,
   AppraisalSummaryStats,
   DbStatus,
-  FeedbackEntry,
-  PipRecord,
   TalentRecord,
   AiReviewSynthesisRequest,
   AiReviewSynthesisResult,
-  AiBiasCheckRequest,
-  AiBiasCheckResult,
-  AiGrowthPlanRequest,
-  AiGrowthPlanResult,
   AiTalentInsightsRequest,
   AiTalentInsightsResult,
   CreateEmployeePayload,
@@ -1351,136 +1345,6 @@ export const api = {
   // PHASE 9: AI & CONTINUOUS 360 FEEDBACK API
   // ==========================================
 
-  // Continuous 360 Feedback & Kudos
-  async getFeedback(params?: { employeeId?: string; department?: string; type?: string }): Promise<FeedbackEntry[]> {
-    const q = new URLSearchParams();
-    if (params?.employeeId) q.append('employeeId', params.employeeId);
-    if (params?.department) q.append('department', params.department);
-    if (params?.type) q.append('type', params.type);
-
-    const res = await fetch(`${API_BASE}/feedback?${q.toString()}`, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch feedback stream');
-    return res.json();
-  },
-
-  async sendFeedback(data: Partial<FeedbackEntry>): Promise<FeedbackEntry> {
-    const res = await fetch(`${API_BASE}/feedback`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to submit feedback' }));
-      throw new Error(err.error || 'Failed to submit feedback');
-    }
-    return res.json();
-  },
-
-  async reactToFeedback(id: string, userId: string): Promise<FeedbackEntry> {
-    const res = await fetch(`${API_BASE}/feedback/${id}/react`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ userId }),
-    });
-    if (!res.ok) throw new Error('Failed to react to feedback');
-    return res.json();
-  },
-
-  // Performance Improvement Plans (PIPs)
-  async getPips(params?: { employeeId?: string; status?: string }): Promise<PipRecord[]> {
-    const q = new URLSearchParams();
-    if (params?.employeeId) q.append('employeeId', params.employeeId);
-    if (params?.status) q.append('status', params.status);
-
-    const res = await fetch(`${API_BASE}/pips?${q.toString()}`, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch PIP records');
-    return res.json();
-  },
-
-  async createPip(data: Partial<PipRecord>): Promise<PipRecord> {
-    const res = await fetch(`${API_BASE}/pips`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to create PIP' }));
-      throw new Error(err.error || 'Failed to create PIP');
-    }
-    return res.json();
-  },
-
-  async updatePip(id: string, data: Partial<PipRecord>): Promise<PipRecord> {
-    const res = await fetch(`${API_BASE}/pips/${id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to update PIP' }));
-      throw new Error(err.error || 'Failed to update PIP');
-    }
-    return res.json();
-  },
-
-  async addPipCheckin(id: string, checkinData: { date?: string; weekNumber?: number; managerNotes: string; ratingOutOf5: number; actionItems: string; employeeComments?: string }): Promise<PipRecord> {
-    const res = await fetch(`${API_BASE}/pips/${id}/checkin`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(checkinData),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to record PIP check-in' }));
-      throw new Error(err.error || 'Failed to record PIP check-in');
-    }
-    return res.json();
-  },
-
-  async signPip(id: string, signData: { role?: 'MANAGER' | 'HR' | 'EMPLOYEE'; comments?: string }): Promise<PipRecord> {
-    const res = await fetch(`${API_BASE}/pips/${id}/sign`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(signData),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to record digital sign-off' }));
-      throw new Error(err.error || 'Failed to record digital sign-off');
-    }
-    return res.json();
-  },
-
-  async concludePip(id: string, conclusionData: { outcome: 'PASSED' | 'EXTENDED' | 'SEPARATED'; notes: string }): Promise<PipRecord> {
-    const res = await fetch(`${API_BASE}/pips/${id}/conclude`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(conclusionData),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to conclude PIP' }));
-      throw new Error(err.error || 'Failed to conclude PIP');
-    }
-    return res.json();
-  },
-
-  async updatePipMilestone(id: string, milestoneId: string, data: { status: 'pending' | 'in_progress' | 'met' | 'unmet'; notes?: string }): Promise<PipRecord> {
-    const res = await fetch(`${API_BASE}/pips/${id}/milestone/${milestoneId}`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Failed to update milestone status' }));
-      throw new Error(err.error || 'Failed to update milestone status');
-    }
-    return res.json();
-  },
-
-  async getPipHistory(employeeId: string): Promise<PipRecord[]> {
-    const res = await fetch(`${API_BASE}/pips/history/${employeeId}`, { headers: getAuthHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch employee PIP history');
-    return res.json();
-  },
-
   // 9-Box Talent Matrix
   async getTalentRecords(): Promise<TalentRecord[]> {
     const res = await fetch(`${API_BASE}/talent-records`, { headers: getAuthHeaders() });
@@ -1533,67 +1397,6 @@ export const api = {
     }
   },
 
-  async analyzeAiBiasAndTone(payload: AiBiasCheckRequest): Promise<{ success: boolean; data: AiBiasCheckResult; engine: string }> {
-    const res = await fetch(`${API_BASE}/gemini/analyze-bias-and-tone`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(payload),
-    });
-    const text = await res.text().catch(() => '');
-    if (!res.ok) {
-      let errMessage = 'Failed to analyze tone and bias';
-      try {
-        const errJson = JSON.parse(text);
-        if (errJson.error) errMessage = errJson.error;
-      } catch {
-        if (text.includes('<!doctype') || text.includes('<html')) {
-          errMessage = 'Server error or gateway timeout. Please check backend status.';
-        } else if (text) {
-          errMessage = text;
-        }
-      }
-      throw new Error(errMessage);
-    }
-    try {
-      if (text.trim().startsWith('<')) {
-        throw new Error('Server returned HTML instead of JSON');
-      }
-      return JSON.parse(text);
-    } catch (err: any) {
-      throw new Error(err.message || 'Failed to analyze tone and bias');
-    }
-  },
-
-  async generateAiGrowthPlan(payload: AiGrowthPlanRequest): Promise<{ success: boolean; data: AiGrowthPlanResult; engine: string }> {
-    const res = await fetch(`${API_BASE}/gemini/generate-growth-plan`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(payload),
-    });
-    const text = await res.text().catch(() => '');
-    if (!res.ok) {
-      let errMessage = 'Failed to generate growth plan';
-      try {
-        const errJson = JSON.parse(text);
-        if (errJson.error) errMessage = errJson.error;
-      } catch {
-        if (text.includes('<!doctype') || text.includes('<html')) {
-          errMessage = 'Server error or gateway timeout. Please check backend status.';
-        } else if (text) {
-          errMessage = text;
-        }
-      }
-      throw new Error(errMessage);
-    }
-    try {
-      if (text.trim().startsWith('<')) {
-        throw new Error('Server returned HTML instead of JSON');
-      }
-      return JSON.parse(text);
-    } catch (err: any) {
-      throw new Error(err.message || 'Failed to generate growth plan');
-    }
-  },
 
   async generateAiTalentInsights(payload: AiTalentInsightsRequest): Promise<{ success: boolean; data: AiTalentInsightsResult; engine: string }> {
     const res = await fetch(`${API_BASE}/gemini/talent-insights-summary`, {

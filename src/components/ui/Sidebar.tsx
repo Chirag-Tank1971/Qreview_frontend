@@ -84,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'Configuration',
       items: [
         { id: 'kras', label: 'KRA Templates', icon: Target },
-        { id: 'ai_performance', label: 'AI Copilot & 360', icon: Sparkles },
+        { id: 'ai_performance', label: 'AI Talent & Review', icon: Sparkles },
       ],
     },
     {

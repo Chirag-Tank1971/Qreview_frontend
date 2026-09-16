@@ -634,12 +634,18 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                         </td>
 
                         <td className="py-3 px-3.5 max-w-xs">
-                          <div className="truncate text-slate-800 dark:text-slate-200 font-medium" title={log.description}>
-                            {log.description}
+                          <div
+                            className="truncate text-slate-800 dark:text-slate-200 font-medium"
+                            title={typeof log.description === 'object' ? JSON.stringify(log.description) : String(log.description || '')}
+                          >
+                            {typeof log.description === 'object' ? JSON.stringify(log.description) : String(log.description || '')}
                           </div>
                           {log.diffSummary && (
-                            <div className="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono mt-0.5 truncate" title={log.diffSummary}>
-                              {log.diffSummary}
+                            <div
+                              className="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono mt-0.5 truncate"
+                              title={typeof log.diffSummary === 'object' ? JSON.stringify(log.diffSummary) : String(log.diffSummary)}
+                            >
+                              {typeof log.diffSummary === 'object' ? JSON.stringify(log.diffSummary) : String(log.diffSummary)}
                             </div>
                           )}
                         </td>

@@ -118,8 +118,8 @@ const VIEW_META: Record<string, { title: string; subtitle: string; tag: string; 
     tagColor: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200/80 dark:border-amber-800/60',
   },
   ai_performance: {
-    title: 'AI Copilot & 360 Feedback',
-    subtitle: 'Generate AI-assisted review summaries, share continuous kudos, and track growth plans',
+    title: 'AI Review & Talent Hub',
+    subtitle: 'Generate AI-assisted review summaries and analyze strategic 9-box talent matrix',
     tag: 'AI Assisted',
     tagColor: 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200/80 dark:border-violet-800/60',
   },

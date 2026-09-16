@@ -27,6 +27,8 @@ import {
   X,
   Calendar,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Layers,
   Crown,
   Briefcase,
@@ -90,6 +92,15 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
   const [selectedCycle, setSelectedCycle] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
+
+  // Pagination State (20 employees per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 20;
+
+  // Reset to page 1 whenever filters or search query change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedDept, selectedCycle, selectedStatus]);
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<'employees' | 'masters'>('employees');
@@ -170,6 +181,28 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
     }
     return true;
   });
+
+  // Pagination Calculations (20 per page)
+  const totalFilteredCount = filteredEmployees.length;
+  const totalPages = Math.max(1, Math.ceil(totalFilteredCount / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalFilteredCount);
+  const paginatedEmployees = filteredEmployees.slice(startIndex, endIndex);
+
+  // Helper for generating page numbers with ellipses
+  const getPageNumbers = () => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (safeCurrentPage <= 4) {
+      return [1, 2, 3, 4, 5, '...', totalPages];
+    }
+    if (safeCurrentPage >= totalPages - 3) {
+      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', safeCurrentPage - 1, safeCurrentPage, safeCurrentPage + 1, '...', totalPages];
+  };
 
   // KPI Metrics
   const totalEmployeesCount = employees.length;
@@ -523,7 +556,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                   No employees found matching the filters.
                 </div>
               ) : (
-                filteredEmployees.map((emp) => {
+                paginatedEmployees.map((emp) => {
                   const cycleInfo = cycles.find((c) => c.id === emp.cycleId || c.code === emp.cycleCode);
                   return (
                     <div
@@ -662,7 +695,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                         </td>
                       </tr>
                     ) : (
-                      filteredEmployees.map((emp) => {
+                      paginatedEmployees.map((emp) => {
                         const cycleInfo = cycles.find((c) => c.id === emp.cycleId || c.code === emp.cycleCode);
                         return (
                           <tr
@@ -827,6 +860,82 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* Pagination Footer Controls (20 per page) */}
+          {totalFilteredCount > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2 font-medium">
+                <span>
+                  Showing <strong className="text-slate-800 dark:text-slate-200">{startIndex + 1}</strong> to{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">{endIndex}</strong> of{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">{totalFilteredCount}</strong> employees
+                </span>
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-normal">
+                  20 per page
+                </span>
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => {
+                      setCurrentPage((p) => Math.max(1, p - 1));
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    disabled={safeCurrentPage === 1}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium flex items-center gap-1 cursor-pointer"
+                    title="Previous Page"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Previous</span>
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {getPageNumbers().map((pageItem, idx) => {
+                      if (pageItem === '...') {
+                        return (
+                          <span key={`ellipsis-${idx}`} className="px-1 text-slate-400 dark:text-slate-600 select-none">
+                            •••
+                          </span>
+                        );
+                      }
+                      const pageNum = pageItem as number;
+                      const isActive = pageNum === safeCurrentPage;
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => {
+                            setCurrentPage(pageNum);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer ${
+                            isActive
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setCurrentPage((p) => Math.min(totalPages, p + 1));
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    disabled={safeCurrentPage === totalPages}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium flex items-center gap-1 cursor-pointer"
+                    title="Next Page"
+                  >
+                    <span className="hidden sm:inline">Next</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
