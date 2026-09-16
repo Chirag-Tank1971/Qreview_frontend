@@ -114,7 +114,7 @@ export const LoginPage: React.FC = () => {
     setError(null);
     setIsSubmitting(true);
     try {
-      await login(email.trim(), password);
+      await login(email.trim().toLowerCase(), password);
     } catch (err: any) {
       setError(err.message || 'Authentication failed. Please verify your credentials.');
     } finally {

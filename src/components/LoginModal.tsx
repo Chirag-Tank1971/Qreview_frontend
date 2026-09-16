@@ -37,7 +37,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     e.preventDefault();
     setError(null);
     try {
-      await login(email, password);
+      await login(email.trim().toLowerCase(), password);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Invalid credentials');

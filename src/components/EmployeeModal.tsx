@@ -382,7 +382,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     }
   }, [departmentId, designations]);
 
-  // Filter available managers to ONLY reporting managers (HODs strictly excluded because HODs do not conduct employee reviews)
+  // Filter available managers to ONLY reporting managers from their own department (HODs strictly excluded)
   const departmentManagers = allEmployees
     .filter((emp) => {
       if (employeeToEdit && emp.id === employeeToEdit.id) return false;
@@ -391,8 +391,6 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
 
       // Strictly exclude HODs from reporting manager options
       if (isEmployeeHod(emp)) {
-        // If this manager was already saved on this employee previously, keep it visible in edit mode
-        if (employeeToEdit && employeeToEdit.managerId === emp.id) return true;
         return false;
       }
 
@@ -408,7 +406,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     })
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-  // Filter available HODs
+  // Filter available HODs to the selected department
   const departmentHods = allEmployees
     .filter((emp) => {
       if (employeeToEdit && emp.id === employeeToEdit.id) return false;
@@ -429,10 +427,19 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
       return isOfficialDeptHod || isHodTitle;
     })
     .sort((a, b) => {
+      // Prioritize official department HOD first, then same department HODs
       const aIsOfficial = selectedDeptObj?.hodId === a.id;
       const bIsOfficial = selectedDeptObj?.hodId === b.id;
       if (aIsOfficial && !bIsOfficial) return -1;
       if (!aIsOfficial && bIsOfficial) return 1;
+
+      if (departmentId) {
+        const aSame = a.departmentId === departmentId;
+        const bSame = b.departmentId === departmentId;
+        if (aSame && !bSame) return -1;
+        if (!aSame && bSame) return 1;
+      }
+
       return (a.name || '').localeCompare(b.name || '');
     });
 
@@ -544,6 +551,16 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
       if (!joiningDate) {
         setError('Joining Date is required.');
         toast.warning('Joining Date is required.', 'Validation Error');
+        return;
+      }
+      if (!managerId) {
+        setError('Reporting Manager (L1) is required. Self-managed employees are not permitted.');
+        toast.warning('Reporting Manager is required.', 'Validation Error');
+        return;
+      }
+      if (!hodId) {
+        setError('Head of Department (HOD) is required.');
+        toast.warning('Head of Department is required.', 'Validation Error');
         return;
       }
       if (isNaN(parsedCtc) || parsedCtc <= 0) {
@@ -1258,15 +1275,18 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {/* Reporting Manager (L1) */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Reporting Manager (L1)
+                    Reporting Manager (L1) <span className="text-rose-500">*</span>
                   </label>
                   <select
+                    required
                     disabled={isInactive}
                     value={managerId}
                     onChange={(e) => setManagerId(e.target.value)}
                     className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                   >
-                    <option value="">None / Self-Managed</option>
+                    <option value="" disabled>
+                      Select Reporting Manager *
+                    </option>
                     {departmentManagers.map((emp) => (
                       <option key={emp.id} value={emp.id}>
                         {emp.name} ({emp.designationName || 'Reporting Manager'})
@@ -1278,15 +1298,18 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {/* Head of Department (HOD) */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Head of Dept (HOD)
+                    Head of Dept (HOD) <span className="text-rose-500">*</span>
                   </label>
                   <select
+                    required
                     disabled={isInactive}
                     value={hodId}
                     onChange={(e) => setHodId(e.target.value)}
                     className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                   >
-                    <option value="">None / Direct Management</option>
+                    <option value="" disabled>
+                      Select Department HOD *
+                    </option>
                     {departmentHods.map((emp) => {
                       const isOfficial = emp.id === selectedDeptObj?.hodId;
                       return (
