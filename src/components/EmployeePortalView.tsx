@@ -1105,12 +1105,17 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                           </div>
 
                           {/* Feedback Highlights if available */}
-                          {rev.strengths && (
-                            <div className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/40 p-2 rounded-[6px] border border-slate-100 dark:border-slate-800 space-y-0.5">
-                              <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
-                                Manager Feedback:
-                              </span>
-                              <p className="italic line-clamp-2">"{rev.strengths}"</p>
+                          {(rev.strengths || rev.managerOverallComments || (rev as any).managerComments || rev.improvements) && (
+                            <div className="text-xs text-slate-600 dark:text-slate-300 bg-indigo-50/50 dark:bg-indigo-950/30 p-2.5 rounded-[6px] border border-indigo-100 dark:border-indigo-900/50 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-indigo-900 dark:text-indigo-300 uppercase tracking-wider block">
+                                  Manager Evaluation Feedback:
+                                </span>
+                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">✓ Evaluated</span>
+                              </div>
+                              <p className="italic line-clamp-2 text-slate-700 dark:text-slate-300">
+                                "{rev.managerOverallComments || (rev as any).managerComments || rev.strengths || rev.improvements}"
+                              </p>
                             </div>
                           )}
 

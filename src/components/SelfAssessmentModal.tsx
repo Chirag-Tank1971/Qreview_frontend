@@ -13,6 +13,9 @@ import {
   Layers,
   FileText,
   AlertTriangle,
+  TrendingUp,
+  UserCheck,
+  MessageSquare,
 } from 'lucide-react';
 import { EmployeeReview, ReviewKraSnapshot } from '../types';
 import { api } from '../services/api';
@@ -415,27 +418,44 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
                       Key Deliverables & Milestones Achieved (Self-Reflection):
                     </label>
-                    <textarea
-                      disabled={isReadOnly}
-                      value={kra.selfAchievement}
-                      onChange={(e) => handleAchievementChange(kra.id, e.target.value)}
-                      placeholder="e.g. Successfully shipped sprint modules on time; resolved 12 P1 bugs; automated test runs to 92% coverage..."
-                      rows={2}
-                      className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-75 disabled:cursor-not-allowed"
-                    />
+                    {isReadOnly ? (
+                      kra.selfAchievement ? (
+                        <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 whitespace-pre-line leading-relaxed">
+                          {kra.selfAchievement}
+                        </div>
+                      ) : (
+                        <div className="p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-850/50 border border-dashed border-slate-200 dark:border-slate-800 text-xs text-slate-400 dark:text-slate-500 italic">
+                          No self-reflection deliverables recorded for this KRA.
+                        </div>
+                      )
+                    ) : (
+                      <textarea
+                        disabled={isReadOnly}
+                        value={kra.selfAchievement}
+                        onChange={(e) => handleAchievementChange(kra.id, e.target.value)}
+                        placeholder="e.g. Successfully shipped sprint modules on time; resolved 12 P1 bugs; automated test runs to 92% coverage..."
+                        rows={2}
+                        className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-75 disabled:cursor-not-allowed"
+                      />
+                    )}
                   </div>
 
                   {/* Manager comparison if available */}
                   {kra.rating !== undefined && (
-                    <div className="p-2.5 bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800/60 rounded-lg text-xs space-y-1">
+                    <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800/60 rounded-xl text-xs space-y-1.5">
                       <div className="flex items-center justify-between font-semibold text-indigo-950 dark:text-indigo-200">
-                        <span>Manager Calibrated Score: {kra.rating} / 5</span>
-                        <span className="text-[10px] text-indigo-700 dark:text-indigo-300 font-mono">
+                        <span className="flex items-center gap-1.5">
+                          <UserCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                          <span>Manager Calibrated Score: <strong>{kra.rating} / 5</strong></span>
+                        </span>
+                        <span className="text-[10px] text-indigo-700 dark:text-indigo-300 font-mono px-2 py-0.5 rounded-md bg-indigo-100/60 dark:bg-indigo-900/40">
                           Variance: {kra.selfRating - kra.rating > 0 ? `+${(kra.selfRating - kra.rating).toFixed(1)}` : (kra.selfRating - kra.rating).toFixed(1)}
                         </span>
                       </div>
                       {kra.comments && (
-                        <p className="text-[11px] text-indigo-800 dark:text-indigo-300 italic">"{kra.comments}"</p>
+                        <p className="text-[11px] text-indigo-800 dark:text-indigo-300 italic pl-5">
+                          "{kra.comments}"
+                        </p>
                       )}
                     </div>
                   )}
@@ -444,56 +464,196 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
             })}
           </div>
 
+          {/* MANAGER EVALUATION & GROWTH FEEDBACK (Submitted by Manager) */}
+          {(hasManagerSubmitted || review.strengths || review.improvements || review.managerOverallComments || (review as any).managerComments) && (
+            <div className="space-y-4 pt-2 border-t border-slate-200 dark:border-slate-800">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-gradient-to-r from-indigo-50/80 via-white to-indigo-50/40 dark:from-slate-850 dark:via-slate-800 dark:to-slate-850 p-3.5 rounded-2xl border border-indigo-100 dark:border-slate-700">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                      <span>Manager Evaluation & Growth Feedback</span>
+                      <span className="text-[10px] normal-case font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        ✓ Verified
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Evaluated by <strong>{review.managerName || 'Reporting Manager'}</strong>
+                    </p>
+                  </div>
+                </div>
+
+                {review.finalScore ? (
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-mono shadow-2xs">
+                      Live Weighted: <span className="text-emerald-600 dark:text-emerald-400">{review.finalScore.toFixed(2)}</span> / 5.00
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="space-y-3.5">
+                {/* 1. Key Strengths & Core Contributions */}
+                <div className="p-4 rounded-xl border border-emerald-200/90 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-2.5 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-emerald-950 dark:text-emerald-200 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      <span>Key Strengths & Core Contributions</span>
+                    </label>
+                    <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-900/50 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-800/40">
+                      Manager Feedback
+                    </span>
+                  </div>
+                  {review.strengths ? (
+                    <div className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line bg-white dark:bg-slate-800/90 p-3 rounded-lg border border-emerald-100 dark:border-emerald-900/40 font-normal">
+                      {review.strengths}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 dark:text-slate-500 italic p-1">No specific strengths documented.</p>
+                  )}
+                </div>
+
+                {/* 2. Development Areas & Growth Opportunities */}
+                <div className="p-4 rounded-xl border border-amber-200/90 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20 space-y-2.5 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <span>Development Areas & Growth Opportunities</span>
+                    </label>
+                    <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-900/50 px-2 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-800/40">
+                      Growth Roadmap
+                    </span>
+                  </div>
+                  {review.improvements ? (
+                    <div className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line bg-white dark:bg-slate-800/90 p-3 rounded-lg border border-amber-100 dark:border-amber-900/40 font-normal">
+                      {review.improvements}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 dark:text-slate-500 italic p-1">No specific development areas documented.</p>
+                  )}
+                </div>
+
+                {/* 3. Manager Overall Summary & Appraisal Recommendations */}
+                {(review.managerOverallComments || (review as any).managerComments) && (
+                  <div className="p-4 rounded-xl border border-indigo-200/90 dark:border-indigo-800/60 bg-indigo-50/40 dark:bg-indigo-950/20 space-y-2.5 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                        <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        <span>Manager Overall Summary & Appraisal Recommendations</span>
+                      </label>
+                      <span className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100/70 dark:bg-indigo-900/50 px-2 py-0.5 rounded-md border border-indigo-200/60 dark:border-indigo-800/40">
+                        Overarching Calibration Note
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line bg-white dark:bg-slate-800/90 p-3.5 rounded-lg border border-indigo-100 dark:border-indigo-900/40 font-normal italic">
+                      "{review.managerOverallComments || (review as any).managerComments}"
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Qualitative Reflection */}
-          <div className="space-y-4 pt-2">
+          <div className="space-y-4 pt-2 border-t border-slate-200 dark:border-slate-800">
             <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
               <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               <span>Strategic Self-Reflection & Growth</span>
             </h4>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                  Key Strengths & Major Accomplishments:
-                </label>
-                <textarea
-                  disabled={isReadOnly}
-                  value={selfStrengths}
-                  onChange={(e) => setSelfStrengths(e.target.value)}
-                  placeholder="What went particularly well this quarter? What are you most proud of?"
-                  rows={3}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-75 disabled:cursor-not-allowed"
-                />
-              </div>
+            {isReadOnly ? (
+              selfStrengths || selfImprovements || selfObstacles ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                        Key Strengths & Major Accomplishments:
+                      </label>
+                      {selfStrengths ? (
+                        <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line">{selfStrengths}</p>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic">No notes recorded.</p>
+                      )}
+                    </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                  Areas for Growth & Skill Acquisition:
-                </label>
-                <textarea
-                  disabled={isReadOnly}
-                  value={selfImprovements}
-                  onChange={(e) => setSelfImprovements(e.target.value)}
-                  placeholder="What skills, technical competencies, or processes do you aim to enhance?"
-                  rows={3}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-75 disabled:cursor-not-allowed"
-                />
-              </div>
-            </div>
+                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                        Areas for Growth & Skill Acquisition:
+                      </label>
+                      {selfImprovements ? (
+                        <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line">{selfImprovements}</p>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic">No notes recorded.</p>
+                      )}
+                    </div>
+                  </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                Blockers, Dependencies & Manager Support Needed:
-              </label>
-              <textarea
-                disabled={isReadOnly}
-                value={selfObstacles}
-                onChange={(e) => setSelfObstacles(e.target.value)}
-                placeholder="What tooling, architectural clarity, or managerial support would help you unlock greater velocity next quarter?"
-                rows={2}
-                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-75 disabled:cursor-not-allowed"
-              />
-            </div>
+                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                      Blockers, Dependencies & Manager Support Needed:
+                    </label>
+                    {selfObstacles ? (
+                      <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line">{selfObstacles}</p>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic">No notes recorded.</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center space-y-1">
+                  <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">No Employee Self-Reflection Submitted</p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">Employee did not submit self-reflection remarks prior to manager evaluation.</p>
+                </div>
+              )
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                      Key Strengths & Major Accomplishments:
+                    </label>
+                    <textarea
+                      disabled={isReadOnly}
+                      value={selfStrengths}
+                      onChange={(e) => setSelfStrengths(e.target.value)}
+                      placeholder="What went particularly well this quarter? What are you most proud of?"
+                      rows={3}
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-75 disabled:cursor-not-allowed"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                      Areas for Growth & Skill Acquisition:
+                    </label>
+                    <textarea
+                      disabled={isReadOnly}
+                      value={selfImprovements}
+                      onChange={(e) => setSelfImprovements(e.target.value)}
+                      placeholder="What skills, technical competencies, or processes do you aim to enhance?"
+                      rows={3}
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-75 disabled:cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                    Blockers, Dependencies & Manager Support Needed:
+                  </label>
+                  <textarea
+                    disabled={isReadOnly}
+                    value={selfObstacles}
+                    onChange={(e) => setSelfObstacles(e.target.value)}
+                    placeholder="What tooling, architectural clarity, or managerial support would help you unlock greater velocity next quarter?"
+                    rows={2}
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 disabled:opacity-75 disabled:cursor-not-allowed"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 
