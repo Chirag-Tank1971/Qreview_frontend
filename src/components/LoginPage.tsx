@@ -121,7 +121,6 @@ export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForgotInfo, setShowForgotInfo] = useState(false);
@@ -508,18 +507,8 @@ export const LoginPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Remember Me & Forgot Password */}
-                <div className="flex items-center justify-between text-xs pt-0.5">
-                  <label className="flex items-center gap-1.5 cursor-pointer select-none text-slate-600 dark:text-slate-400 text-[11px]">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                    />
-                    <span>Keep me signed in</span>
-                  </label>
-
+                {/* Forgot Password */}
+                <div className="flex items-center justify-end text-xs pt-0.5">
                   <button
                     type="button"
                     onClick={() => setShowForgotInfo(!showForgotInfo)}
