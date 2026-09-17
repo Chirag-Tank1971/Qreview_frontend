@@ -15,6 +15,7 @@ import { ReviewScoringModal } from './ReviewScoringModal';
 import { BatchGenerateReviewsModal } from './BatchGenerateReviewsModal';
 import { InitiateReviewModal } from './InitiateReviewModal';
 import { CycleBadge } from './ui/CycleBadge';
+import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 import { toast } from '../context/ToastContext';
 import {
   Sparkles,
@@ -111,13 +112,29 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       if (initialConfig.myReportsOnly !== undefined) setMyReportsOnly(initialConfig.myReportsOnly);
       if (initialConfig.reviewId && initialConfig.reviewId !== handledReviewIdRef.current) {
         handledReviewIdRef.current = initialConfig.reviewId;
-        api.getReviews().then((res) => {
-          const match = res?.find((r) => r.id === initialConfig.reviewId);
-          if (match) {
-            setActiveReviewForScoring(match);
-            setIsScoringModalOpen(true);
+        const targetId = initialConfig.reviewId;
+        (async () => {
+          try {
+            const single = await api.getReviewById(targetId);
+            if (single) {
+              setActiveReviewForScoring(single);
+              setIsScoringModalOpen(true);
+              return;
+            }
+          } catch {
+            // Fallback to search in all reviews
           }
-        }).catch((err) => console.warn('Could not auto-open review', err));
+          try {
+            const res = await api.getReviews();
+            const match = res?.find((r) => r.id === targetId);
+            if (match) {
+              setActiveReviewForScoring(match);
+              setIsScoringModalOpen(true);
+            }
+          } catch (err) {
+            console.warn('Could not auto-open review', err);
+          }
+        })();
       }
       onClearInitialConfig?.();
     }
@@ -249,12 +266,15 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   const handleModalClose = () => {
     setIsScoringModalOpen(false);
     setActiveReviewForScoring(null);
+    handledReviewIdRef.current = null;
     onClearInitialConfig?.();
+    loadReviewsAndStats();
   };
 
   const handleModalSaved = () => {
     setIsScoringModalOpen(false);
     setActiveReviewForScoring(null);
+    handledReviewIdRef.current = null;
     onClearInitialConfig?.();
     loadReviewsAndStats();
   };
@@ -766,10 +786,9 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
 
       {/* 4. REVIEWS DATA TABLE */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-slate-400 dark:text-slate-500 flex flex-col items-center justify-center space-y-3">
-            <RotateCw className="w-6 h-6 animate-spin text-indigo-600 dark:text-indigo-400" />
-            <span className="text-xs font-medium">Loading quarterly review records...</span>
+        {loading && reviews.length === 0 ? (
+          <div className="p-4">
+            <PageSkeletonLoader variant="table" rowCount={6} />
           </div>
         ) : displayedReviews.length === 0 ? (
           <div className="p-12 text-center text-slate-400 dark:text-slate-500 flex flex-col items-center justify-center space-y-3">

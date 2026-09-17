@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
 export interface PieChartItem {
   label: string;
@@ -33,75 +33,55 @@ export const PieChart: React.FC<PieChartProps> = ({
   formatValue = (v) => v.toString(),
 }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [isAnimated, setIsAnimated] = useState(false);
 
-  const total = data.reduce((sum, item) => sum + (item.value > 0 ? item.value : 0), 0);
-  const validItems = data.filter((item) => item.value > 0);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsAnimated(true), 60);
+    return () => clearTimeout(timer);
+  }, [data]);
+
+  const total = useMemo(
+    () => data.reduce((sum, item) => sum + (item.value > 0 ? item.value : 0), 0),
+    [data]
+  );
+  const validItems = useMemo(
+    () => data.filter((item) => item.value > 0),
+    [data]
+  );
 
   const center = size / 2;
-  const radius = (size - 16) / 2;
-  const innerRadius = radius - donutThickness;
+  const radius = (size - donutThickness - 8) / 2;
+  const circumference = 2 * Math.PI * radius;
 
-  // Function to create SVG donut arc path
-  const createArc = (startAngle: number, endAngle: number, isHovered: boolean) => {
-    const currentRadius = isHovered ? radius + 3 : radius;
-    const currentInnerRadius = isHovered ? Math.max(innerRadius - 2, 0) : innerRadius;
+  // Compute offset and stroke length for each slice
+  const slices = useMemo(() => {
+    let currentOffset = 0;
+    return validItems.map((item, idx) => {
+      const ratio = total > 0 ? item.value / total : 0;
+      const arcLength = ratio * circumference;
+      const offset = currentOffset;
+      currentOffset += arcLength;
+      const percent = total > 0 ? Math.round(ratio * 100) : 0;
 
-    // Handle full 360 circle
-    if (endAngle - startAngle >= 2 * Math.PI - 0.001) {
-      return `
-        M ${center} ${center - currentRadius}
-        A ${currentRadius} ${currentRadius} 0 1 1 ${center} ${center + currentRadius}
-        A ${currentRadius} ${currentRadius} 0 1 1 ${center} ${center - currentRadius}
-        M ${center} ${center - currentInnerRadius}
-        A ${currentInnerRadius} ${currentInnerRadius} 0 1 0 ${center} ${center + currentInnerRadius}
-        A ${currentInnerRadius} ${currentInnerRadius} 0 1 0 ${center} ${center - currentInnerRadius}
-        Z
-      `;
-    }
-
-    const x1 = center + currentRadius * Math.cos(startAngle);
-    const y1 = center + currentRadius * Math.sin(startAngle);
-    const x2 = center + currentRadius * Math.cos(endAngle);
-    const y2 = center + currentRadius * Math.sin(endAngle);
-
-    const x3 = center + currentInnerRadius * Math.cos(endAngle);
-    const y3 = center + currentInnerRadius * Math.sin(endAngle);
-    const x4 = center + currentInnerRadius * Math.cos(startAngle);
-    const y4 = center + currentInnerRadius * Math.sin(startAngle);
-
-    const largeArcFlag = endAngle - startAngle > Math.PI ? 1 : 0;
-
-    return `
-      M ${x1} ${y1}
-      A ${currentRadius} ${currentRadius} 0 ${largeArcFlag} 1 ${x2} ${y2}
-      L ${x3} ${y3}
-      A ${currentInnerRadius} ${currentInnerRadius} 0 ${largeArcFlag} 0 ${x4} ${y4}
-      Z
-    `;
-  };
-
-  // Compute angles for each valid slice
-  let currentAngle = -Math.PI / 2; // Start from top (12 o'clock)
-  const slices = validItems.map((item, idx) => {
-    const angle = total > 0 ? (item.value / total) * 2 * Math.PI : 0;
-    const startAngle = currentAngle;
-    const endAngle = currentAngle + angle;
-    currentAngle = endAngle;
-    const percent = total > 0 ? Math.round((item.value / total) * 100) : 0;
-    return {
-      ...item,
-      originalIndex: idx,
-      startAngle,
-      endAngle,
-      percent,
-    };
-  });
+      return {
+        ...item,
+        originalIndex: idx,
+        arcLength,
+        offset,
+        percent,
+      };
+    });
+  }, [validItems, total, circumference]);
 
   const activeItem = hoveredIndex !== null && hoveredIndex < validItems.length ? validItems[hoveredIndex] : null;
   const activePercent = activeItem && total > 0 ? Math.round((activeItem.value / total) * 100) : null;
 
   return (
-    <div className={`bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 shadow-2xs ${className}`}>
+    <div
+      className={`bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 shadow-2xs transition-all duration-500 hover:shadow-xs hover:border-slate-300 dark:hover:border-slate-700 ${
+        isAnimated ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-[0.99]'
+      } ${className}`}
+    >
       {(title || subtitle) && (
         <div className="mb-3">
           {title && (
@@ -120,41 +100,60 @@ export const PieChart: React.FC<PieChartProps> = ({
       >
         {/* SVG Donut */}
         <div className="relative shrink-0 flex items-center justify-center" style={{ width: size, height: size }}>
-          {total === 0 ? (
-            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-              <circle
-                cx={center}
-                cy={center}
-                r={radius - donutThickness / 2}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={donutThickness}
-                className="text-slate-100 dark:text-slate-800/80"
-              />
-            </svg>
-          ) : (
-            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="overflow-visible">
-              {slices.map((slice, idx) => {
+          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="overflow-visible transform -rotate-90 origin-center">
+            {/* Background track circle */}
+            <circle
+              cx={center}
+              cy={center}
+              r={radius}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={donutThickness}
+              className="text-slate-100 dark:text-slate-800/80 transition-colors"
+            />
+
+            {/* Animated Donut Slices */}
+            {total > 0 &&
+              slices.map((slice, idx) => {
                 const isHovered = hoveredIndex === idx;
+                const gap = validItems.length > 1 ? 2.5 : 0;
+                const targetDash = Math.max(0, slice.arcLength - gap);
+                const strokeDasharray = isAnimated ? `${targetDash} ${circumference}` : `0 ${circumference}`;
+                const strokeDashoffset = -slice.offset;
+
                 return (
-                  <path
+                  <circle
                     key={slice.label + idx}
-                    d={createArc(slice.startAngle, slice.endAngle, isHovered)}
-                    fill={slice.color}
-                    className="transition-all duration-200 cursor-pointer hover:opacity-90 stroke-white dark:stroke-slate-900 stroke-[1.5]"
+                    cx={center}
+                    cy={center}
+                    r={radius}
+                    fill="none"
+                    stroke={slice.color}
+                    strokeWidth={isHovered ? donutThickness + 4 : donutThickness}
+                    strokeDasharray={strokeDasharray}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="butt"
+                    className="cursor-pointer hover:opacity-95"
+                    style={{
+                      transition:
+                        'stroke-dasharray 850ms cubic-bezier(0.16, 1, 0.3, 1), stroke-dashoffset 850ms cubic-bezier(0.16, 1, 0.3, 1), stroke-width 200ms ease, opacity 200ms ease',
+                    }}
                     onMouseEnter={() => setHoveredIndex(idx)}
                     onMouseLeave={() => setHoveredIndex(null)}
                   />
                 );
               })}
-            </svg>
-          )}
+          </svg>
 
           {/* Donut Center Info */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-2">
+          <div
+            className={`absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-2 transition-all duration-500 ease-out ${
+              isAnimated ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+            }`}
+          >
             {activeItem ? (
               <>
-                <span className="text-xl font-bold font-mono tracking-tight text-slate-900 dark:text-white leading-tight">
+                <span className="text-xl font-bold font-mono tracking-tight text-slate-900 dark:text-white leading-tight animate-in fade-in zoom-in-95 duration-150">
                   {formatValue(activeItem.value)}
                 </span>
                 <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 truncate max-w-[80px]">

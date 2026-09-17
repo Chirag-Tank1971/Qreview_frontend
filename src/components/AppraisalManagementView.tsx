@@ -42,6 +42,7 @@ import { AppraisalLetterModal } from './AppraisalLetterModal';
 import { BatchLetterExportModal } from './BatchLetterExportModal';
 import { BellCurveBudgetAnalytics } from './BellCurveBudgetAnalytics';
 import { CycleBadge } from './ui/CycleBadge';
+import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 import { downloadAppraisalPdf, downloadPayrollCsv } from '../utils/letterExport';
 
 export interface AppraisalViewConfig {
@@ -604,10 +605,9 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="py-20 text-center space-y-3">
-            <RefreshCw className="w-7 h-7 animate-spin text-indigo-600 mx-auto" />
-            <p className="text-xs text-slate-500">Loading appraisal cohorts...</p>
+        {isLoading && appraisals.length === 0 ? (
+          <div className="p-4">
+            <PageSkeletonLoader variant="table" rowCount={6} />
           </div>
         ) : displayedAppraisals.length === 0 ? (
           <div className="py-16 text-center space-y-4 max-w-sm mx-auto">

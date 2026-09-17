@@ -13,6 +13,7 @@ import { SelfAssessmentModal } from './SelfAssessmentModal';
 import { AppraisalLetterModal } from './AppraisalLetterModal';
 import { downloadAppraisalPdf } from '../utils/letterExport';
 import { CycleBadge } from './ui/CycleBadge';
+import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 import {
   Sparkles,
   Award,
@@ -247,16 +248,20 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
   const isStage2Done = Boolean(activeAppraisal && ['HOD_CALIBRATED', 'HR_APPROVED', 'COMPLETED', 'LOCKED', 'APPROVED'].includes(activeAppraisal.status));
   const isStage3Done = Boolean(activeAppraisal && ['HR_APPROVED', 'COMPLETED', 'LOCKED', 'APPROVED'].includes(activeAppraisal.status));
 
+  if (isLoading && !essData) {
+    return <PageSkeletonLoader variant="portal" />;
+  }
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-6">
       {/* Native Page Header & Employee Switcher */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
-              My Space
+              My Workspace
             </h1>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-[4px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               Self-Service Portal
             </span>
@@ -268,7 +273,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
 
         {/* Administrative Employee Record Selector (Only for Admins/HR) */}
         {(user?.role === 'SUPER_ADMIN' || user?.role === 'HR') && (
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 w-full sm:w-auto min-w-0">
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 p-1.5 rounded-[6px] border border-slate-200 dark:border-slate-700 w-full sm:w-auto min-w-0">
             <label className="text-xs font-medium text-slate-600 dark:text-slate-400 shrink-0 flex items-center gap-1.5 pl-1">
               <UserCheck className="w-3.5 h-3.5 text-slate-400" />
               <span className="hidden sm:inline">Viewing:</span>
@@ -276,10 +281,10 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
             <select
               value={selectedEmployeeId}
               onChange={(e) => setSelectedEmployeeId(e.target.value)}
-              className="flex-1 min-w-0 text-xs font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-2xs truncate sm:max-w-[240px] md:max-w-[280px]"
+              className="flex-1 min-w-0 text-xs font-medium text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-[4px] px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-600 cursor-pointer truncate sm:max-w-[240px] md:max-w-[280px]"
             >
               {employees.map((emp) => (
-                <option key={emp.id} value={emp.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+                <option key={emp.id} value={emp.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                   {emp.name} ({emp.employeeCode})
                 </option>
               ))}
@@ -287,7 +292,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
             <button
               onClick={() => selectedEmployeeId && loadEssOverview(selectedEmployeeId)}
               title="Refresh Data"
-              className="p-1 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded hover:bg-slate-200/60 dark:hover:bg-slate-700 transition-colors shrink-0 cursor-pointer"
+              className="p-1 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-[4px] hover:bg-slate-200/60 dark:hover:bg-slate-700 transition-colors shrink-0 cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
@@ -296,34 +301,34 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
       </div>
 
       {isLoading ? (
-        <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
-          <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+        <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-[8px] border border-slate-200 dark:border-slate-800">
+          <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
           <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Loading profile data...</p>
         </div>
       ) : error ? (
-        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-lg flex items-center gap-3 text-rose-700 dark:text-rose-300 text-xs">
+        <div className="p-3.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-[8px] flex items-center gap-2.5 text-rose-700 dark:text-rose-300 text-xs">
           <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
           <span>{error}</span>
         </div>
       ) : currentEmp ? (
         <>
           {/* Executive Employee Identity & Cohort Profile Card */}
-          <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-slate-200/80 dark:border-slate-800 shadow-2xs relative overflow-hidden">
+          <div key={currentEmp.id} className="bg-white dark:bg-slate-900 rounded-[8px] p-5 border border-slate-200 dark:border-slate-800 relative overflow-hidden">
             <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
               {/* Left Identity Details */}
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl text-white bg-blue-600 dark:bg-blue-500 shadow-xs shrink-0">
+                <div className="w-12 h-12 rounded-[6px] flex items-center justify-center font-semibold text-lg text-white bg-blue-600 dark:bg-blue-500 shrink-0">
                   {currentEmp.name.charAt(0)}
                 </div>
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+                    <h3 className="text-base sm:text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
                       {currentEmp.name}
                     </h3>
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                    <span className="text-xs font-medium px-1.5 py-0.2 rounded-[4px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 tabular-nums">
                       {currentEmp.employeeCode}
                     </span>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                    <span className={`text-[10px] font-medium px-1.5 py-0.2 rounded-[4px] border ${
                       currentEmp.status === 'ACTIVE'
                         ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60'
                         : currentEmp.status === 'PROBATION'
@@ -333,17 +338,17 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                       {currentEmp.status || 'ACTIVE'}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     {currentEmp.designationName} • {currentEmp.departmentName}
                   </p>
-                  <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                  <div className="flex flex-wrap items-center gap-3 pt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                     <span className="flex items-center gap-1">
-                      <Briefcase className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                      <span>Manager: <strong className="text-slate-800 dark:text-slate-200">{currentEmp.managerName || 'Unassigned'}</strong></span>
+                      <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Manager: <strong className="text-slate-800 dark:text-slate-200 font-medium">{currentEmp.managerName || 'Unassigned'}</strong></span>
                     </span>
                     <span className="flex items-center gap-1">
-                      <Building2 className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                      <span>HOD: <strong className="text-slate-800 dark:text-slate-200">{currentEmp.hodName || 'Unassigned'}</strong></span>
+                      <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                      <span>HOD: <strong className="text-slate-800 dark:text-slate-200 font-medium">{currentEmp.hodName || 'Unassigned'}</strong></span>
                     </span>
                   </div>
                 </div>
@@ -352,7 +357,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
               {/* Right Cycle Cohort & CTC Highlight */}
               <div className="grid grid-cols-1 xs:grid-cols-3 sm:grid-cols-3 gap-2.5 w-full lg:w-auto lg:flex lg:items-center">
                 {/* 8-Cycle Badge */}
-                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl p-2.5 sm:p-3 text-center">
+                <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 rounded-[6px] p-2.5 sm:p-3 text-center">
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold block mb-1">
                     Appraisal Cohort
                   </span>
@@ -365,31 +370,31 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                 </div>
 
                 {/* Current CTC Badge */}
-                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 border-t-2 border-t-emerald-500 rounded-xl p-2.5 sm:p-3 text-center">
+                <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 rounded-[6px] p-2.5 sm:p-3 text-center">
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold block">
                     Current Fixed CTC
                   </span>
-                  <div className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 truncate">
+                  <div className="text-sm sm:text-base font-semibold text-slate-900 dark:text-slate-100 tabular-nums mt-0.5 truncate">
                     {currentEmp.currency || '₹'}{(currentEmp.currentCtc || 0).toLocaleString('en-IN')}
                   </div>
-                  <span className="text-[9px] text-slate-500 dark:text-slate-400 block mt-0.5 font-mono truncate">
+                  <span className="text-[9px] text-slate-500 dark:text-slate-400 block mt-0.5 tabular-nums truncate">
                     ≈ {currentEmp.currency || '₹'}{Math.round((currentEmp.currentCtc || 0) / 12).toLocaleString('en-IN')} / mo
                   </span>
                 </div>
 
                 {/* Composite Rolling Score */}
-                <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 border-t-2 border-t-indigo-500 rounded-xl p-2.5 sm:p-3 text-center">
+                <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 rounded-[6px] p-2.5 sm:p-3 text-center">
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold block">
                     Quarterly Avg
                   </span>
-                  <div className="text-sm sm:text-base font-extrabold text-amber-600 dark:text-amber-400 font-mono mt-0.5 flex items-center justify-center gap-1">
+                  <div className="text-sm sm:text-base font-semibold text-slate-900 dark:text-slate-100 tabular-nums mt-0.5 flex items-center justify-center gap-1">
                     <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-amber-500 text-amber-500 shrink-0" />
                     <span>{metrics?.averageScore && metrics.averageScore > 0 ? metrics.averageScore.toFixed(2) : '—'}</span>
                     {metrics?.averageScore && metrics.averageScore > 0 && (
-                      <span className="text-xs text-slate-500 dark:text-slate-400">/ 5</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 font-normal">/ 5</span>
                     )}
                   </div>
-                  <span className="text-[9px] text-slate-400 dark:text-slate-500 block mt-0.5">
+                  <span className="text-[9px] text-slate-400 dark:text-slate-500 block mt-0.5 tabular-nums">
                     {metrics?.completedReviewsCount && metrics.completedReviewsCount > 0
                       ? `${metrics.completedReviewsCount} Quarters`
                       : 'Pending Reviews'}
@@ -399,32 +404,28 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
             </div>
 
             {/* Extended Service Record & Employee Details Grid */}
-            <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+            <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
               {/* 1. Date of Joining & Tenure */}
-              <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-xl p-3 border border-slate-200/70 dark:border-slate-800 border-t-2 border-t-indigo-500/70">
+              <div className="bg-slate-50/50 dark:bg-slate-800/30 rounded-[6px] p-2.5 border border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 mb-1">
-                  <div className="w-5 h-5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                    <CalendarDays className="w-3 h-3" />
-                  </div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400">Joining Date</span>
+                  <CalendarDays className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-[10px] uppercase font-medium tracking-wider text-slate-500 dark:text-slate-400">Joining Date</span>
                 </div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                <div className="text-xs font-semibold text-slate-900 dark:text-white truncate tabular-nums">
                   {formatDate(currentEmp.joiningDate)}
                 </div>
-                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium block truncate">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
                   {calculateTenure(currentEmp.joiningDate) || 'Service Record'}
                 </span>
               </div>
 
               {/* 2. Department & Unit */}
-              <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-xl p-3 border border-slate-200/70 dark:border-slate-800 border-t-2 border-t-sky-500/70">
+              <div className="bg-slate-50/50 dark:bg-slate-800/30 rounded-[6px] p-2.5 border border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 mb-1">
-                  <div className="w-5 h-5 rounded-md bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0">
-                    <Building2 className="w-3 h-3" />
-                  </div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400">Department</span>
+                  <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-[10px] uppercase font-medium tracking-wider text-slate-500 dark:text-slate-400">Department</span>
                 </div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white truncate" title={currentEmp.departmentName}>
+                <div className="text-xs font-semibold text-slate-900 dark:text-white truncate" title={currentEmp.departmentName}>
                   {currentEmp.departmentName || 'General'}
                 </div>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate" title={currentEmp.designationName}>
@@ -433,30 +434,26 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
               </div>
 
               {/* 3. Corporate Work Email */}
-              <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-xl p-3 border border-slate-200/70 dark:border-slate-800 border-t-2 border-t-emerald-500/70">
+              <div className="bg-slate-50/50 dark:bg-slate-800/30 rounded-[6px] p-2.5 border border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 mb-1">
-                  <div className="w-5 h-5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                    <Mail className="w-3 h-3" />
-                  </div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400">Work Email</span>
+                  <Mail className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-[10px] uppercase font-medium tracking-wider text-slate-500 dark:text-slate-400">Work Email</span>
                 </div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white truncate" title={currentEmp.email}>
+                <div className="text-xs font-semibold text-slate-900 dark:text-white truncate" title={currentEmp.email}>
                   {currentEmp.email || '—'}
                 </div>
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium block truncate">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
                   SSO Linked
                 </span>
               </div>
 
               {/* 4. Contact Phone */}
-              <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-xl p-3 border border-slate-200/70 dark:border-slate-800 border-t-2 border-t-teal-500/70">
+              <div className="bg-slate-50/50 dark:bg-slate-800/30 rounded-[6px] p-2.5 border border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 mb-1">
-                  <div className="w-5 h-5 rounded-md bg-teal-50 dark:bg-teal-950/60 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0">
-                    <Phone className="w-3 h-3" />
-                  </div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400">Direct Line</span>
+                  <Phone className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-[10px] uppercase font-medium tracking-wider text-slate-500 dark:text-slate-400">Direct Line</span>
                 </div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                <div className="text-xs font-semibold text-slate-900 dark:text-white truncate tabular-nums">
                   {currentEmp.phone || 'Not Registered'}
                 </div>
                 <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">
@@ -465,14 +462,12 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
               </div>
 
               {/* 5. Work Location */}
-              <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-xl p-3 border border-slate-200/70 dark:border-slate-800 border-t-2 border-t-amber-500/70">
+              <div className="bg-slate-50/50 dark:bg-slate-800/30 rounded-[6px] p-2.5 border border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 mb-1">
-                  <div className="w-5 h-5 rounded-md bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-                    <MapPin className="w-3 h-3" />
-                  </div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400">Location</span>
+                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-[10px] uppercase font-medium tracking-wider text-slate-500 dark:text-slate-400">Location</span>
                 </div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white truncate" title={currentEmp.location}>
+                <div className="text-xs font-semibold text-slate-900 dark:text-white truncate" title={currentEmp.location}>
                   {currentEmp.location || 'Headquarters'}
                 </div>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
@@ -481,7 +476,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
               </div>
 
               {/* 6. Employment Status */}
-              <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-xl p-3 border border-slate-200/70 dark:border-slate-800 border-t-2 border-t-purple-500/70">
+              <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-xl p-3 border border-slate-200/70 dark:border-slate-800 border-t-2 border-t-purple-500/70 animate-badge-in animate-stagger-7">
                 <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 mb-1">
                   <div className="w-5 h-5 rounded-md bg-purple-50 dark:bg-purple-950/60 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
                     <ShieldCheck className="w-3 h-3" />
@@ -506,42 +501,43 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex items-center space-x-1 bg-slate-100 dark:bg-slate-850 p-1 rounded-lg border border-slate-200 dark:border-slate-800 overflow-x-auto overscroll-x-contain w-max max-w-full" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {/* SUB-TABS NAVIGATION BAR */}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-[6px] border border-slate-200 dark:border-slate-800 overflow-x-auto select-none">
             <button
               onClick={() => setActiveTab('appraisal')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer shrink-0 ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-[4px] text-xs font-medium transition-colors cursor-pointer shrink-0 ${
                 activeTab === 'appraisal'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Award className="w-3.5 h-3.5 text-slate-400" />
               <span>Annual Appraisal & Letter</span>
               {activeAppraisal?.isLocked && !isAcknowledged && (
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
               )}
             </button>
 
             <button
               onClick={() => setActiveTab('reviews')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer shrink-0 ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-[4px] text-xs font-medium transition-colors cursor-pointer shrink-0 ${
                 activeTab === 'reviews'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <FileText className="w-3.5 h-3.5 text-slate-400" />
               <span>Quarterly Reviews</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+              <span className="text-[10px] tabular-nums px-1.5 py-0.2 rounded-[4px] bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                 {reviews.length}
               </span>
             </button>
 
             <button
               onClick={() => setActiveTab('kras')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer shrink-0 ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-[4px] text-xs font-medium transition-colors cursor-pointer shrink-0 ${
                 activeTab === 'kras'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -551,9 +547,9 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
 
             <button
               onClick={() => setActiveTab('growth')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer shrink-0 ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-[4px] text-xs font-medium transition-colors cursor-pointer shrink-0 ${
                 activeTab === 'growth'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -564,14 +560,14 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
 
           {/* TAB 1: ANNUAL APPRAISAL & LETTER SIGN-OFF */}
           {activeTab === 'appraisal' && (
-            <div className="space-y-6">
+            <div key="tab-appraisal" className="space-y-4">
               {activeAppraisal ? (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {/* Status Progress Bar */}
-                  <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
+                  <div className="bg-white dark:bg-slate-900 p-5 rounded-[8px] border border-slate-200 dark:border-slate-800 space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
                       <div>
-                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                        <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
                           {activeAppraisal.cycleName} • Annual Appraisal Cycle ({activeAppraisal.appraisalYear})
                         </h4>
                         <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -580,13 +576,13 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-500 dark:text-slate-400">Lifecycle Status:</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">Status:</span>
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                          className={`px-2.5 py-0.5 rounded-[4px] text-xs font-medium border ${
                             activeAppraisal.isLocked
                               ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                               : activeAppraisal.status === 'HR_APPROVED'
-                              ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                              ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
                               : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
                           }`}
                         >
@@ -599,242 +595,209 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
 
                     {/* Multi-Stage Stepper */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">STAGE 1</span>
-                                {isStage1Done ? (
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                ) : (
-                                  <Clock className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 animate-pulse" />
-                                )}
-                              </div>
-                              <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Manager Recommendation</div>
-                              <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                                {isStage1Done
-                                  ? `Proposed: +${activeAppraisal.proposedIncrementPercentage ?? 0}%`
-                                  : 'Pending Review'}
-                              </div>
-                            </div>
+                      <div className="p-3 rounded-[6px] bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">STAGE 1</span>
+                          {isStage1Done ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                          ) : (
+                            <Clock className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+                          )}
+                        </div>
+                        <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Manager Recommendation</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 tabular-nums">
+                          {isStage1Done
+                            ? `Proposed: +${activeAppraisal.proposedIncrementPercentage ?? 0}%`
+                            : 'Pending Review'}
+                        </div>
+                      </div>
 
-                            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">STAGE 2</span>
-                                {isStage2Done ? (
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                ) : (
-                                  <span className="text-[10px] text-slate-400 dark:text-slate-500">Pending</span>
-                                )}
-                              </div>
-                              <div className="text-xs font-bold text-slate-800 dark:text-slate-200">HOD Department Calibration</div>
-                              <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                                {isStage2Done ? 'Budget Cleared & Approved' : 'Awaiting Calibration'}
-                              </div>
-                            </div>
+                      <div className="p-3 rounded-[6px] bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">STAGE 2</span>
+                          {isStage2Done ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                          ) : (
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500">Pending</span>
+                          )}
+                        </div>
+                        <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">HOD Calibration</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                          {isStage2Done ? 'Budget Cleared' : 'Awaiting Calibration'}
+                        </div>
+                      </div>
 
-                            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">STAGE 3</span>
-                                {isStage3Done ? (
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                ) : (
-                                  <span className="text-[10px] text-slate-400 dark:text-slate-500">Pending</span>
-                                )}
-                              </div>
-                              <div className="text-xs font-bold text-slate-800 dark:text-slate-200">HR Final Approval</div>
-                              <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                                {isStage3Done ? 'Letter Formatted & Verified' : 'Awaiting HR Lock'}
-                              </div>
-                            </div>
+                      <div className="p-3 rounded-[6px] bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">STAGE 3</span>
+                          {isStage3Done ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                          ) : (
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500">Pending</span>
+                          )}
+                        </div>
+                        <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">HR Final Approval</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                          {isStage3Done ? 'Increment Approved' : 'Pending Sign-off'}
+                        </div>
+                      </div>
 
-                            <div
-                              className={`p-3 rounded-xl border space-y-1 ${
-                                activeAppraisal.isLocked
-                                  ? isAcknowledged
-                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
-                                    : 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200'
-                                  : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/80 text-slate-500 dark:text-slate-400'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-bold">STAGE 4</span>
-                                {isAcknowledged ? (
-                                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                ) : activeAppraisal.isLocked ? (
-                                  <Clock className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 animate-pulse" />
-                                ) : (
-                                  <span className="text-[10px]">Pending</span>
-                                )}
-                              </div>
-                              <div className="text-xs font-bold">
-                                {isAcknowledged ? 'Digitally Acknowledged' : 'Employee Sign-off'}
-                              </div>
-                              <div className="text-[10px]">
-                                {isAcknowledged ? 'Completed' : activeAppraisal.isLocked ? 'Action Required' : 'Awaiting HR Release'}
-                              </div>
-                            </div>
+                      <div className="p-3 rounded-[6px] bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">STAGE 4</span>
+                          {activeAppraisal.isLocked ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                          ) : (
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500">Pending</span>
+                          )}
+                        </div>
+                        <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">Letter Release</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                          {activeAppraisal.isLocked ? 'Letter Published' : 'In Progress'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Letter & Compensation Card */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[8px] overflow-hidden">
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400 tracking-wider block">
+                          Compensation Letter Release
+                        </span>
+                        <h4 className="text-sm font-semibold text-slate-900 dark:text-white">
+                          {activeAppraisal.isLocked ? 'Appraisal Letter Available' : 'Compensation Proposal Under Review'}
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Rolling 4-Quarter Composite Score:{' '}
+                          <strong className="text-slate-900 dark:text-white tabular-nums">
+                            {activeAppraisal.averageQuarterlyScore && activeAppraisal.averageQuarterlyScore > 0
+                              ? `${activeAppraisal.averageQuarterlyScore.toFixed(2)} / 5.00`
+                              : 'Pending Reviews'}
+                          </strong>
+                        </p>
+                      </div>
+
+                      {activeAppraisal.isLocked && (
+                        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                          <button
+                            onClick={() => downloadAppraisalPdf(activeAppraisal)}
+                            className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-[6px] transition-colors cursor-pointer"
+                            title="Download official PDF"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Download PDF</span>
+                          </button>
+
+                          <button
+                            onClick={() => setSelectedAppraisalForLetter(activeAppraisal)}
+                            className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-[6px] transition-colors cursor-pointer"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>View Letter</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Promotion Announcement if applicable */}
+                    {activeAppraisal.promotionRecommended && (
+                      <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900/60 flex items-center gap-2.5 text-amber-900 dark:text-amber-200">
+                        <Award className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                        <div>
+                          <h4 className="text-xs font-semibold">Promotion Approved</h4>
+                          <p className="text-xs text-amber-800 dark:text-amber-300">
+                            Promoted to{' '}
+                            <strong>{activeAppraisal.promotionDesignationName || 'Lead Specialist'}</strong> effective{' '}
+                            <strong>{activeAppraisal.effectiveDate || `${activeAppraisal.appraisalYear}-10-01`}</strong>.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Table of Revised Compensation */}
+                    <div className="p-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-[6px] space-y-1">
+                          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                            Current Annual CTC
+                          </span>
+                          <div className="text-base font-semibold text-slate-800 dark:text-slate-200 tabular-nums">
+                            {activeAppraisal.currency}{activeAppraisal.currentCtc?.toLocaleString()}
                           </div>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 tabular-nums">
+                            ≈ {activeAppraisal.currency}{Math.round((activeAppraisal.currentCtc || 0) / 12).toLocaleString()} / mo
+                          </span>
                         </div>
 
-                        {/* Compensation Revision Highlights Card */}
-                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
-                          <div className="bg-slate-900 dark:bg-slate-950 text-white p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-transparent dark:border-slate-800">
-                            <div className="space-y-1">
-                              <span className="text-[10px] uppercase font-bold text-indigo-300 tracking-wider">
-                                Official Compensation Revision Summary
+                        <div className="p-3 bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/60 rounded-[6px] space-y-1">
+                          <span className="text-[10px] font-semibold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                            {isStage3Done ? 'Approved Increment' : 'Increment Status'}
+                          </span>
+                          {isStage3Done ? (
+                            <>
+                              <div className="text-base font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums flex items-center gap-1.5">
+                                <span>+{(activeAppraisal.approvedIncrementPercentage ?? activeAppraisal.proposedIncrementPercentage ?? 0)}%</span>
+                                <span className="text-xs font-normal text-emerald-600 dark:text-emerald-400">
+                                  (+{activeAppraisal.currency}{(activeAppraisal.incrementAmount || 0).toLocaleString()})
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 tabular-nums">
+                                +{activeAppraisal.currency}{Math.round((activeAppraisal.incrementAmount || 0) / 12).toLocaleString()} / mo increase
                               </span>
-                              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                <span>Annual Performance Rating:</span>
-                                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 font-mono">
-                                  {activeAppraisal.finalRating && activeAppraisal.finalRating !== 'PENDING'
-                                    ? activeAppraisal.finalRating
-                                    : activeAppraisal.recommendedRating && activeAppraisal.recommendedRating !== 'PENDING'
-                                    ? activeAppraisal.recommendedRating
-                                    : 'PENDING EVALUATION'}
-                                </span>
-                              </h3>
-                              <p className="text-xs text-slate-400">
-                                Rolling 4-Quarter Composite Score:{' '}
-                                <strong className="text-white font-mono">
-                                  {activeAppraisal.averageQuarterlyScore && activeAppraisal.averageQuarterlyScore > 0
-                                    ? `${activeAppraisal.averageQuarterlyScore.toFixed(2)} / 5.00`
-                                    : 'Pending Reviews'}
-                                </strong>
-                              </p>
-                            </div>
-
-                            {activeAppraisal.isLocked && (
-                              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-                                <button
-                                  onClick={() => downloadAppraisalPdf(activeAppraisal)}
-                                  className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer"
-                                  title="Download official branded PDF"
-                                >
-                                  <Download className="w-4 h-4" />
-                                  <span>Download PDF</span>
-                                </button>
-
-                                <button
-                                  onClick={() => setSelectedAppraisalForLetter(activeAppraisal)}
-                                  className="flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer"
-                                >
-                                  <FileText className="w-4 h-4" />
-                                  <span>View Letter</span>
-                                </button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-base font-semibold text-slate-500 dark:text-slate-400">
+                                Under Review
                               </div>
-                            )}
-                          </div>
-
-                          {/* Promotion Announcement if applicable */}
-                          {activeAppraisal.promotionRecommended && (
-                            <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900/60 flex items-center gap-3 text-amber-900 dark:text-amber-200">
-                              <Award className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
-                              <div>
-                                <h4 className="text-xs font-bold">🎉 Congratulations on your Promotion!</h4>
-                                <p className="text-xs text-amber-800 dark:text-amber-300">
-                                  You have been promoted to{' '}
-                                  <strong>{activeAppraisal.promotionDesignationName || 'Lead Specialist'}</strong> effective{' '}
-                                  <strong>{activeAppraisal.effectiveDate || `${activeAppraisal.appraisalYear}-10-01`}</strong>.
-                                </p>
-                              </div>
-                            </div>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                Calibration in progress
+                              </span>
+                            </>
                           )}
+                        </div>
 
-                          {/* Table of Revised Compensation */}
-                          <div className="p-5">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                              <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl space-y-1">
-                                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                  Current Annual CTC
-                                </span>
-                                <div className="text-lg font-bold text-slate-700 dark:text-slate-200 font-mono">
-                                  {activeAppraisal.currency}{activeAppraisal.currentCtc?.toLocaleString()}
-                                </div>
-                                <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                                  ≈ {activeAppraisal.currency}{Math.round((activeAppraisal.currentCtc || 0) / 12).toLocaleString()} / month
-                                </span>
+                        <div className="p-3 bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 rounded-[6px] space-y-1">
+                          <span className="text-[10px] font-semibold text-blue-800 dark:text-blue-300 uppercase tracking-wider">
+                            {isStage3Done ? 'Revised Annual CTC' : 'Projected CTC'}
+                          </span>
+                          {isStage3Done ? (
+                            <>
+                              <div className="text-base font-semibold text-blue-900 dark:text-blue-200 tabular-nums">
+                                {activeAppraisal.currency}{(activeAppraisal.revisedCtc || activeAppraisal.currentCtc)?.toLocaleString()}
                               </div>
-
-                              <div className="p-4 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-xl space-y-1">
-                                <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
-                                  {isStage3Done ? 'Approved Increment' : 'Increment Status'}
-                                </span>
-                                {isStage3Done ? (
-                                  <>
-                                    <div className="text-lg font-bold text-emerald-700 dark:text-emerald-300 font-mono flex items-center gap-1.5">
-                                      <span>+{(activeAppraisal.approvedIncrementPercentage ?? activeAppraisal.proposedIncrementPercentage ?? 0)}%</span>
-                                      <span className="text-xs font-normal text-emerald-600 dark:text-emerald-400">
-                                        (+{activeAppraisal.currency}{(activeAppraisal.incrementAmount || 0).toLocaleString()})
-                                      </span>
-                                    </div>
-                                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
-                                      +{activeAppraisal.currency}{Math.round((activeAppraisal.incrementAmount || 0) / 12).toLocaleString()} / month increase
-                                    </span>
-                                  </>
-                                ) : isStage1Done && (activeAppraisal.proposedIncrementPercentage || 0) > 0 ? (
-                                  <>
-                                    <div className="text-lg font-bold text-amber-700 dark:text-amber-300 font-mono flex items-center gap-1.5">
-                                      <span>+{activeAppraisal.proposedIncrementPercentage}%</span>
-                                      <span className="text-xs font-normal text-amber-600 dark:text-amber-400">
-                                        (Proposed)
-                                      </span>
-                                    </div>
-                                    <span className="text-[10px] text-amber-600 dark:text-amber-400">
-                                      Under review in calibration stages
-                                    </span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div className="text-lg font-bold text-slate-500 dark:text-slate-400 font-mono">
-                                      Pending
-                                    </div>
-                                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                                      Review cycle in progress
-                                    </span>
-                                  </>
-                                )}
+                              <span className="text-[10px] text-blue-700 dark:text-blue-300 tabular-nums">
+                                ≈ {activeAppraisal.currency}{Math.round(((activeAppraisal.revisedCtc || activeAppraisal.currentCtc) || 0) / 12).toLocaleString()} / mo
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-base font-semibold text-slate-700 dark:text-slate-300 tabular-nums">
+                                {activeAppraisal.currency}{activeAppraisal.currentCtc?.toLocaleString()}
                               </div>
-
-                              <div className="p-4 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 rounded-xl space-y-1">
-                                <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider">
-                                  {isStage3Done ? 'Revised Annual Fixed CTC' : 'Projected CTC'}
-                                </span>
-                                {isStage3Done ? (
-                                  <>
-                                    <div className="text-xl font-extrabold text-indigo-950 dark:text-indigo-200 font-mono">
-                                      {activeAppraisal.currency}{(activeAppraisal.revisedCtc || activeAppraisal.currentCtc)?.toLocaleString()}
-                                    </div>
-                                    <span className="text-[10px] text-indigo-700 dark:text-indigo-300 font-medium">
-                                      ≈ {activeAppraisal.currency}{Math.round(((activeAppraisal.revisedCtc || activeAppraisal.currentCtc) || 0) / 12).toLocaleString()} / month (Effective {activeAppraisal.effectiveDate || `${activeAppraisal.appraisalYear}-10-01`})
-                                    </span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <div className="text-xl font-extrabold text-slate-700 dark:text-slate-300 font-mono">
-                                      {activeAppraisal.currency}{activeAppraisal.currentCtc?.toLocaleString()}
-                                    </div>
-                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                                      Current base (Revision pending approval)
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                                Current baseline
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
 
                     {/* DIGITAL ACKNOWLEDGEMENT MODULE */}
-                    <div className="p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50">
+                    <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                       <div className="max-w-3xl mx-auto">
                         {isAcknowledged ? (
-                          <div className="p-5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-2xl space-y-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
-                                <ShieldCheck className="w-6 h-6" />
-                              </div>
+                          <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-[6px] space-y-2">
+                            <div className="flex items-center gap-2.5">
+                              <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                               <div>
-                                <h4 className="text-sm font-bold text-emerald-950 dark:text-emerald-200">
-                                  ✓ Appraisal Letter Digitally Acknowledged & Signed
+                                <h4 className="text-xs font-semibold text-emerald-950 dark:text-emerald-200">
+                                  Appraisal Letter Digitally Acknowledged & Signed
                                 </h4>
-                                <p className="text-xs text-emerald-800 dark:text-emerald-300">
+                                <p className="text-[11px] text-emerald-800 dark:text-emerald-300">
                                   Signed by <strong>{activeAppraisal.employeeAcknowledgement?.acknowledgedByName || currentEmp.name}</strong> on{' '}
                                   {new Date(activeAppraisal.employeeAcknowledgement?.acknowledgedAt || '').toLocaleString('en-US', {
                                     year: 'numeric',
@@ -847,53 +810,51 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                               </div>
                             </div>
                             {activeAppraisal.employeeAcknowledgement?.comments && (
-                              <div className="p-3 bg-white/70 dark:bg-slate-900/80 rounded-xl border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-900 dark:text-emerald-200 italic">
+                              <div className="p-2.5 bg-white dark:bg-slate-900 rounded-[4px] border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-900 dark:text-emerald-200 italic">
                                 "{activeAppraisal.employeeAcknowledgement.comments}"
                               </div>
                             )}
-                            <div className="flex items-center justify-between text-[11px] text-emerald-700 dark:text-emerald-400 pt-1 border-t border-emerald-200/60 dark:border-emerald-900/60 font-mono">
-                              <span>Security Reference: SEC-ACK-{activeAppraisal.id.substr(-6).toUpperCase()}</span>
+                            <div className="flex items-center justify-between text-[10px] text-emerald-700 dark:text-emerald-400 pt-1 border-t border-emerald-200/60 dark:border-emerald-900/60 tabular-nums">
+                              <span>Security Ref: SEC-ACK-{activeAppraisal.id.substr(-6).toUpperCase()}</span>
                               <span>Status: Recorded in Master Audit Trail</span>
                             </div>
                           </div>
                         ) : activeAppraisal.isLocked ? (
-                          <div className="p-5 bg-white dark:bg-slate-900 border-2 border-indigo-200 dark:border-indigo-800 rounded-2xl space-y-4 shadow-sm">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-                                <CheckSquare className="w-5 h-5" />
-                              </div>
+                          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] space-y-3">
+                            <div className="flex items-center gap-2.5">
+                              <CheckSquare className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0" />
                               <div>
-                                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                                  Digital Letter Acceptance & Acknowledgement Required
+                                <h4 className="text-xs font-semibold text-slate-900 dark:text-white">
+                                  Digital Letter Acceptance Required
                                 </h4>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400">
                                   Please review your appraisal details and digitally sign to confirm acceptance of the revised terms.
                                 </p>
                               </div>
                             </div>
 
                             {ackSuccessMessage && (
-                              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-xl text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                              <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-[4px] text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
                                 <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                                 <span>{ackSuccessMessage}</span>
                               </div>
                             )}
 
-                            <div className="space-y-3 pt-2">
-                              <label className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-800 transition-colors">
+                            <div className="space-y-2.5 pt-1">
+                              <label className="flex items-start gap-2.5 p-2.5 rounded-[4px] bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-800 transition-colors">
                                 <input
                                   type="checkbox"
                                   checked={ackAccepted}
                                   onChange={(e) => setAckAccepted(e.target.checked)}
-                                  className="mt-0.5 w-4 h-4 rounded text-slate-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600"
+                                  className="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-600"
                                 />
-                                <span className="text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed">
+                                <span className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
                                   I, <strong>{currentEmp.name}</strong>, hereby acknowledge receipt of my Annual Performance Appraisal Letter for Cycle <strong>{activeAppraisal.cycleName} ({activeAppraisal.appraisalYear})</strong> and confirm my acceptance of the performance evaluation rating and revised compensation structure effective <strong>{activeAppraisal.effectiveDate || `${activeAppraisal.appraisalYear}-10-01`}</strong>.
                                 </span>
                               </label>
 
                               <div className="space-y-1">
-                                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                                <label className="text-xs font-medium text-slate-700 dark:text-slate-300 block">
                                   Employee Feedback / Note (Optional):
                                 </label>
                                 <input
@@ -901,15 +862,15 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                                   value={ackComments}
                                   onChange={(e) => setAckComments(e.target.value)}
                                   placeholder="e.g. Grateful for the mentorship and excited for the upcoming roadmap."
-                                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
+                                  className="w-full text-xs p-2 rounded-[4px] border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
                                 />
                               </div>
 
-                              <div className="flex items-center justify-between pt-2">
+                              <div className="flex items-center justify-between pt-1">
                                 <button
                                   type="button"
                                   onClick={() => setSelectedAppraisalForLetter(activeAppraisal)}
-                                  className="text-xs text-slate-600 dark:text-slate-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold flex items-center gap-1 cursor-pointer"
+                                  className="text-xs text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium flex items-center gap-1 cursor-pointer"
                                 >
                                   <FileText className="w-3.5 h-3.5" />
                                   <span>Preview Full Letter First</span>
@@ -919,9 +880,9 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                                   type="button"
                                   disabled={!ackAccepted || isSubmittingAck}
                                   onClick={() => handleAcknowledge(activeAppraisal.id)}
-                                  className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-2 ${
+                                  className={`px-3.5 py-1.5 text-xs font-medium rounded-[6px] transition-colors cursor-pointer flex items-center gap-2 ${
                                     ackAccepted && !isSubmittingAck
-                                      ? 'bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white'
+                                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
                                       : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
                                   }`}
                                 >
@@ -932,7 +893,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                             </div>
                           </div>
                         ) : (
-                          <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-xl text-center text-xs text-slate-600 dark:text-slate-400">
+                          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-[6px] border border-slate-200 dark:border-slate-800 text-center text-xs text-slate-600 dark:text-slate-400">
                             Appraisal review is currently in calibration stages. Digital acknowledgement will open once HR finalizes and locks the cycle letter.
                           </div>
                         )}
@@ -941,81 +902,81 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {/* Current Active Baseline Compensation Card */}
-                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-2xs">
-                    <div className="bg-gradient-to-r from-slate-900 to-indigo-950 p-6 text-white flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-transparent dark:border-slate-800">
+                  <div className="bg-white dark:bg-slate-900 rounded-[8px] border border-slate-200 dark:border-slate-800 overflow-hidden">
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800">
                       <div>
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="px-2 py-0.5 rounded-[4px] text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                             Active Base CTC
                           </span>
-                          <span className="text-xs text-slate-400 font-mono">
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
                             Pre-Increment Baseline
                           </span>
                         </div>
-                        <h4 className="text-lg font-bold text-white">Current Compensation Structure</h4>
-                        <p className="text-xs text-slate-400 mt-0.5">
+                        <h4 className="text-base font-semibold text-slate-900 dark:text-white">Current Compensation Structure</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                           Annual appraisal calibration will occur in your cohort's designated evaluation month.
                         </p>
                       </div>
 
-                      <div className="bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl px-5 py-3 text-right">
-                        <span className="text-[10px] text-slate-300 uppercase tracking-wider font-semibold block">
+                      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[6px] px-4 py-2.5 text-right">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold block">
                           Current Fixed Annual CTC
                         </span>
-                        <div className="text-2xl font-extrabold text-emerald-400 font-mono">
+                        <div className="text-xl font-semibold text-slate-900 dark:text-white tabular-nums">
                           {currentEmp.currency || '₹'}{(currentEmp.currentCtc || 1600000).toLocaleString('en-IN')}
                         </div>
-                        <span className="text-[10px] text-slate-300 font-mono block mt-0.5">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 tabular-nums block mt-0.5">
                           ≈ {currentEmp.currency || '₹'}{Math.round((currentEmp.currentCtc || 1600000) / 12).toLocaleString('en-IN')} / month
                         </span>
                       </div>
                     </div>
 
-                    <div className="p-6 space-y-6">
+                    <div className="p-5 space-y-4">
                       {/* Component Breakdown */}
                       <div>
-                        <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">
+                        <h5 className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2.5">
                           Monthly & Annual Salary Components
                         </h5>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                          <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-xl p-3.5">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                          <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-[6px] p-3">
                             <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Basic Salary (50%)</span>
-                            <div className="text-sm font-bold text-slate-900 dark:text-white font-mono mt-1">
+                            <div className="text-sm font-semibold text-slate-900 dark:text-white tabular-nums mt-1">
                               {currentEmp.currency || '₹'}{Math.round((currentEmp.currentCtc || 1600000) * 0.5).toLocaleString('en-IN')}
                             </div>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono block">
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 tabular-nums block">
                               {currentEmp.currency || '₹'}{Math.round(((currentEmp.currentCtc || 1600000) * 0.5) / 12).toLocaleString('en-IN')}/mo
                             </span>
                           </div>
 
-                          <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-xl p-3.5">
+                          <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-[6px] p-3">
                             <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">House Rent (HRA 25%)</span>
-                            <div className="text-sm font-bold text-slate-900 dark:text-white font-mono mt-1">
+                            <div className="text-sm font-semibold text-slate-900 dark:text-white tabular-nums mt-1">
                               {currentEmp.currency || '₹'}{Math.round((currentEmp.currentCtc || 1600000) * 0.25).toLocaleString('en-IN')}
                             </div>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono block">
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 tabular-nums block">
                               {currentEmp.currency || '₹'}{Math.round(((currentEmp.currentCtc || 1600000) * 0.25) / 12).toLocaleString('en-IN')}/mo
                             </span>
                           </div>
 
-                          <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-xl p-3.5">
+                          <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-[6px] p-3">
                             <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Special Allowance (20%)</span>
-                            <div className="text-sm font-bold text-slate-900 dark:text-white font-mono mt-1">
+                            <div className="text-sm font-semibold text-slate-900 dark:text-white tabular-nums mt-1">
                               {currentEmp.currency || '₹'}{Math.round((currentEmp.currentCtc || 1600000) * 0.2).toLocaleString('en-IN')}
                             </div>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono block">
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 tabular-nums block">
                               {currentEmp.currency || '₹'}{Math.round(((currentEmp.currentCtc || 1600000) * 0.2) / 12).toLocaleString('en-IN')}/mo
                             </span>
                           </div>
 
-                          <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 rounded-xl p-3.5">
+                          <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-[6px] p-3">
                             <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Provident Fund (5%)</span>
-                            <div className="text-sm font-bold text-slate-900 dark:text-white font-mono mt-1">
+                            <div className="text-sm font-semibold text-slate-900 dark:text-white tabular-nums mt-1">
                               {currentEmp.currency || '₹'}{Math.round((currentEmp.currentCtc || 1600000) * 0.05).toLocaleString('en-IN')}
                             </div>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono block">
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 tabular-nums block">
                               {currentEmp.currency || '₹'}{Math.round(((currentEmp.currentCtc || 1600000) * 0.05) / 12).toLocaleString('en-IN')}/mo
                             </span>
                           </div>
@@ -1023,15 +984,13 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                       </div>
 
                       {/* 8-Cycle Appraisal Framework info */}
-                      <div className="bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 rounded-xl p-4 flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
-                          <Clock className="w-4 h-4" />
-                        </div>
-                        <div className="space-y-1">
-                          <h6 className="text-xs font-bold text-indigo-950 dark:text-indigo-200">
+                      <div className="bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 rounded-[6px] p-3 flex items-start gap-2.5">
+                        <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                        <div className="space-y-0.5">
+                          <h6 className="text-xs font-semibold text-blue-950 dark:text-blue-200">
                             Upcoming Appraisal Cohort: {currentEmp.cycleName || `Cycle ${currentEmp.cycleCode}`}
                           </h6>
-                          <p className="text-xs text-indigo-700 dark:text-indigo-300 leading-relaxed">
+                          <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
                             Under the 8-Cycle Distributed Framework, employees in this cohort are calibrated annually during their scheduled review window. Your quarterly review scores contribute to the rolling performance score used during calibration.
                           </p>
                         </div>
@@ -1045,7 +1004,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
 
           {/* TAB 2: QUARTERLY REVIEWS & SELF-EVALUATION */}
           {activeTab === 'reviews' && (
-            <div className="space-y-6">
+            <div key="tab-reviews" className="space-y-6 animate-entrance animate-stagger-4">
               <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div>
@@ -1076,17 +1035,17 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                       return (
                         <div
                           key={rev.id}
-                          className="bg-slate-50/70 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600 rounded-2xl p-5 transition-all space-y-4 shadow-2xs"
+                          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[8px] p-4 transition-colors space-y-3"
                         >
                           {/* Quarter Header */}
                           <div className="flex items-start justify-between gap-2">
                             <div>
                               <div className="flex items-center gap-2">
-                                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                                <h4 className="text-xs font-semibold text-slate-900 dark:text-white">
                                   {rev.reviewPeriodName}
                                 </h4>
                                 <span
-                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                  className={`px-2 py-0.5 rounded-[4px] text-[10px] font-medium border ${
                                     isRevClosed
                                       ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                                       : hasManagerSubmitted
@@ -1099,10 +1058,10 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                                   {isRevClosed
                                     ? '✓ COMPLETED'
                                     : hasManagerSubmitted
-                                    ? '✓ MANAGER EVALUATED'
+                                    ? '✓ EVALUATED'
                                     : hasSelfSubmitted
-                                    ? 'MANAGER EVALUATION'
-                                    : 'SELF-ASSESSMENT DUE'}
+                                    ? 'IN REVIEW'
+                                    : 'ACTION REQUIRED'}
                                 </span>
                               </div>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
@@ -1114,32 +1073,32 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                               <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
                                 Final Score
                               </span>
-                              <div className="text-lg font-bold font-mono text-slate-900 dark:text-white">
+                              <div className="text-base font-semibold tabular-nums text-slate-900 dark:text-white">
                                 {hasManagerSubmitted && rev.finalScore ? (
-                                  <span>{rev.finalScore.toFixed(2)} <span className="text-xs text-slate-400 dark:text-slate-500">/ 5.0</span></span>
+                                  <span>{rev.finalScore.toFixed(2)} <span className="text-xs text-slate-400 dark:text-slate-500 font-normal">/ 5.0</span></span>
                                 ) : (
-                                  <span className="text-slate-400 dark:text-slate-500 text-sm">-- / 5.0</span>
+                                  <span className="text-slate-400 dark:text-slate-500 text-sm font-normal">-- / 5.0</span>
                                 )}
                               </div>
                             </div>
                           </div>
 
                           {/* Scores Comparison Row */}
-                          <div className="grid grid-cols-2 gap-2 bg-white dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200 dark:border-slate-700/80 text-xs">
+                          <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-[6px] border border-slate-200 dark:border-slate-800 text-xs">
                             <div>
-                              <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-                                Your Self-Rating
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                                Self-Rating
                               </span>
-                              <div className="font-bold text-indigo-700 dark:text-indigo-300 font-mono mt-0.5">
+                              <div className="font-semibold text-blue-700 dark:text-blue-300 tabular-nums mt-0.5">
                                 {rev.selfScore ? `${rev.selfScore.toFixed(2)} / 5.0` : 'Not submitted'}
                               </div>
                             </div>
 
                             <div>
-                              <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                                 Manager Score
                               </span>
-                              <div className="font-bold text-emerald-700 dark:text-emerald-400 font-mono mt-0.5">
+                              <div className="font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums mt-0.5">
                                 {hasManagerSubmitted && rev.finalScore ? `${rev.finalScore.toFixed(2)} / 5.0` : 'Pending review'}
                               </div>
                             </div>
@@ -1147,28 +1106,27 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
 
                           {/* Feedback Highlights if available */}
                           {rev.strengths && (
-                            <div className="text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
-                              <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
-                                Manager Strengths Highlight:
+                            <div className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/40 p-2 rounded-[6px] border border-slate-100 dark:border-slate-800 space-y-0.5">
+                              <span className="text-[10px] font-medium text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                                Manager Feedback:
                               </span>
                               <p className="italic line-clamp-2">"{rev.strengths}"</p>
                             </div>
                           )}
 
                           {/* Actions */}
-                          <div className="pt-1 flex items-center justify-between border-t border-slate-200 dark:border-slate-700/80">
-                            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                          <div className="pt-1 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
                               {rev.kraSnapshot?.length || 0} KRAs Scored
                             </span>
 
                             <button
                               onClick={() => setSelectedReviewForSelfAssess(rev)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white transition-all shadow-2xs cursor-pointer"
+                              className="flex items-center gap-1.5 px-3 py-1 rounded-[6px] text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer"
                             >
-                              <Sparkles className="w-3.5 h-3.5" />
                               <span>
                                 {isRevClosed || hasManagerSubmitted
-                                  ? 'View Review Breakdown'
+                                  ? 'View Breakdown'
                                   : hasSelfSubmitted
                                   ? 'Edit Self-Assessment'
                                   : 'Start Self-Assessment'}
@@ -1186,7 +1144,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
 
           {/* TAB 3: ASSIGNED KRAS & GOALS */}
           {activeTab === 'kras' && (
-            <div className="space-y-6">
+            <div key="tab-kras" className="space-y-6 animate-entrance animate-stagger-4">
               <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div>
@@ -1204,19 +1162,19 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                 </div>
 
                 {/* KRA Items List */}
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {(activeKra?.items || (reviews[0]?.kraSnapshot) || []).map((kra: any, idx: number) => (
                     <div
                       key={kra.id || idx}
-                      className="p-4 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-white dark:hover:bg-slate-800/80 transition-all space-y-2.5 shadow-2xs"
+                      className="p-3.5 rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-colors space-y-2"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                         <div className="flex items-start gap-2.5">
-                          <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                          <span className="w-5 h-5 rounded-[4px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center shrink-0 tabular-nums">
                             {idx + 1}
                           </span>
                           <div>
-                            <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                            <h4 className="text-xs font-semibold text-slate-900 dark:text-white">
                               {kra.kraName || kra.title}
                             </h4>
                             {kra.description && (
@@ -1225,19 +1183,19 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                           </div>
                         </div>
 
-                        <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-mono self-start">
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-[4px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 tabular-nums self-start">
                           Weight: {kra.weight}%
                         </span>
                       </div>
 
-                      <div className="bg-white dark:bg-slate-900/80 p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-xs space-y-1">
+                      <div className="bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-[6px] border border-slate-200 dark:border-slate-800 text-xs space-y-1">
                         <div className="flex items-start gap-1.5">
-                          <span className="font-semibold text-slate-700 dark:text-slate-300 shrink-0">Target Metric:</span>
+                          <span className="font-medium text-slate-700 dark:text-slate-300 shrink-0">Target:</span>
                           <span className="text-slate-600 dark:text-slate-400">{kra.target || kra.targetSnapshot || 'Sprint deliverables on time'}</span>
                         </div>
                         {kra.measurementCriteria && (
                           <div className="flex items-start gap-1.5 pt-0.5">
-                            <span className="font-semibold text-slate-700 dark:text-slate-300 shrink-0">Evaluation Rubric:</span>
+                            <span className="font-medium text-slate-700 dark:text-slate-300 shrink-0">Rubric:</span>
                             <span className="text-slate-500 dark:text-slate-400 text-[11px]">{kra.measurementCriteria}</span>
                           </div>
                         )}
@@ -1251,10 +1209,10 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
 
           {/* TAB 4: PERFORMANCE & GROWTH TRAJECTORY */}
           {activeTab === 'growth' && (
-            <div className="space-y-6">
-              <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs space-y-6">
+            <div key="tab-growth" className="space-y-4">
+              <div className="bg-white dark:bg-slate-900 p-5 rounded-[8px] border border-slate-200 dark:border-slate-800 space-y-5">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
                     Longitudinal Performance & Career Trajectory
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -1263,24 +1221,27 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                 </div>
 
                 {/* Score Progression Bars */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                <div className="space-y-2.5">
+                  <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                     Quarterly Score Progression
                   </h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                     {reviews.map((r, i) => (
-                      <div key={i} className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-center space-y-2">
-                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">{r.reviewPeriodName}</span>
-                        <div className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white">
+                      <div
+                        key={i}
+                        className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-[6px] border border-slate-200 dark:border-slate-800 text-center space-y-1.5"
+                      >
+                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">{r.reviewPeriodName}</span>
+                        <div className="text-xl font-semibold tabular-nums text-slate-900 dark:text-white">
                           {r.finalScore ? r.finalScore.toFixed(2) : '--'}
                         </div>
-                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
                           <div
-                            className="bg-indigo-600 h-2 rounded-full"
+                            className="bg-blue-600 h-1.5 rounded-full"
                             style={{ width: `${((r.finalScore || 0) / 5) * 100}%` }}
                           />
                         </div>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block">
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 block tabular-nums">
                           Self: {r.selfScore ? `${r.selfScore.toFixed(2)}` : '--'}
                         </span>
                       </div>
@@ -1289,19 +1250,19 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                 </div>
 
                 {/* CTC Milestones */}
-                <div className="space-y-3 pt-2">
-                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                <div className="space-y-2.5 pt-1">
+                  <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                     Compensation Progression Timeline
                   </h4>
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
-                    <div className="flex items-center justify-between text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-[6px] border border-slate-200 dark:border-slate-800 space-y-2.5">
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-700 dark:text-slate-300">
                       <span>Joining Baseline CTC ({new Date(currentEmp.joiningDate || '').getFullYear()})</span>
-                      <span className="font-mono">{currentEmp.currency}15,00,000</span>
+                      <span className="tabular-nums">{currentEmp.currency}15,00,000</span>
                     </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5" />
-                    <div className="flex items-center justify-between text-xs font-bold text-indigo-900 dark:text-indigo-300">
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1" />
+                    <div className="flex items-center justify-between text-xs font-semibold text-blue-700 dark:text-blue-300">
                       <span>Current Fixed CTC (Post-Calibration)</span>
-                      <span className="font-mono text-base">{currentEmp.currency}{currentEmp.currentCtc?.toLocaleString()}</span>
+                      <span className="tabular-nums text-sm font-semibold">{currentEmp.currency}{currentEmp.currentCtc?.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>

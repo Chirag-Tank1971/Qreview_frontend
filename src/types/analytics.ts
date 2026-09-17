@@ -106,6 +106,12 @@ export interface ManagementOrganizationPerformance {
   trendDirection: 'UP' | 'DOWN' | 'FLAT';
   highestPerformingDepartments: ManagementDepartmentBrief[];
   departmentsRequiringAttention: ManagementDepartmentBrief[];
+  ratingDistribution?: {
+    exceptional: number;
+    proficient: number;
+    needsFocus: number;
+    inEvaluation: number;
+  };
 }
 
 export interface ManagementDashboardData {

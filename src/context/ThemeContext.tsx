@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -34,8 +35,35 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return false;
   });
 
-  useEffect(() => {
+  const transitionTimeoutRef = useRef<number | null>(null);
+
+  const applyDomTheme = (resolvedDark: boolean) => {
     const root = document.documentElement;
+    if (resolvedDark) {
+      root.classList.add('dark');
+      document.body.classList.add('dark');
+      root.style.colorScheme = 'dark';
+    } else {
+      root.classList.remove('dark');
+      document.body.classList.remove('dark');
+      root.style.colorScheme = 'light';
+    }
+  };
+
+  const triggerSmoothTransition = () => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    root.classList.add('theme-transitioning');
+    if (transitionTimeoutRef.current) {
+      window.clearTimeout(transitionTimeoutRef.current);
+    }
+    transitionTimeoutRef.current = window.setTimeout(() => {
+      root.classList.remove('theme-transitioning');
+      transitionTimeoutRef.current = null;
+    }, 400);
+  };
+
+  useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
     const updateResolvedTheme = () => {
@@ -49,15 +77,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
 
       setIsDark(resolvedDark);
-      if (resolvedDark) {
-        root.classList.add('dark');
-        document.body.classList.add('dark');
-        root.style.colorScheme = 'dark';
-      } else {
-        root.classList.remove('dark');
-        document.body.classList.remove('dark');
-        root.style.colorScheme = 'light';
-      }
+      applyDomTheme(resolvedDark);
     };
 
     updateResolvedTheme();
@@ -69,16 +89,55 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
 
     mediaQuery.addEventListener('change', handleMediaChange);
-    return () => mediaQuery.removeEventListener('change', handleMediaChange);
+    return () => {
+      mediaQuery.removeEventListener('change', handleMediaChange);
+      if (transitionTimeoutRef.current) {
+        window.clearTimeout(transitionTimeoutRef.current);
+      }
+    };
   }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
+    triggerSmoothTransition();
     setThemeState(newTheme);
     localStorage.setItem(THEME_STORAGE_KEY, newTheme);
   };
 
   const toggleTheme = () => {
-    setTheme(isDark ? 'light' : 'dark');
+    const nextDark = !isDark;
+    const nextTheme: Theme = nextDark ? 'dark' : 'light';
+
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const hasViewTransition =
+      typeof document !== 'undefined' &&
+      'startViewTransition' in document &&
+      !prefersReducedMotion;
+
+    if (hasViewTransition) {
+      try {
+        (document as any).startViewTransition(() => {
+          flushSync(() => {
+            setThemeState(nextTheme);
+            setIsDark(nextDark);
+            applyDomTheme(nextDark);
+            localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+          });
+        });
+        return;
+      } catch {
+        // Fallback below
+      }
+    }
+
+    // Fallback for browsers without View Transitions:
+    triggerSmoothTransition();
+    setThemeState(nextTheme);
+    setIsDark(nextDark);
+    applyDomTheme(nextDark);
+    localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
   };
 
   return (

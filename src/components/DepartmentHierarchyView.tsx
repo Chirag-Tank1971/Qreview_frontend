@@ -24,6 +24,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { CycleBadge } from './ui/CycleBadge';
+import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 
 interface DepartmentHierarchyViewProps {
   employees: Employee[];
@@ -272,6 +273,10 @@ export const DepartmentHierarchyView: React.FC<DepartmentHierarchyViewProps> = (
         );
     }
   };
+
+  if (departments.length === 0) {
+    return <PageSkeletonLoader variant="hierarchy" />;
+  }
 
   return (
     <div className="space-y-6">

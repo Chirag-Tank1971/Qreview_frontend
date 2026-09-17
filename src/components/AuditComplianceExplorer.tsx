@@ -33,6 +33,7 @@ import {
   exportAuditLogsToExcel,
   exportAuditLogsToCsv,
 } from '../utils/auditExport';
+import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 
 interface AuditComplianceExplorerProps {
   currentUser?: UserType | null;
@@ -166,6 +167,10 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
       console.error('Export failed:', err);
     }
   };
+
+  if (isLoading && !metrics && auditLogs.length === 0) {
+    return <PageSkeletonLoader variant="table" rowCount={6} />;
+  }
 
   return (
     <div className="space-y-6 pb-16">

@@ -62,6 +62,8 @@ export interface AuditLog {
 }
 
 export type AuditLogEntry = AuditLog;
+export type AuditModule = 'REVIEWS' | 'APPRAISALS' | 'KRAS' | 'EMPLOYEES' | 'CYCLES' | 'GOVERNANCE' | 'SYSTEM' | string;
+export type AuditSeverity = 'INFO' | 'WARNING' | 'CRITICAL' | 'SECURITY' | string;
 
 export interface TalentRecord {
   id: string;

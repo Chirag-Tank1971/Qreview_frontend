@@ -44,6 +44,7 @@ import {
 } from '../types';
 import { api } from '../services/api';
 import { PieChart, PieChartItem } from './ui/PieChart';
+import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 
 interface ManagementDashboardViewProps {
   currentUser?: User | null;
@@ -380,25 +381,35 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
   const departmentShareData = useMemo<PieChartItem[]>(() => {
     const palette = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#06B6D4', '#EC4899', '#64748B'];
     if (deptPerformance && deptPerformance.length > 0) {
-      const sorted = [...deptPerformance].sort((a, b) => b.headcount - a.headcount);
+      // Filter strictly to departments with active headcount to prevent phantom zero-count slices
+      const activeDepts = deptPerformance.filter((d) => Number(d.headcount) > 0);
+      const sorted = [...activeDepts].sort((a, b) => (b.headcount || 0) - (a.headcount || 0));
+
+      if (sorted.length === 0) {
+        return [];
+      }
+
       if (sorted.length <= 5) {
         return sorted.map((d, i) => ({
           label: d.departmentName,
-          value: d.headcount || d.totalReviews || 1,
+          value: d.headcount,
           color: palette[i % palette.length],
         }));
       }
+
       const top4 = sorted.slice(0, 4).map((d, i) => ({
         label: d.departmentName,
-        value: d.headcount || d.totalReviews || 1,
+        value: d.headcount,
         color: palette[i % palette.length],
       }));
-      const othersCount = sorted.slice(4).reduce((sum, d) => sum + (d.headcount || d.totalReviews || 1), 0);
-      top4.push({
-        label: `Other (${sorted.length - 4} Depts)`,
-        value: othersCount,
-        color: '#64748B',
-      });
+      const othersCount = sorted.slice(4).reduce((sum, d) => sum + (d.headcount || 0), 0);
+      if (othersCount > 0) {
+        top4.push({
+          label: `Other (${sorted.length - 4} Depts)`,
+          value: othersCount,
+          color: '#64748B',
+        });
+      }
       return top4;
     }
     if (departments && departments.length > 0) {
@@ -413,6 +424,18 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
 
   // Pie Chart 3: Performance Rating Score Spread
   const performanceSpreadData = useMemo<PieChartItem[]>(() => {
+    // 1. If backend provides accurate individual review rating distribution, use it directly
+    if (orgPerf?.ratingDistribution) {
+      const dist = orgPerf.ratingDistribution;
+      return [
+        { label: 'Exceptional (≥ 4.0)', value: dist.exceptional || 0, color: '#10B981', subtext: 'Top performers' },
+        { label: 'Proficient (3.0 – 3.9)', value: dist.proficient || 0, color: '#3B82F6', subtext: 'Target standard' },
+        { label: 'Needs Focus (< 3.0)', value: dist.needsFocus || 0, color: '#F43F5E', subtext: 'Development plan' },
+        { label: 'In Evaluation', value: dist.inEvaluation || 0, color: '#94A3B8', subtext: 'Awaiting completion' },
+      ];
+    }
+
+    // 2. Fallback: Aggregate completed reviews by department
     let exceptional = 0; // >= 4.0
     let proficient = 0;  // 3.0 - 3.99
     let needsFocus = 0;  // < 3.0 & > 0
@@ -448,7 +471,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
       { label: 'Needs Focus (< 3.0)', value: needsFocus, color: '#F43F5E', subtext: 'Development plan' },
       { label: 'In Evaluation', value: pendingEval, color: '#94A3B8', subtext: 'Awaiting completion' },
     ];
-  }, [deptPerformance, orgSummary]);
+  }, [orgPerf, deptPerformance, orgSummary]);
 
   // Pie Chart 4: Appraisal Cohort Status
   const appraisalStatusData = useMemo<PieChartItem[]>(() => {
@@ -464,10 +487,14 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
     ];
   }, [appraisalsData]);
 
+  if (loadingDashboard && !dashboardData) {
+    return <PageSkeletonLoader variant="dashboard" />;
+  }
+
   return (
     <div className="space-y-6 pb-12">
       {/* 1. Read-Only Executive Security Banner */}
-      <div className="bg-slate-900 text-white rounded-xl p-4 sm:p-5 shadow-sm border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-slate-900 text-white rounded-xl p-4 sm:p-5 shadow-sm border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-entrance">
         <div className="flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center shrink-0">
             <ShieldCheck className="w-5 h-5" />
@@ -518,9 +545,9 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
       </div>
 
       {/* 2. Organization Summary Strip (8 KPI Cards) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 animate-entrance animate-stagger-1">
         {/* Total Workforce */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs animate-badge-in animate-stagger-1">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Workforce</span>
             <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
@@ -540,7 +567,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         </div>
 
         {/* Review Completion Rate */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs animate-badge-in animate-stagger-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Completion Rate</span>
             <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
@@ -564,7 +591,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         </div>
 
         {/* Pending Manager Reviews */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs animate-badge-in animate-stagger-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Manager Pending</span>
             <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
@@ -582,7 +609,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         </div>
 
         {/* Pending HR / Calibration */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs animate-badge-in animate-stagger-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">HR Review Pending</span>
             <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
@@ -600,7 +627,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         </div>
 
         {/* Overdue / Returned Bottlenecks */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs animate-badge-in animate-stagger-5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Bottlenecks & Overdue</span>
             <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
@@ -619,7 +646,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         </div>
 
         {/* Appraisals Due in Cycle */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs animate-badge-in animate-stagger-6">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Appraisals Due</span>
             <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
@@ -639,7 +666,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
       </div>
 
       {/* 2.5 Executive Visual Intelligence (Interactive Pie & Donut Charts) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-entrance animate-stagger-2">
         {/* Review Pipeline Distribution */}
         <PieChart
           title="Review Pipeline Distribution"
@@ -648,6 +675,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
           centerValue={orgSummary?.totalQuarterlyReviews ?? 0}
           centerLabel="Reviews"
           formatValue={(v) => v.toString()}
+          className="animate-entrance-scale animate-stagger-2"
         />
 
         {/* Workforce by Department */}
@@ -658,6 +686,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
           centerValue={orgSummary?.totalActiveEmployees ?? 0}
           centerLabel="Headcount"
           formatValue={(v) => v.toString()}
+          className="animate-entrance-scale animate-stagger-3"
         />
 
         {/* Performance Rating Score Spread */}
@@ -668,13 +697,14 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
           centerValue={safeNum(orgPerf?.currentQuarterAverageScore, 2, '—')}
           centerLabel="Quarter Avg"
           formatValue={(v) => v.toString()}
+          className="animate-entrance-scale animate-stagger-4"
         />
       </div>
 
       {/* 3. Organization Performance Scoreboard & Trend */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-entrance animate-stagger-3">
         {/* Overall Score Card */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs flex flex-col justify-between animate-badge-in animate-stagger-3">
           <div>
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -727,7 +757,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         </div>
 
         {/* Highest Performing Departments Spotlight */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs animate-badge-in animate-stagger-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5">
               <Award className="w-4 h-4 text-emerald-500" />
@@ -769,7 +799,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         </div>
 
         {/* Departments Requiring Attention Spotlight */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs animate-badge-in animate-stagger-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5">
               <AlertCircle className="w-4 h-4 text-amber-500" />
@@ -812,7 +842,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
       </div>
 
       {/* 4. Deep-Dive Section with Navigation Tabs */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden animate-entrance animate-stagger-4">
         {/* Tab Bar */}
         <div className="border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 pt-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1 sm:gap-2">

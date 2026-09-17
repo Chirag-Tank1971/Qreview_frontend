@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Notification, User } from '../types';
 import { api } from '../services/api';
+import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 
 interface NotificationsCenterViewProps {
   currentUser: User | null;
@@ -729,11 +730,8 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
         ) : (
           /* Notifications Feed View */
           <div className="p-4 sm:p-6 space-y-3">
-            {loading ? (
-              <div className="py-20 text-center text-slate-400">
-                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-500 mb-3" />
-                <p className="text-sm font-medium">Syncing notification stream...</p>
-              </div>
+            {loading && notifications.length === 0 ? (
+              <PageSkeletonLoader variant="generic" />
             ) : filteredNotifications.length === 0 ? (
               <div className="py-20 text-center space-y-3">
                 <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto border border-emerald-200/80 dark:border-emerald-800">

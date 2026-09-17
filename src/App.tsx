@@ -18,6 +18,8 @@ import { ReviewViewConfig } from './components/QuarterlyReviewView';
 import { AppraisalViewConfig } from './components/AppraisalManagementView';
 import { EmployeePortalConfig } from './components/EmployeePortalView';
 import { ReportsViewConfig } from './components/ReportsCenterView';
+import { PageLoadingProgress } from './components/ui/PageLoadingProgress';
+import { PageTransition } from './components/ui/PageTransition';
 
 // Route-level code splitting: Lazy load heavy domain views
 const EmployeePortalView = lazy(() =>
@@ -236,6 +238,9 @@ function AppContent() {
 
   return (
     <div className="h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
+      {/* Universal GPU-Accelerated Page Loading Bar */}
+      <PageLoadingProgress currentView={currentView} />
+
       {/* Unified Enterprise Header */}
       <Header
         currentView={currentView}
@@ -286,129 +291,131 @@ function AppContent() {
           {/* Lazy loaded domain view with fallback */}
           <ErrorBoundary>
             <Suspense fallback={<ViewSkeletonFallback />}>
-            {currentView === 'management' && user?.role === 'MANAGEMENT' ? (
-              <ManagementDashboardView
-                currentUser={user}
-                departments={departments}
-                onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
-                onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
-              />
-            ) : currentView === 'portal' ? (
-              <EmployeePortalView
-                onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
-                onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
-                initialConfig={portalConfig}
-              />
-            ) : currentView === 'ai_performance' && user?.role === 'SUPER_ADMIN' ? (
-              <AiPerformanceHub currentUser={user} />
-            ) : currentView === 'appraisals' && ['SUPER_ADMIN', 'HR', 'MANAGEMENT', 'HOD', 'REPORTING_MANAGER', 'MANAGER'].includes(user?.role || '') ? (
-              <AppraisalManagementView
-                currentUser={user}
-                departments={departments}
-                cycles={cycles}
-                designations={designations}
-                initialConfig={appraisalConfig}
-                onClearInitialConfig={() => setAppraisalConfig(null)}
-              />
-            ) : currentView === 'reviews' ? (
-              <QuarterlyReviewView
-                currentUser={user}
-                departments={departments}
-                cycles={cycles}
-                employees={employees}
-                initialConfig={reviewConfig}
-                onClearInitialConfig={() => setReviewConfig(null)}
-              />
-            ) : currentView === 'reports' && ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'].includes(user?.role || '') ? (
-              <ReportsCenterView
-                departments={departments}
-                cycles={cycles}
-                initialConfig={reportsConfig}
-              />
-            ) : currentView === 'bulk' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
-              <BulkImportExportManager currentUser={user} />
-            ) : currentView === 'audit' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
-              <AuditComplianceExplorer currentUser={user} />
-            ) : currentView === 'notifications' ? (
-              <NotificationsCenterView
-                currentUser={user}
-                onNavigate={(tab, opts) => handleNavigate(tab as AppView, opts)}
-              />
-            ) : currentView === 'kras' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
-              <KraManagementView
-                templates={templates}
-                kras={kras}
-                departments={departments}
-                designations={designations}
-                employees={employees}
-                canManage={canManageKras}
-                onOpenCreateTemplate={() => {
-                  setEditingTemplate(null);
-                  setIsTemplateBuilderOpen(true);
-                }}
-                onOpenEditTemplate={(tmpl) => {
-                  setEditingTemplate(tmpl);
-                  setIsTemplateBuilderOpen(true);
-                }}
-                onOpenLibrary={() => setIsKraLibraryOpen(true)}
-              />
-            ) : currentView === 'employees' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
-              <EmployeeDirectory
-                currentUser={user}
-                departments={departments}
-                designations={designations}
-                cycles={cycles}
-                kraTemplates={templates}
-                onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
-                onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
-                onNavigateToHierarchy={() => handleNavigate('hierarchy')}
-                initialConfig={portalConfig}
-                employees={employees}
-              />
-            ) : currentView === 'hierarchy' && ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'].includes(user?.role || '') ? (
-              <div className="space-y-6">
-                <DepartmentHierarchyView
-                  employees={employees}
-                  departments={departments}
-                  designations={designations}
-                  cycles={cycles}
-                  isHRorAdmin={['SUPER_ADMIN', 'HR'].includes(user?.role || '')}
-                  onEditEmployee={(emp) => {
-                    setHierarchyEditingEmployee(emp);
-                    setIsHierarchyEmpModalOpen(true);
-                  }}
-                  onAddEmployee={() => {
-                    setHierarchyEditingEmployee(null);
-                    setIsHierarchyEmpModalOpen(true);
-                  }}
-                  onBackToDirectory={() => handleNavigate('employees')}
-                />
-                <Suspense fallback={null}>
-                  {isHierarchyEmpModalOpen && (
-                    <EmployeeModal
-                      isOpen={isHierarchyEmpModalOpen}
-                      onClose={() => setIsHierarchyEmpModalOpen(false)}
-                      onSaved={refreshMasterData}
-                      employeeToEdit={hierarchyEditingEmployee}
+              <PageTransition viewKey={currentView}>
+                {currentView === 'management' && user?.role === 'MANAGEMENT' ? (
+                  <ManagementDashboardView
+                    currentUser={user}
+                    departments={departments}
+                    onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
+                    onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
+                  />
+                ) : currentView === 'portal' ? (
+                  <EmployeePortalView
+                    onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
+                    onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
+                    initialConfig={portalConfig}
+                  />
+                ) : currentView === 'ai_performance' && user?.role === 'SUPER_ADMIN' ? (
+                  <AiPerformanceHub currentUser={user} />
+                ) : currentView === 'appraisals' && ['SUPER_ADMIN', 'HR', 'MANAGEMENT', 'HOD', 'REPORTING_MANAGER', 'MANAGER'].includes(user?.role || '') ? (
+                  <AppraisalManagementView
+                    currentUser={user}
+                    departments={departments}
+                    cycles={cycles}
+                    designations={designations}
+                    initialConfig={appraisalConfig}
+                    onClearInitialConfig={() => setAppraisalConfig(null)}
+                  />
+                ) : currentView === 'reviews' ? (
+                  <QuarterlyReviewView
+                    currentUser={user}
+                    departments={departments}
+                    cycles={cycles}
+                    employees={employees}
+                    initialConfig={reviewConfig}
+                    onClearInitialConfig={() => setReviewConfig(null)}
+                  />
+                ) : currentView === 'reports' && ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'].includes(user?.role || '') ? (
+                  <ReportsCenterView
+                    departments={departments}
+                    cycles={cycles}
+                    initialConfig={reportsConfig}
+                  />
+                ) : currentView === 'bulk' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
+                  <BulkImportExportManager currentUser={user} />
+                ) : currentView === 'audit' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
+                  <AuditComplianceExplorer currentUser={user} />
+                ) : currentView === 'notifications' ? (
+                  <NotificationsCenterView
+                    currentUser={user}
+                    onNavigate={(tab, opts) => handleNavigate(tab as AppView, opts)}
+                  />
+                ) : currentView === 'kras' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
+                  <KraManagementView
+                    templates={templates}
+                    kras={kras}
+                    departments={departments}
+                    designations={designations}
+                    employees={employees}
+                    canManage={canManageKras}
+                    onOpenCreateTemplate={() => {
+                      setEditingTemplate(null);
+                      setIsTemplateBuilderOpen(true);
+                    }}
+                    onOpenEditTemplate={(tmpl) => {
+                      setEditingTemplate(tmpl);
+                      setIsTemplateBuilderOpen(true);
+                    }}
+                    onOpenLibrary={() => setIsKraLibraryOpen(true)}
+                  />
+                ) : currentView === 'employees' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
+                  <EmployeeDirectory
+                    currentUser={user}
+                    departments={departments}
+                    designations={designations}
+                    cycles={cycles}
+                    kraTemplates={templates}
+                    onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
+                    onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
+                    onNavigateToHierarchy={() => handleNavigate('hierarchy')}
+                    initialConfig={portalConfig}
+                    employees={employees}
+                  />
+                ) : currentView === 'hierarchy' && ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'].includes(user?.role || '') ? (
+                  <div className="space-y-6">
+                    <DepartmentHierarchyView
+                      employees={employees}
                       departments={departments}
                       designations={designations}
                       cycles={cycles}
-                      allEmployees={employees}
-                      kraTemplates={templates}
+                      isHRorAdmin={['SUPER_ADMIN', 'HR'].includes(user?.role || '')}
+                      onEditEmployee={(emp) => {
+                        setHierarchyEditingEmployee(emp);
+                        setIsHierarchyEmpModalOpen(true);
+                      }}
+                      onAddEmployee={() => {
+                        setHierarchyEditingEmployee(null);
+                        setIsHierarchyEmpModalOpen(true);
+                      }}
+                      onBackToDirectory={() => handleNavigate('employees')}
                     />
-                  )}
-                </Suspense>
-              </div>
-            ) : (
-              <EmployeePortalView
-                onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
-                onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
-                initialConfig={portalConfig}
-              />
-            )}
-          </Suspense>
-        </ErrorBoundary>
-        </main>
+                    <Suspense fallback={null}>
+                      {isHierarchyEmpModalOpen && (
+                        <EmployeeModal
+                          isOpen={isHierarchyEmpModalOpen}
+                          onClose={() => setIsHierarchyEmpModalOpen(false)}
+                          onSaved={refreshMasterData}
+                          employeeToEdit={hierarchyEditingEmployee}
+                          departments={departments}
+                          designations={designations}
+                          cycles={cycles}
+                          allEmployees={employees}
+                          kraTemplates={templates}
+                        />
+                      )}
+                    </Suspense>
+                  </div>
+                ) : (
+                  <EmployeePortalView
+                    onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
+                    onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
+                    initialConfig={portalConfig}
+                  />
+                )}
+              </PageTransition>
+            </Suspense>
+          </ErrorBoundary>
+          </main>
 
         {/* Footer */}
         <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-3 mt-auto mb-16 md:mb-0">

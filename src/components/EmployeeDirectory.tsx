@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { User } from '../types';
 import { CycleBadge } from './ui/CycleBadge';
+import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 
 interface EmployeeDirectoryProps {
   currentUser?: User | null;
@@ -245,6 +246,10 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
         );
     }
   };
+
+  if (!employees || employees.length === 0) {
+    return <PageSkeletonLoader variant="table" rowCount={7} />;
+  }
 
   return (
     <div className="space-y-6">

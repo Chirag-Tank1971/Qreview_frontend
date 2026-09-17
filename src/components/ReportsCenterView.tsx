@@ -23,9 +23,14 @@ import {
   Briefcase,
   UserCheck,
   Check,
+  PieChart,
+  Table as TableIcon,
+  LayoutGrid,
 } from 'lucide-react';
 import { Department, Cycle } from '../types';
 import { api } from '../services/api';
+import { ReportVisualSection } from './reports/ReportVisualSection';
+import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 
 export interface ReportsViewConfig {
   reportType?: ReportType;
@@ -91,6 +96,7 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [selectedAuditModule, setSelectedAuditModule] = useState<string>('ALL');
+  const [viewMode, setViewMode] = useState<'both' | 'charts' | 'table'>('both');
 
   useEffect(() => {
     if (initialConfig) {
@@ -321,8 +327,51 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           </p>
         </div>
 
-        {/* Global Actions */}
-        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+        {/* Global Actions & View Modes */}
+        <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto shrink-0">
+          {/* View Mode Toggle */}
+          <div className="inline-flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('both')}
+              className={`px-2.5 py-1.5 rounded-md font-medium transition-all cursor-pointer flex items-center gap-1.5 text-xs ${
+                viewMode === 'both'
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-2xs font-semibold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+              title="Combined: Show Visual Charts & Detailed Table"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Combined</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('charts')}
+              className={`px-2.5 py-1.5 rounded-md font-medium transition-all cursor-pointer flex items-center gap-1.5 text-xs ${
+                viewMode === 'charts'
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-2xs font-semibold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+              title="Visual Charts & Analytics"
+            >
+              <PieChart className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Charts</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`px-2.5 py-1.5 rounded-md font-medium transition-all cursor-pointer flex items-center gap-1.5 text-xs ${
+                viewMode === 'table'
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-2xs font-semibold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+              title="Data Table Only"
+            >
+              <TableIcon className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Table</span>
+            </button>
+          </div>
+
           <button
             onClick={fetchReportData}
             disabled={loading}
@@ -484,10 +533,7 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
 
       {/* Loading State */}
       {loading ? (
-        <div className="py-20 text-center text-xs text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
-          <RefreshCw className="w-6 h-6 animate-spin mx-auto text-indigo-600 dark:text-indigo-400" />
-          <p>Loading report data...</p>
-        </div>
+        <PageSkeletonLoader variant="table" rowCount={6} />
       ) : !data ? (
         <div className="py-20 text-center text-xs text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
           No report records found for selected criteria.
@@ -495,145 +541,78 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
       ) : (
         <>
           {/* ========================================================================= */}
-          {/* 1. QUARTERLY STATUS REPORT TABLE */}
+          {/* 1. QUARTERLY STATUS REPORT */}
           {/* ========================================================================= */}
           {activeReport === 'quarterly-status' && data.reportData && (
             <div className="space-y-4">
-              {/* Summary KPIs */}
-              {data.summary && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-indigo-500 rounded-2xl shadow-2xs space-y-1 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
-                    <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                      <span className="text-[11px] font-bold uppercase tracking-wider">Total Reviews</span>
-                      <div className="w-6 h-6 rounded-md bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                        <FileText className="w-3.5 h-3.5" />
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight">{data.summary.total}</div>
-                    <div className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">All active cohorts</div>
-                  </div>
+              {viewMode !== 'table' && (
+                <ReportVisualSection activeReport={activeReport} data={data} departments={departments} cycles={cycles} />
+              )}
 
-                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-emerald-500 rounded-2xl shadow-2xs space-y-1 hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors">
-                    <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
-                      <span className="text-[11px] font-bold uppercase tracking-wider">Completed</span>
-                      <div className="w-6 h-6 rounded-md bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400 tracking-tight">{data.summary.completed}</div>
-                    <div className="text-[10px] text-emerald-600/70 dark:text-emerald-400/70 font-medium">Closed & finalized</div>
-                  </div>
-
-                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-amber-500 rounded-2xl shadow-2xs space-y-1 hover:border-amber-200 dark:hover:border-amber-800 transition-colors">
-                    <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
-                      <span className="text-[11px] font-bold uppercase tracking-wider">Manager Pending</span>
-                      <div className="w-6 h-6 rounded-md bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                        <Clock className="w-3.5 h-3.5" />
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400 tracking-tight">{data.summary.managerPending}</div>
-                    <div className="text-[10px] text-amber-600/70 dark:text-amber-400/70 font-medium">Awaiting evaluation</div>
-                  </div>
-
-                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-purple-500 rounded-2xl shadow-2xs space-y-1 hover:border-purple-200 dark:hover:border-purple-800 transition-colors">
-                    <div className="flex items-center justify-between text-purple-600 dark:text-purple-400">
-                      <span className="text-[11px] font-bold uppercase tracking-wider">HR Pending</span>
-                      <div className="w-6 h-6 rounded-md bg-purple-50 dark:bg-purple-950/60 flex items-center justify-center text-purple-600 dark:text-purple-400">
-                        <UserCheck className="w-3.5 h-3.5" />
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight">{data.summary.hrPending}</div>
-                    <div className="text-[10px] text-purple-600/70 dark:text-purple-400/70 font-medium">Awaiting sign-off</div>
-                  </div>
-
-                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-rose-500 rounded-2xl shadow-2xs space-y-1 hover:border-rose-200 dark:hover:border-rose-800 transition-colors">
-                    <div className="flex items-center justify-between text-rose-600 dark:text-rose-400">
-                      <span className="text-[11px] font-bold uppercase tracking-wider">Returned</span>
-                      <div className="w-6 h-6 rounded-md bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold font-mono text-rose-600 dark:text-rose-400 tracking-tight">{data.summary.returned}</div>
-                    <div className="text-[10px] text-rose-600/70 dark:text-rose-400/70 font-medium">Action required</div>
-                  </div>
-
-                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-sky-500 rounded-2xl shadow-2xs space-y-1 hover:border-sky-200 dark:hover:border-sky-800 transition-colors">
-                    <div className="flex items-center justify-between text-sky-600 dark:text-sky-400">
-                      <span className="text-[11px] font-bold uppercase tracking-wider">Avg Score</span>
-                      <div className="w-6 h-6 rounded-md bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center text-sky-600 dark:text-sky-400">
-                        <Award className="w-3.5 h-3.5" />
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold font-mono text-sky-600 dark:text-sky-400 tracking-tight">
-                      {data.summary.averageScore} <span className="text-xs text-slate-400 font-sans font-normal">/ 5.0</span>
-                    </div>
-                    <div className="text-[10px] text-sky-600/70 dark:text-sky-400/70 font-medium">Cohort-wide score</div>
+              {viewMode !== 'charts' && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
+                        <tr>
+                          <th className="px-4 py-3">Employee</th>
+                          <th className="px-4 py-3">Department & Role</th>
+                          <th className="px-4 py-3">Manager</th>
+                          <th className="px-4 py-3">Cycle</th>
+                          <th className="px-4 py-3">Review Period</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3 text-right">Final Score</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {data.reportData.map((row: any, idx: number) => (
+                          <tr key={row.id || row.reviewId || row.employeeId || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                              <div>{row.employeeName}</div>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{row.employeeCode}</span>
+                            </td>
+                            <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                              <div>{row.departmentName}</div>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500">{row.designationName}</span>
+                            </td>
+                            <td className="px-4 py-3 text-slate-700 dark:text-slate-200 font-medium">{row.managerName}</td>
+                            <td className="px-4 py-3">
+                              <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold rounded">
+                                Cycle {row.cycleCode}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{row.periodName}</td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  row.status === 'CLOSED'
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                    : row.status === 'RETURNED'
+                                    ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                                    : row.status === 'HR_PENDING'
+                                    ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                                    : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                                }`}
+                              >
+                                {row.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-bold text-slate-900 dark:text-white">
+                              {row.finalScore > 0 ? (
+                                <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded font-semibold border border-indigo-200 dark:border-indigo-800">
+                                  {Number(row.finalScore).toFixed(2)}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 dark:text-slate-500">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
-
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
-                      <tr>
-                        <th className="px-4 py-3">Employee</th>
-                        <th className="px-4 py-3">Department & Role</th>
-                        <th className="px-4 py-3">Manager</th>
-                        <th className="px-4 py-3">Cycle</th>
-                        <th className="px-4 py-3">Review Period</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3 text-right">Final Score</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {data.reportData.map((row: any, idx: number) => (
-                        <tr key={row.id || row.reviewId || row.employeeId || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                          <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
-                            <div>{row.employeeName}</div>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{row.employeeCode}</span>
-                          </td>
-                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                            <div>{row.departmentName}</div>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500">{row.designationName}</span>
-                          </td>
-                          <td className="px-4 py-3 text-slate-700 dark:text-slate-200 font-medium">{row.managerName}</td>
-                          <td className="px-4 py-3">
-                            <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold rounded">
-                              Cycle {row.cycleCode}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{row.periodName}</td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                row.status === 'CLOSED'
-                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                                  : row.status === 'RETURNED'
-                                  ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
-                                  : row.status === 'HR_PENDING'
-                                  ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
-                                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-                              }`}
-                            >
-                              {row.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right font-mono font-bold text-slate-900 dark:text-white">
-                            {row.finalScore > 0 ? (
-                              <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded font-semibold border border-indigo-200 dark:border-indigo-800">
-                                {Number(row.finalScore).toFixed(2)}
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 dark:text-slate-500">-</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
             </div>
           )}
 
@@ -642,101 +621,59 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           {/* ========================================================================= */}
           {activeReport === 'pending-overdue' && data.reportData && (
             <div className="space-y-4">
-              {data.summary && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-indigo-500 rounded-2xl shadow-2xs space-y-1 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
-                    <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                      <span className="text-[11px] font-bold uppercase tracking-wider">Total Pending</span>
-                      <div className="w-6 h-6 rounded-md bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                        <Clock className="w-3.5 h-3.5" />
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tracking-tight">{data.summary.totalPending}</div>
-                    <div className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">Active pending reviews</div>
-                  </div>
+              {viewMode !== 'table' && (
+                <ReportVisualSection activeReport={activeReport} data={data} departments={departments} cycles={cycles} />
+              )}
 
-                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-amber-500 rounded-2xl shadow-2xs space-y-1 hover:border-amber-200 dark:hover:border-amber-800 transition-colors">
-                    <div className="flex items-center justify-between text-amber-600 dark:text-amber-400">
-                      <span className="text-[11px] font-bold uppercase tracking-wider">With Manager</span>
-                      <div className="w-6 h-6 rounded-md bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                        <Briefcase className="w-3.5 h-3.5" />
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400 tracking-tight">{data.summary.managerPendingCount}</div>
-                    <div className="text-[10px] text-amber-600/70 dark:text-amber-400/70 font-medium">Awaiting manager input</div>
-                  </div>
-
-                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-purple-500 rounded-2xl shadow-2xs space-y-1 hover:border-purple-200 dark:hover:border-purple-800 transition-colors">
-                    <div className="flex items-center justify-between text-purple-600 dark:text-purple-400">
-                      <span className="text-[11px] font-bold uppercase tracking-wider">With HR</span>
-                      <div className="w-6 h-6 rounded-md bg-purple-50 dark:bg-purple-950/60 flex items-center justify-center text-purple-600 dark:text-purple-400">
-                        <UserCheck className="w-3.5 h-3.5" />
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-tight">{data.summary.hrPendingCount}</div>
-                    <div className="text-[10px] text-purple-600/70 dark:text-purple-400/70 font-medium">Submitted for HR sign-off</div>
-                  </div>
-
-                  <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-rose-500 rounded-2xl shadow-2xs space-y-1 hover:border-rose-200 dark:hover:border-rose-800 transition-colors">
-                    <div className="flex items-center justify-between text-rose-600 dark:text-rose-400">
-                      <span className="text-[11px] font-bold uppercase tracking-wider">Critical Overdue (&gt; 30d)</span>
-                      <div className="w-6 h-6 rounded-md bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold font-mono text-rose-600 dark:text-rose-400 tracking-tight">{data.summary.criticalOverdueCount}</div>
-                    <div className="text-[10px] text-rose-600/70 dark:text-rose-400/70 font-medium">Exceeded standard SLA</div>
+              {viewMode !== 'charts' && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
+                        <tr>
+                          <th className="px-4 py-3">Employee</th>
+                          <th className="px-4 py-3">Department</th>
+                          <th className="px-4 py-3">Manager / Assignee</th>
+                          <th className="px-4 py-3">Bottleneck / Pending With</th>
+                          <th className="px-4 py-3">Days Aging</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3">Due Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {data.reportData.map((row: any, idx: number) => (
+                          <tr key={row.id || row.reviewId || row.employeeId || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                              <div>{row.employeeName}</div>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{row.employeeCode}</span>
+                            </td>
+                            <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{row.departmentName}</td>
+                            <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{row.managerName}</td>
+                            <td className="px-4 py-3 font-semibold text-indigo-700 dark:text-indigo-400">{row.pendingWith}</td>
+                            <td className="px-4 py-3 font-mono font-bold">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] ${
+                                  row.daysAging > 30
+                                    ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                }`}
+                              >
+                                {row.daysAging} Days
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                {row.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-mono">{row.dueDate}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
-
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
-                      <tr>
-                        <th className="px-4 py-3">Employee</th>
-                        <th className="px-4 py-3">Department</th>
-                        <th className="px-4 py-3">Manager / Assignee</th>
-                        <th className="px-4 py-3">Bottleneck / Pending With</th>
-                        <th className="px-4 py-3">Days Aging</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">Due Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {data.reportData.map((row: any, idx: number) => (
-                        <tr key={row.id || row.reviewId || row.employeeId || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                          <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
-                            <div>{row.employeeName}</div>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{row.employeeCode}</span>
-                          </td>
-                          <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{row.departmentName}</td>
-                          <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{row.managerName}</td>
-                          <td className="px-4 py-3 font-semibold text-indigo-700 dark:text-indigo-400">{row.pendingWith}</td>
-                          <td className="px-4 py-3 font-mono font-bold">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] ${
-                                row.daysAging > 30
-                                  ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
-                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                              }`}
-                            >
-                              {row.daysAging} Days
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                              {row.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-mono">{row.dueDate}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
             </div>
           )}
 
@@ -830,42 +767,48 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           {/* ========================================================================= */}
           {activeReport === 'department-performance' && data.reportData && (
             <div className="space-y-4">
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
-                      <tr>
-                        <th className="px-4 py-3">Department</th>
-                        <th className="px-4 py-3">Headcount</th>
-                        <th className="px-4 py-3">Reviews</th>
-                        <th className="px-4 py-3">Completion %</th>
-                        <th className="px-4 py-3">Average Score</th>
-                        <th className="px-4 py-3">Outstanding (4.5+)</th>
-                        <th className="px-4 py-3">Exceeds (3.8-4.49)</th>
-                        <th className="px-4 py-3">Meets (2.8-3.79)</th>
-                        <th className="px-4 py-3">Needs Imp (&lt;2.8)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {data.reportData.map((row: any, idx: number) => (
-                        <tr key={row.departmentId || row.id || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                          <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{row.departmentName}</td>
-                          <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{row.headcount} emp</td>
-                          <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{row.totalReviews}</td>
-                          <td className="px-4 py-3 font-mono font-bold text-emerald-700 dark:text-emerald-400">{row.completionRate}%</td>
-                          <td className="px-4 py-3 font-mono font-bold text-indigo-700 dark:text-indigo-400 text-sm">
-                            {(row.averageScore ?? 0).toFixed(2)}
-                          </td>
-                          <td className="px-4 py-3 font-mono text-emerald-600 dark:text-emerald-400 font-bold">{row.outstandingCount}</td>
-                          <td className="px-4 py-3 font-mono text-blue-600 dark:text-blue-400 font-bold">{row.exceedsCount}</td>
-                          <td className="px-4 py-3 font-mono text-indigo-600 dark:text-indigo-400 font-bold">{row.meetsCount}</td>
-                          <td className="px-4 py-3 font-mono text-amber-600 dark:text-amber-400 font-bold">{row.needsImpCount}</td>
+              {viewMode !== 'table' && (
+                <ReportVisualSection activeReport={activeReport} data={data} departments={departments} cycles={cycles} />
+              )}
+
+              {viewMode !== 'charts' && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
+                        <tr>
+                          <th className="px-4 py-3">Department</th>
+                          <th className="px-4 py-3">Headcount</th>
+                          <th className="px-4 py-3">Reviews</th>
+                          <th className="px-4 py-3">Completion %</th>
+                          <th className="px-4 py-3">Average Score</th>
+                          <th className="px-4 py-3">Outstanding (4.5+)</th>
+                          <th className="px-4 py-3">Exceeds (3.8-4.49)</th>
+                          <th className="px-4 py-3">Meets (2.8-3.79)</th>
+                          <th className="px-4 py-3">Needs Imp (&lt;2.8)</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {data.reportData.map((row: any, idx: number) => (
+                          <tr key={row.departmentId || row.id || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{row.departmentName}</td>
+                            <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{row.headcount} emp</td>
+                            <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{row.totalReviews}</td>
+                            <td className="px-4 py-3 font-mono font-bold text-emerald-700 dark:text-emerald-400">{row.completionRate}%</td>
+                            <td className="px-4 py-3 font-mono font-bold text-indigo-700 dark:text-indigo-400 text-sm">
+                              {(row.averageScore ?? 0).toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-emerald-600 dark:text-emerald-400 font-bold">{row.outstandingCount}</td>
+                            <td className="px-4 py-3 font-mono text-blue-600 dark:text-blue-400 font-bold">{row.exceedsCount}</td>
+                            <td className="px-4 py-3 font-mono text-indigo-600 dark:text-indigo-400 font-bold">{row.meetsCount}</td>
+                            <td className="px-4 py-3 font-mono text-amber-600 dark:text-amber-400 font-bold">{row.needsImpCount}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -873,51 +816,59 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           {/* 5. MANAGER-WISE COMPLETION REPORT */}
           {/* ========================================================================= */}
           {activeReport === 'manager-completion' && data.reportData && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
-                    <tr>
-                      <th className="px-4 py-3">Manager</th>
-                      <th className="px-4 py-3">Department</th>
-                      <th className="px-4 py-3">Total Assigned</th>
-                      <th className="px-4 py-3">Submitted</th>
-                      <th className="px-4 py-3">Closed</th>
-                      <th className="px-4 py-3">Returned</th>
-                      <th className="px-4 py-3">Overdue</th>
-                      <th className="px-4 py-3">Completion Rate</th>
-                      <th className="px-4 py-3 text-right">Avg Score Awarded</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {data.reportData.map((row: any, idx: number) => (
-                      <tr key={row.managerId || row.id || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{row.managerName}</td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{row.departmentName}</td>
-                        <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{row.totalAssigned}</td>
-                        <td className="px-4 py-3 font-mono text-emerald-700 dark:text-emerald-400 font-bold">{row.submittedCount}</td>
-                        <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{row.closedCount}</td>
-                        <td className="px-4 py-3 font-mono text-rose-600 dark:text-rose-400 font-bold">{row.returnedCount}</td>
-                        <td className="px-4 py-3 font-mono text-amber-600 dark:text-amber-400 font-bold">{row.overdueCount}</td>
-                        <td className="px-4 py-3 font-mono font-bold">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] ${
-                              row.completionRate >= 80
-                                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-                            }`}
-                          >
-                            {row.completionRate}%
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono font-bold text-indigo-700 dark:text-indigo-400">
-                          {(row.avgScoreAwarded ?? 0).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="space-y-4">
+              {viewMode !== 'table' && (
+                <ReportVisualSection activeReport={activeReport} data={data} departments={departments} cycles={cycles} />
+              )}
+
+              {viewMode !== 'charts' && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
+                        <tr>
+                          <th className="px-4 py-3">Manager</th>
+                          <th className="px-4 py-3">Department</th>
+                          <th className="px-4 py-3">Total Assigned</th>
+                          <th className="px-4 py-3">Submitted</th>
+                          <th className="px-4 py-3">Closed</th>
+                          <th className="px-4 py-3">Returned</th>
+                          <th className="px-4 py-3">Overdue</th>
+                          <th className="px-4 py-3">Completion Rate</th>
+                          <th className="px-4 py-3 text-right">Avg Score Awarded</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {data.reportData.map((row: any, idx: number) => (
+                          <tr key={row.managerId || row.id || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{row.managerName}</td>
+                            <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{row.departmentName}</td>
+                            <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{row.totalAssigned}</td>
+                            <td className="px-4 py-3 font-mono text-emerald-700 dark:text-emerald-400 font-bold">{row.submittedCount}</td>
+                            <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{row.closedCount}</td>
+                            <td className="px-4 py-3 font-mono text-rose-600 dark:text-rose-400 font-bold">{row.returnedCount}</td>
+                            <td className="px-4 py-3 font-mono text-amber-600 dark:text-amber-400 font-bold">{row.overdueCount}</td>
+                            <td className="px-4 py-3 font-mono font-bold">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] ${
+                                  row.completionRate >= 80
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                    : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                                }`}
+                              >
+                                {row.completionRate}%
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-bold text-indigo-700 dark:text-indigo-400">
+                              {(row.avgScoreAwarded ?? 0).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -925,62 +876,70 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           {/* 6. 8-CYCLE APPRAISAL DUE REPORT */}
           {/* ========================================================================= */}
           {activeReport === 'appraisal-due' && data.reportData && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
-                    <tr>
-                      <th className="px-4 py-3">Employee</th>
-                      <th className="px-4 py-3">Department & Role</th>
-                      <th className="px-4 py-3">8-Cycle Schedule</th>
-                      <th className="px-4 py-3">Current CTC</th>
-                      <th className="px-4 py-3">4-Qtr Average</th>
-                      <th className="px-4 py-3">Proposed Increment</th>
-                      <th className="px-4 py-3">Approved / Revised CTC</th>
-                      <th className="px-4 py-3">Appraisal Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {data.reportData.map((row: any, idx: number) => (
-                      <tr key={row.employeeId || row.id || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
-                          <div>{row.employeeName}</div>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{row.employeeCode}</span>
-                        </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                          <div>{row.departmentName}</div>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500">{row.designationName}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="font-bold text-slate-900 dark:text-white">Cycle {row.cycleCode}</div>
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Month: {row.appraisalMonthName}</span>
-                        </td>
-                        <td className="px-4 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">
-                          ₹{(((row.currentCtc ?? 0) / 100000)).toFixed(2)}L
-                        </td>
-                        <td className="px-4 py-3 font-mono font-bold text-indigo-700 dark:text-indigo-400">
-                          {(row.averageQuarterlyScore ?? 0).toFixed(2)}
-                        </td>
-                        <td className="px-4 py-3 font-mono font-bold text-amber-700 dark:text-amber-400">+{row.proposedIncrement ?? 0}%</td>
-                        <td className="px-4 py-3 font-mono font-bold text-emerald-700 dark:text-emerald-400">
-                          ₹{(((row.revisedCtc ?? 0) / 100000)).toFixed(2)}L
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              row.isLocked
-                                ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                            }`}
-                          >
-                            {row.appraisalStatus}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="space-y-4">
+              {viewMode !== 'table' && (
+                <ReportVisualSection activeReport={activeReport} data={data} departments={departments} cycles={cycles} />
+              )}
+
+              {viewMode !== 'charts' && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
+                        <tr>
+                          <th className="px-4 py-3">Employee</th>
+                          <th className="px-4 py-3">Department & Role</th>
+                          <th className="px-4 py-3">8-Cycle Schedule</th>
+                          <th className="px-4 py-3">Current CTC</th>
+                          <th className="px-4 py-3">4-Qtr Average</th>
+                          <th className="px-4 py-3">Proposed Increment</th>
+                          <th className="px-4 py-3">Approved / Revised CTC</th>
+                          <th className="px-4 py-3">Appraisal Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {data.reportData.map((row: any, idx: number) => (
+                          <tr key={row.employeeId || row.id || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
+                              <div>{row.employeeName}</div>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{row.employeeCode}</span>
+                            </td>
+                            <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                              <div>{row.departmentName}</div>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500">{row.designationName}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="font-bold text-slate-900 dark:text-white">Cycle {row.cycleCode}</div>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Month: {row.appraisalMonthName}</span>
+                            </td>
+                            <td className="px-4 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">
+                              ₹{(((row.currentCtc ?? 0) / 100000)).toFixed(2)}L
+                            </td>
+                            <td className="px-4 py-3 font-mono font-bold text-indigo-700 dark:text-indigo-400">
+                              {(row.averageQuarterlyScore ?? 0).toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3 font-mono font-bold text-amber-700 dark:text-amber-400">+{row.proposedIncrement ?? 0}%</td>
+                            <td className="px-4 py-3 font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                              ₹{(((row.revisedCtc ?? 0) / 100000)).toFixed(2)}L
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  row.isLocked
+                                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                }`}
+                              >
+                                {row.appraisalStatus}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -989,39 +948,45 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           {/* ========================================================================= */}
           {activeReport === 'rating-trend' && data.trends && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {data.trends.map((t: any, idx: number) => (
-                  <div key={t.quarter || idx} className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">{t.quarter}</h4>
-                      <span className="text-xs font-mono font-bold px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded border border-indigo-200 dark:border-indigo-800">
-                        {(t.averageScore ?? 0).toFixed(2)} / 5.0
-                      </span>
-                    </div>
+              {viewMode !== 'table' && (
+                <ReportVisualSection activeReport={activeReport} data={data} departments={departments} cycles={cycles} />
+              )}
 
-                    <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">{t.totalReviews} Total Reviews Conducted</div>
+              {viewMode !== 'charts' && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {data.trends.map((t: any, idx: number) => (
+                    <div key={t.quarter || idx} className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">{t.quarter}</h4>
+                        <span className="text-xs font-mono font-bold px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded border border-indigo-200 dark:border-indigo-800">
+                          {(t.averageScore ?? 0).toFixed(2)} / 5.0
+                        </span>
+                      </div>
 
-                    <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px]">
-                      <div className="flex items-center justify-between">
-                        <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Outstanding (4.5+)</span>
-                        <strong className="font-mono text-slate-900 dark:text-white">{t.distribution.outstanding}</strong>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-blue-700 dark:text-blue-400 font-semibold">Exceeds (3.8-4.49)</span>
-                        <strong className="font-mono text-slate-900 dark:text-white">{t.distribution.exceeds}</strong>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-indigo-700 dark:text-indigo-400 font-semibold">Meets (2.8-3.79)</span>
-                        <strong className="font-mono text-slate-900 dark:text-white">{t.distribution.meets}</strong>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-amber-700 dark:text-amber-400 font-semibold">Needs Improvement (&lt;2.8)</span>
-                        <strong className="font-mono text-slate-900 dark:text-white">{t.distribution.needsImp}</strong>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">{t.totalReviews} Total Reviews Conducted</div>
+
+                      <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Outstanding (4.5+)</span>
+                          <strong className="font-mono text-slate-900 dark:text-white">{t.distribution.outstanding}</strong>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-blue-700 dark:text-blue-400 font-semibold">Exceeds (3.8-4.49)</span>
+                          <strong className="font-mono text-slate-900 dark:text-white">{t.distribution.exceeds}</strong>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-indigo-700 dark:text-indigo-400 font-semibold">Meets (2.8-3.79)</span>
+                          <strong className="font-mono text-slate-900 dark:text-white">{t.distribution.meets}</strong>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-amber-700 dark:text-amber-400 font-semibold">Needs Improvement (&lt;2.8)</span>
+                          <strong className="font-mono text-slate-900 dark:text-white">{t.distribution.needsImp}</strong>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -1029,45 +994,53 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           {/* 8. KRA-WISE PERFORMANCE REPORT */}
           {/* ========================================================================= */}
           {activeReport === 'kra-performance' && data.reportData && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
-                    <tr>
-                      <th className="px-4 py-3">KRA Competency Title</th>
-                      <th className="px-4 py-3">Occurrences in Reviews</th>
-                      <th className="px-4 py-3">Avg Weight %</th>
-                      <th className="px-4 py-3">Avg Rating Awarded</th>
-                      <th className="px-4 py-3">Mastery Classification</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {data.reportData.map((row: any, idx: number) => (
-                      <tr key={row.kraName || row.id || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{row.kraName}</td>
-                        <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{row.occurrencesCount} times</td>
-                        <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300 font-medium">{row.averageWeightPercent}%</td>
-                        <td className="px-4 py-3 font-mono font-bold text-indigo-700 dark:text-indigo-400 text-sm">
-                          {(row.averageRating ?? 0).toFixed(2)} / 5.0
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              row.masteryLevel === 'HIGH_PROFICIENCY'
-                                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                                : row.masteryLevel === 'COMPETENT'
-                                ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-                            }`}
-                          >
-                            {row.masteryLevel.replace('_', ' ')}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="space-y-4">
+              {viewMode !== 'table' && (
+                <ReportVisualSection activeReport={activeReport} data={data} departments={departments} cycles={cycles} />
+              )}
+
+              {viewMode !== 'charts' && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
+                        <tr>
+                          <th className="px-4 py-3">KRA Competency Title</th>
+                          <th className="px-4 py-3">Occurrences in Reviews</th>
+                          <th className="px-4 py-3">Avg Weight %</th>
+                          <th className="px-4 py-3">Avg Rating Awarded</th>
+                          <th className="px-4 py-3">Mastery Classification</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {data.reportData.map((row: any, idx: number) => (
+                          <tr key={row.kraName || row.id || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                            <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{row.kraName}</td>
+                            <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">{row.occurrencesCount} times</td>
+                            <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300 font-medium">{row.averageWeightPercent}%</td>
+                            <td className="px-4 py-3 font-mono font-bold text-indigo-700 dark:text-indigo-400 text-sm">
+                              {(row.averageRating ?? 0).toFixed(2)} / 5.0
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  row.masteryLevel === 'HIGH_PROFICIENCY'
+                                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                    : row.masteryLevel === 'COMPETENT'
+                                    ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                                    : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                                }`}
+                              >
+                                {row.masteryLevel.replace('_', ' ')}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
