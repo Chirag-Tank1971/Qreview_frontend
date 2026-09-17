@@ -102,12 +102,17 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
       if (initialConfig.activeSection) setActiveSection(initialConfig.activeSection);
       if (initialConfig.cycleId) setSelectedCycleId(initialConfig.cycleId);
       if (initialConfig.year) setSelectedYear(initialConfig.year);
-      if (initialConfig.departmentId) setSelectedDepartmentId(initialConfig.departmentId);
-      if (initialConfig.status) {
-        let normStatus = initialConfig.status;
-        if (normStatus === 'CALIBRATED') normStatus = 'HOD_CALIBRATED';
-        if (normStatus === 'RECOMMENDED') normStatus = 'MANAGER_RECOMMENDED';
-        setSelectedStatus(normStatus);
+      if (initialConfig.appraisalId) {
+        setSelectedStatus('ALL');
+        setSelectedDepartmentId('ALL');
+      } else {
+        if (initialConfig.departmentId) setSelectedDepartmentId(initialConfig.departmentId);
+        if (initialConfig.status) {
+          let normStatus = initialConfig.status;
+          if (normStatus === 'CALIBRATED') normStatus = 'HOD_CALIBRATED';
+          if (normStatus === 'RECOMMENDED') normStatus = 'MANAGER_RECOMMENDED';
+          setSelectedStatus(normStatus);
+        }
       }
       if (initialConfig.appraisalId) {
         // Direct fetch guarantees opening the modal regardless of current active table filters

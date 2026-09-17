@@ -96,20 +96,33 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   const [isPeriodModalOpen, setIsPeriodModalOpen] = useState<boolean>(false);
   const [updatingPeriodId, setUpdatingPeriodId] = useState<string | null>(null);
   const handledReviewIdRef = useRef<string | null>(null);
+  const openedViaDirectActionRef = useRef<boolean>(false);
 
   // Synchronize initialConfig
   useEffect(() => {
     if (initialConfig) {
-      if (initialConfig.status) {
+      if (initialConfig.reviewId) {
+        // When navigating directly to a specific employee review, open the modal
+        // but DO NOT restrict the underlying table to a single status filter,
+        // so the full cohort remains accessible when the modal closes.
+        openedViaDirectActionRef.current = true;
+        setFilterStatus('ALL');
+        setFilterDepartmentId('ALL');
+        setSearchQuery('');
+        setAppraisalDueOnly(false);
+        setMyReportsOnly(false);
+      } else if (initialConfig.status) {
         let normalized = initialConfig.status;
         if (normalized === 'SELF_ASSESSED') normalized = 'MANAGER_PENDING';
         const validStatuses = ['ALL', 'MANAGER_PENDING', 'MANAGER_COMPLETED', 'HR_PENDING', 'HR_COMPLETED', 'CLOSED', 'RETURNED', 'ASSIGNED', 'DRAFT'];
         if (!validStatuses.includes(normalized)) normalized = 'ALL';
         setFilterStatus(normalized);
       }
+
       if (initialConfig.periodId) setSelectedPeriodId(initialConfig.periodId);
-      if (initialConfig.departmentId) setFilterDepartmentId(initialConfig.departmentId);
-      if (initialConfig.myReportsOnly !== undefined) setMyReportsOnly(initialConfig.myReportsOnly);
+      if (!initialConfig.reviewId && initialConfig.departmentId) setFilterDepartmentId(initialConfig.departmentId);
+      if (!initialConfig.reviewId && initialConfig.myReportsOnly !== undefined) setMyReportsOnly(initialConfig.myReportsOnly);
+
       if (initialConfig.reviewId && initialConfig.reviewId !== handledReviewIdRef.current) {
         handledReviewIdRef.current = initialConfig.reviewId;
         const targetId = initialConfig.reviewId;
@@ -267,6 +280,12 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
     setIsScoringModalOpen(false);
     setActiveReviewForScoring(null);
     handledReviewIdRef.current = null;
+    if (openedViaDirectActionRef.current) {
+      openedViaDirectActionRef.current = false;
+      setFilterStatus('ALL');
+      setFilterDepartmentId('ALL');
+      setSearchQuery('');
+    }
     onClearInitialConfig?.();
     loadReviewsAndStats();
   };
@@ -275,6 +294,12 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
     setIsScoringModalOpen(false);
     setActiveReviewForScoring(null);
     handledReviewIdRef.current = null;
+    if (openedViaDirectActionRef.current) {
+      openedViaDirectActionRef.current = false;
+      setFilterStatus('ALL');
+      setFilterDepartmentId('ALL');
+      setSearchQuery('');
+    }
     onClearInitialConfig?.();
     loadReviewsAndStats();
   };

@@ -306,7 +306,7 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
           tab: 'appraisals',
           label: 'Appraisal Letters Release',
           badgeColor: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/80 dark:border-blue-800',
-          config: { activeSection: 'appraisals', status: 'HR_APPROVED', openDetail: true, ...meta },
+          config: { activeSection: 'appraisals', openDetail: true, ...meta, ...(meta.appraisalId ? { status: 'ALL' } : { status: 'HR_APPROVED' }) },
         };
       case 'APPRAISAL_DUE':
         return {
@@ -322,7 +322,7 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
           tab: currentUser?.role === 'EMPLOYEE' ? 'portal' : 'reviews',
           label: 'Quarterly Review & Scoring',
           badgeColor: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/80 dark:border-blue-800',
-          config: { subTab: 'reviews', ...meta },
+          config: { subTab: 'reviews', ...meta, ...(meta.reviewId ? { status: 'ALL' } : {}) },
         };
       case 'MANAGER_SUBMITTED':
       case 'RETURNED':
@@ -331,7 +331,7 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
           tab: currentUser?.role === 'EMPLOYEE' ? 'portal' : 'reviews',
           label: 'Quarterly Review Action',
           badgeColor: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800',
-          config: { subTab: 'reviews', ...meta },
+          config: { subTab: 'reviews', ...meta, ...(meta.reviewId ? { status: 'ALL' } : {}) },
         };
       default:
         return {

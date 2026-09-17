@@ -410,7 +410,7 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
           badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
           config: {
             ...meta,
-            status: meta.status === 'SELF_ASSESSED' ? 'MANAGER_PENDING' : (meta.status || 'ALL'),
+            status: meta.reviewId ? 'ALL' : (meta.status === 'SELF_ASSESSED' ? 'MANAGER_PENDING' : (meta.status || 'ALL')),
             periodId: meta.periodId || 'period_2026_q1',
             reviewId: meta.reviewId,
           },
@@ -423,10 +423,10 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
           badgeLabel: 'Quarterly Reviews',
           badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
           config: {
-            status: meta.status || 'HR_PENDING',
+            ...meta,
+            status: meta.reviewId ? 'ALL' : (meta.status || 'HR_PENDING'),
             periodId: meta.periodId,
             reviewId: meta.reviewId,
-            ...meta,
           },
         };
 
@@ -451,9 +451,9 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
           badgeLabel: 'Review Action',
           badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
           config: {
-            status: meta.status || 'RETURNED',
-            reviewId: meta.reviewId,
             ...meta,
+            status: meta.reviewId ? 'ALL' : (meta.status || 'RETURNED'),
+            reviewId: meta.reviewId,
           },
         };
 
@@ -478,9 +478,9 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
           badgeLabel: 'Archived Reviews',
           badgeColor: 'bg-slate-100 text-slate-700 border-slate-200',
           config: {
-            status: meta.status || 'HR_COMPLETED',
-            reviewId: meta.reviewId,
             ...meta,
+            status: meta.reviewId ? 'ALL' : (meta.status || 'HR_COMPLETED'),
+            reviewId: meta.reviewId,
           },
         };
 
