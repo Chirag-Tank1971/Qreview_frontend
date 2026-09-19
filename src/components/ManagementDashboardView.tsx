@@ -366,12 +366,14 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
     if (!orgSummary) return [];
     const completed = orgSummary.completedReviews || 0;
     const mgrPending = orgSummary.pendingManagerReviews || 0;
+    const hodPending = orgSummary.pendingHodReviews || 0;
     const hrPending = orgSummary.pendingHrReviews || 0;
     const overdue = (orgSummary.overdueReviews || 0) + (orgSummary.returnedReviews || 0);
 
     return [
       { label: 'Completed', value: completed, color: '#10B981', subtext: 'Finalized reviews' },
       { label: 'Manager Pending', value: mgrPending, color: '#F59E0B', subtext: 'Awaiting ratings' },
+      { label: 'HOD Pending', value: hodPending, color: '#8B5CF6', subtext: 'Awaiting HOD approval' },
       { label: 'HR Sign-off Pending', value: hrPending, color: '#6366F1', subtext: 'Ready for approval' },
       { label: 'Bottlenecks & Overdue', value: overdue, color: '#F43F5E', subtext: 'Needs escalation' },
     ];
@@ -545,7 +547,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
       </div>
 
       {/* 2. Organization Summary Strip (8 KPI Cards) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 animate-entrance animate-stagger-1">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4 animate-entrance animate-stagger-1">
         {/* Total Workforce */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs animate-badge-in animate-stagger-1">
           <div className="flex items-center justify-between">
@@ -605,6 +607,24 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
           </div>
           <div className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1 font-medium">
             <span>Awaiting manager ratings</span>
+          </div>
+        </div>
+
+        {/* Pending HOD Reviews */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs animate-badge-in animate-stagger-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">HOD Pending</span>
+            <div className="w-7 h-7 rounded-lg bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+              <UserCheck className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2">
+            <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+              {orgSummary?.pendingHodReviews ?? 0}
+            </span>
+          </div>
+          <div className="text-[11px] text-violet-600 dark:text-violet-400 mt-1 flex items-center gap-1 font-medium">
+            <span>Awaiting HOD approval</span>
           </div>
         </div>
 

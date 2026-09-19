@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Employee, Department, Designation, Cycle, KraTemplate, UserRole, CreateEmployeeResponse } from '../types';
+import { Employee, Department, Designation, Cycle, KraTemplate, ReviewPeriod, UserRole, CreateEmployeeResponse } from '../types';
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
 import {
@@ -33,20 +33,25 @@ import {
   RotateCcw,
 } from 'lucide-react';
 
-const MONTH_NAMES = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
+/**
+ * Random, human-typable temporary password (12 chars, mixed case + digits) used to
+ * pre-fill the initial-password field so it's never the same predictable default twice.
+ * HR can still see it and freely edit it before saving.
+ */
+function generateDefaultTempPassword(): string {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const all = upper + lower + digits;
+  const pick = (charset: string) => charset[Math.floor(Math.random() * charset.length)];
+
+  const chars = [pick(upper), pick(lower), pick(digits), ...Array.from({ length: 9 }, () => pick(all))];
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join('');
+}
 
 interface EmployeeModalProps {
   isOpen: boolean;
@@ -57,6 +62,7 @@ interface EmployeeModalProps {
   departments: Department[];
   designations: Designation[];
   cycles: Cycle[];
+  reviewPeriods?: ReviewPeriod[];
   allEmployees: Employee[];
   kraTemplates?: KraTemplate[];
 }
@@ -70,6 +76,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   departments,
   designations,
   cycles,
+  reviewPeriods = [],
   allEmployees,
   kraTemplates = [],
 }) => {
@@ -96,6 +103,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   // Form Fields: Hierarchy & Performance
   const [cycleId, setCycleId] = useState('');
   const [hasUserManuallyChangedCycle, setHasUserManuallyChangedCycle] = useState(false);
+  const [startingReviewPeriodId, setStartingReviewPeriodId] = useState('');
   const [managerId, setManagerId] = useState('');
   const [hodId, setHodId] = useState('');
   const [currentKraTemplateId, setCurrentKraTemplateId] = useState('');
@@ -109,7 +117,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   const [provisionLogin, setProvisionLogin] = useState(true);
   const [systemRole, setSystemRole] = useState<UserRole>('EMPLOYEE');
   const [hasUserManuallyChangedRole, setHasUserManuallyChangedRole] = useState(false);
-  const [initialPassword, setInitialPassword] = useState('Welcome@2026');
+  const [initialPassword, setInitialPassword] = useState(generateDefaultTempPassword);
   const [showPassword, setShowPassword] = useState(false);
 
   // UI States
@@ -190,29 +198,25 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     return 'EMPLOYEE';
   };
 
-  // Helper to determine smart suggested cycle cohort based on joining date
-  const getSuggestedCycle = (dateStr?: string): Cycle | undefined => {
-    if (!dateStr || !cycles || cycles.length === 0) return undefined;
-    const parts = dateStr.split('-');
-    if (parts.length < 2) return undefined;
-    const joiningMonth = parseInt(parts[1], 10);
-    if (isNaN(joiningMonth) || joiningMonth < 1 || joiningMonth > 12) return undefined;
+  // Active cycles are the only ones assignable — cycle assignment is always an explicit HR choice
+  const activeCycles = cycles.filter((c) => c.active !== false);
 
-    const candidateCycles = cycles.filter((c) => c.active !== false);
-    const pool = candidateCycles.length > 0 ? candidateCycles : cycles;
-    const sorted = [...pool].sort((a, b) => a.appraisalMonth - b.appraisalMonth);
-
-    // 1. Exact match with joining month
-    const exact = sorted.find((c) => c.appraisalMonth === joiningMonth);
-    if (exact) return exact;
-
-    // 2. Next upcoming cycle in current year
-    const upcoming = sorted.find((c) => c.appraisalMonth > joiningMonth);
-    if (upcoming) return upcoming;
-
-    // 3. Wrap around to earliest cycle of next year
-    return sorted[0];
+  // Auto-suggest June Cycle (Jan - Jul joiners) or September Cycle (Aug - Dec joiners)
+  const getSuggestedCycle = (dateStr?: string, cycleList?: Cycle[]): Cycle | undefined => {
+    if (!dateStr || !cycleList || cycleList.length === 0) return undefined;
+    const parsed = new Date(dateStr);
+    if (isNaN(parsed.getTime())) return undefined;
+    const month = parsed.getMonth() + 1; // 1 to 12
+    if (month >= 1 && month <= 7) {
+      return cycleList.find((c) => c.appraisalMonth === 6 || c.code === 'JUN' || c.id === 'cycle_d') || cycleList[0];
+    } else {
+      return cycleList.find((c) => c.appraisalMonth === 9 || c.code === 'SEP' || c.id === 'cycle_f') || cycleList[1] || cycleList[0];
+    }
   };
+
+  // Only ACTIVE/UPCOMING periods can be picked as a starting point; defaults to the current ACTIVE period
+  const assignableReviewPeriods = reviewPeriods.filter((p) => p.status === 'ACTIVE' || p.status === 'UPCOMING');
+  const defaultReviewPeriodId = reviewPeriods.find((p) => p.status === 'ACTIVE')?.id || '';
 
   // Initialize or reset form
   useEffect(() => {
@@ -225,7 +229,15 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
       setDepartmentId(employeeToEdit.departmentId || '');
       setDesignationId(employeeToEdit.designationId || '');
       setJoiningDate(employeeToEdit.joiningDate ? employeeToEdit.joiningDate.split('T')[0] : '');
-      setCycleId(employeeToEdit.cycleId || cycles[0]?.id || '');
+      const existingCycle = activeCycles.find((c) => c.id === employeeToEdit.cycleId);
+      const fallbackCycle = getSuggestedCycle(employeeToEdit.joiningDate, activeCycles)?.id || activeCycles[0]?.id || '';
+      setCycleId(existingCycle ? existingCycle.id : fallbackCycle);
+      setHasUserManuallyChangedCycle(Boolean(existingCycle));
+      setStartingReviewPeriodId(
+        assignableReviewPeriods.some((p) => p.id === employeeToEdit.startingReviewPeriodId)
+          ? employeeToEdit.startingReviewPeriodId
+          : defaultReviewPeriodId
+      );
       setManagerId(employeeToEdit.managerId || '');
       setHodId(employeeToEdit.hodId || '');
       setCurrentKraTemplateId(employeeToEdit.currentKraTemplateId || '');
@@ -238,14 +250,13 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         setRelievingDate('');
         setProvisionLogin(true);
         setInitialPassword(`Welcome@${new Date().getFullYear()}`);
-        const suggested = getSuggestedCycle(todayStr);
-        setCycleId(suggested ? suggested.id : (employeeToEdit.cycleId || cycles[0]?.id || ''));
+        const rehireCycle = getSuggestedCycle(todayStr, activeCycles);
+        setCycleId(rehireCycle?.id || activeCycles[0]?.id || '');
         setHasUserManuallyChangedCycle(false);
       } else {
         setStatus(employeeToEdit.status || 'ACTIVE');
         setJoiningDate(employeeToEdit.joiningDate ? employeeToEdit.joiningDate.split('T')[0] : '');
-        setCycleId(employeeToEdit.cycleId || cycles[0]?.id || '');
-        setHasUserManuallyChangedCycle(Boolean(employeeToEdit.cycleId));
+        setCycleId(existingCycle ? existingCycle.id : fallbackCycle);
         setRelievingDate(
           employeeToEdit.relievingDate
             ? employeeToEdit.relievingDate.split('T')[0]
@@ -303,9 +314,10 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
       setDepartmentId(defaultDept);
       setDesignationId('');
       setJoiningDate(todayStr);
-      const suggested = getSuggestedCycle(todayStr);
-      setCycleId(suggested ? suggested.id : (cycles[0]?.id || ''));
+      const suggestedCycle = getSuggestedCycle(todayStr, activeCycles);
+      setCycleId(suggestedCycle?.id || activeCycles[0]?.id || '');
       setHasUserManuallyChangedCycle(false);
+      setStartingReviewPeriodId(defaultReviewPeriodId);
       setManagerId('');
       setHodId(defaultDeptObj?.hodId || '');
       setCurrentKraTemplateId('');
@@ -321,7 +333,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     setRehireTarget(null);
     setError(null);
     setCreatedResponse(null);
-  }, [employeeToEdit, initialRehire, isOpen, departments, cycles, allEmployees]);
+  }, [employeeToEdit, initialRehire, isOpen, departments, cycles, reviewPeriods, allEmployees]);
 
   // Rehire handler to switch modal into rehire mode
   const handleStartRehire = (pastEmp: Employee) => {
@@ -335,9 +347,10 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     const todayStr = new Date().toISOString().split('T')[0];
     setDesignationId(pastEmp.designationId || '');
     setJoiningDate(todayStr);
-    const suggested = getSuggestedCycle(todayStr);
-    setCycleId(suggested ? suggested.id : (pastEmp.cycleId || cycles[0]?.id || ''));
+    const suggestedRehireCycle = getSuggestedCycle(todayStr, activeCycles);
+    setCycleId(suggestedRehireCycle?.id || activeCycles[0]?.id || '');
     setHasUserManuallyChangedCycle(false);
+    setStartingReviewPeriodId(defaultReviewPeriodId);
     setManagerId(pastEmp.managerId || '');
     setHodId(pastEmp.hodId || '');
     setCurrentKraTemplateId(pastEmp.currentKraTemplateId || '');
@@ -382,16 +395,42 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     }
   }, [departmentId, designations]);
 
-  // Filter available managers to ONLY reporting managers from their own department (HODs strictly excluded)
+  // Helper to determine if target employee being edited/created is an HOD or Manager
+  const currentDes = designations.find((d) => d.id === designationId);
+  const isTargetHod =
+    systemRole === 'HOD' ||
+    Boolean(currentDes && (currentDes.level >= 4 || currentDes.name?.toLowerCase().includes('vp') || currentDes.name?.toLowerCase().includes('head')));
+  const isTargetManager =
+    systemRole === 'MANAGER' ||
+    Boolean(currentDes && (currentDes.level >= 3 || currentDes.name?.toLowerCase().includes('manager') || currentDes.name?.toLowerCase().includes('lead')));
+
+  // Filter available managers:
+  // Managers report directly to HODs. HODs can report to senior HODs/Executives or have no L1 manager.
+  // Regular employees should report to managers, or HOD if no intermediate managers exist in the department.
   const departmentManagers = allEmployees
     .filter((emp) => {
       if (employeeToEdit && emp.id === employeeToEdit.id) return false;
-      if (departmentId && emp.departmentId !== departmentId) return false;
+      if (departmentId && emp.departmentId !== departmentId && !isTargetHod) return false;
       if (emp.status === 'INACTIVE' || emp.isPastEmployee) return false;
 
-      // Strictly exclude HODs from reporting manager options
-      if (isEmployeeHod(emp)) {
-        return false;
+      const isHod = isEmployeeHod(emp);
+      if (isTargetHod || isTargetManager) {
+        // Managers and HODs can have HODs as their reporting manager!
+        return true;
+      }
+
+      // For regular staff, exclude HODs ONLY if there are other departmental managers available
+      if (isHod) {
+        const hasOtherManagers = allEmployees.some(
+          (other) =>
+            other.id !== emp.id &&
+            other.departmentId === departmentId &&
+            other.status !== 'INACTIVE' &&
+            !other.isPastEmployee &&
+            !isEmployeeHod(other) &&
+            (other.systemRole === 'MANAGER' || isReportingManagerDesignation(other.designationName))
+        );
+        return !hasOtherManagers;
       }
 
       const empDes = designations.find((d) => d.id === emp.designationId);
@@ -474,12 +513,6 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Smart cycle suggestion derived values
-  const suggestedCycle = getSuggestedCycle(joiningDate);
-  const isSelectedSuggested = Boolean(suggestedCycle && cycleId === suggestedCycle.id);
-  const joiningMonthIndex = joiningDate ? parseInt(joiningDate.split('-')[1], 10) - 1 : -1;
-  const joiningMonthName = joiningMonthIndex >= 0 && joiningMonthIndex < 12 ? MONTH_NAMES[joiningMonthIndex] : '';
-
   // Handle password auto-generation
   const generateRandomPassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@#$';
@@ -553,7 +586,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         toast.warning('Joining Date is required.', 'Validation Error');
         return;
       }
-      if (!managerId) {
+      if (!managerId && !isTargetHod) {
         setError('Reporting Manager (L1) is required. Self-managed employees are not permitted.');
         toast.warning('Reporting Manager is required.', 'Validation Error');
         return;
@@ -594,6 +627,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
             designationId,
             joiningDate: new Date(joiningDate).toISOString(),
             cycleId,
+            startingReviewPeriodId,
             managerId: managerId || undefined,
             hodId: hodId || undefined,
             currentKraTemplateId: currentKraTemplateId || undefined,
@@ -627,6 +661,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
           designationId,
           joiningDate: new Date(joiningDate).toISOString(),
           cycleId,
+          startingReviewPeriodId,
           managerId: managerId || undefined,
           hodId: hodId || undefined,
           currentKraTemplateId: currentKraTemplateId || undefined,
@@ -1002,7 +1037,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                         const newDate = e.target.value;
                         setJoiningDate(newDate);
                         if (!hasUserManuallyChangedCycle && newDate) {
-                          const suggested = getSuggestedCycle(newDate);
+                          const suggested = getSuggestedCycle(newDate, activeCycles);
                           if (suggested) {
                             setCycleId(suggested.id);
                           }
@@ -1011,14 +1046,6 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                     />
                   </div>
-                  {suggestedCycle && (
-                    <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                      <Sparkles className="w-2.5 h-2.5 text-indigo-500 shrink-0" />
-                      <span>
-                        Cohort: <strong>{suggestedCycle.name}</strong>
-                      </span>
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
@@ -1104,24 +1131,18 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                   </div>
                 </div>
 
-                {/* 8-Cycle Assignment */}
+                {/* Appraisal Cycle Assignment */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Appraisal Cycle Cohort <span className="text-rose-500">*</span>
+                      Appraisal Cycle <span className="text-rose-500">*</span>
                     </label>
-                    {suggestedCycle && !isSelectedSuggested && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCycleId(suggestedCycle.id);
-                          setHasUserManuallyChangedCycle(false);
-                        }}
-                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline cursor-pointer"
-                        title={`Reset to suggested ${suggestedCycle.name}`}
-                      >
-                        <RotateCcw className="w-2.5 h-2.5" /> Reset (Cycle {suggestedCycle.code})
-                      </button>
+                    {joiningDate && (
+                      <span className="text-[10px] font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-900/50">
+                        {new Date(joiningDate).getMonth() + 1 >= 1 && new Date(joiningDate).getMonth() + 1 <= 7
+                          ? 'Jan–Jul: June Cycle'
+                          : 'Aug–Dec: Sept Cycle'}
+                      </span>
                     )}
                   </div>
                   <div className="relative">
@@ -1136,30 +1157,45 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       }}
                       className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                     >
-                      {cycles.map((c) => {
-                        const isRecommended = suggestedCycle?.id === c.id;
-                        return (
-                          <option key={c.id} value={c.id}>
-                            {c.name} (Month {c.appraisalMonth}){isRecommended ? ' ★ Recommended' : ''}
-                          </option>
-                        );
-                      })}
+                      <option value="" disabled>
+                        Select Appraisal Cycle *
+                      </option>
+                      {activeCycles.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({c.code} — {c.appraisalMonth === 6 ? 'Jan–Jul joiners' : 'Aug–Dec joiners'})
+                        </option>
+                      ))}
                     </select>
                   </div>
-                  {suggestedCycle && joiningMonthName && (
-                    <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                      <Sparkles className="w-2.5 h-2.5 text-indigo-500 shrink-0" />
-                      {isSelectedSuggested ? (
-                        <span>
-                          Auto-matched to <strong>Cycle {suggestedCycle.code}</strong> for {joiningMonthName} joining.
-                        </span>
-                      ) : (
-                        <span>
-                          Manual override (recommended for {joiningMonthName}: <strong>Cycle {suggestedCycle.code}</strong>).
-                        </span>
-                      )}
-                    </p>
-                  )}
+                </div>
+
+                {/* Starting Review Period Assignment */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Starting Review Period <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
+                    <select
+                      required
+                      disabled={isInactive}
+                      value={startingReviewPeriodId}
+                      onChange={(e) => setStartingReviewPeriodId(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
+                    >
+                      <option value="" disabled>
+                        Select Starting Review Period *
+                      </option>
+                      {assignableReviewPeriods.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.status})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                    Quarterly reviews will only be generated from this period onward.
+                  </p>
                 </div>
 
                 {/* Employment Status Selector (Spans Full Width across sm:col-span-3) */}
@@ -1275,21 +1311,22 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {/* Reporting Manager (L1) */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Reporting Manager (L1) <span className="text-rose-500">*</span>
+                    Reporting Manager {isTargetHod ? '(Optional for HOD)' : '(L1)'}{' '}
+                    {!isTargetHod && <span className="text-rose-500">*</span>}
                   </label>
                   <select
-                    required
+                    required={!isTargetHod}
                     disabled={isInactive}
                     value={managerId}
                     onChange={(e) => setManagerId(e.target.value)}
                     className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                   >
-                    <option value="" disabled>
-                      Select Reporting Manager *
+                    <option value="" disabled={!isTargetHod}>
+                      {isTargetHod ? 'Direct Department Head / No L1 Manager' : 'Select Reporting Manager *'}
                     </option>
                     {departmentManagers.map((emp) => (
                       <option key={emp.id} value={emp.id}>
-                        {emp.name} ({emp.designationName || 'Reporting Manager'})
+                        {emp.name} ({emp.designationName || emp.systemRole || 'Reporting Manager'})
                       </option>
                     ))}
                   </select>

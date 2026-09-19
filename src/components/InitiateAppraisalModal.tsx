@@ -1,23 +1,59 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Sparkles, AlertCircle, Loader2, Calendar, CheckCircle2, ChevronRight } from 'lucide-react';
-import { Cycle } from '../types';
+import { X, Sparkles, AlertCircle, Loader2, Calendar, CheckCircle2, ChevronRight, Users } from 'lucide-react';
+import { Cycle, Employee } from '../types';
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
 
 interface InitiateAppraisalModalProps {
   cycles: Cycle[];
+  employees?: Employee[];
   onClose: () => void;
   onSuccess: () => void;
 }
 
+// Helper to determine the active/current appraisal cycle based on current calendar month
+const getDefaultCurrentCycleId = (cycleList: Cycle[]): string => {
+  const activeCycles = cycleList.filter((c) => c.active !== false);
+  if (activeCycles.length === 0) return cycleList[0]?.id || '';
+
+  const currentMonth = new Date().getMonth() + 1; // 1 to 12
+
+  // 1. Direct match with current month (e.g. Month 9 in Sep -> September Cycle, Month 6 in Jun -> June Cycle)
+  const exactMonthMatch = activeCycles.find((c) => c.appraisalMonth === currentMonth);
+  if (exactMonthMatch) return exactMonthMatch.id;
+
+  // 2. In 2-cycle framework:
+  // - June Cycle (appraisalMonth: 6, code: 'JUN') covers H1 / Jan–Jul
+  // - September Cycle (appraisalMonth: 9, code: 'SEP') covers H2 / Aug–Dec
+  // If current month is July through November (months 7 to 11): September Cycle is current/due
+  // If current month is December or January through June (months 1 to 6, 12): June Cycle is current/due
+  if (currentMonth >= 7 && currentMonth <= 11) {
+    const sepCycle = activeCycles.find((c) => c.appraisalMonth === 9 || c.code === 'SEP');
+    if (sepCycle) return sepCycle.id;
+  } else {
+    const juneCycle = activeCycles.find((c) => c.appraisalMonth === 6 || c.code === 'JUN');
+    if (juneCycle) return juneCycle.id;
+  }
+
+  // 3. Fallback: closest appraisalMonth
+  const sorted = [...activeCycles].sort((a, b) => {
+    return Math.abs(a.appraisalMonth - currentMonth) - Math.abs(b.appraisalMonth - currentMonth);
+  });
+  return sorted[0]?.id || activeCycles[0].id;
+};
+
 export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
   cycles,
+  employees,
   onClose,
   onSuccess,
 }) => {
-  const [selectedCycleId, setSelectedCycleId] = useState<string>(cycles[5]?.id || cycles[0]?.id || 'cycle_f');
-  const [appraisalYear, setAppraisalYear] = useState<number>(2026);
+  const currentYear = new Date().getFullYear();
+  const defaultCurrentCycleId = getDefaultCurrentCycleId(cycles);
+  const [selectedCycleId, setSelectedCycleId] = useState<string>(defaultCurrentCycleId);
+  const [employeeList, setEmployeeList] = useState<Employee[]>(employees || []);
+  const [appraisalYear, setAppraisalYear] = useState<number>(currentYear);
   const [overrideExisting, setOverrideExisting] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +64,25 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
     updatedCount: number;
     totalEligible: number;
   } | null>(null);
+
+  // Keep selectedCycleId in sync if cycles are loaded/updated asynchronously
+  useEffect(() => {
+    if ((!selectedCycleId || !cycles.some((c) => c.id === selectedCycleId && c.active !== false)) && cycles.length > 0) {
+      setSelectedCycleId(getDefaultCurrentCycleId(cycles));
+    }
+  }, [cycles]);
+
+  useEffect(() => {
+    if (employees && employees.length > 0) {
+      setEmployeeList(employees);
+    } else {
+      api.getEmployees()
+        .then((res) => {
+          if (Array.isArray(res)) setEmployeeList(res);
+        })
+        .catch((err) => console.warn('Could not fetch employees for cohort count:', err));
+    }
+  }, [employees]);
 
   useEffect(() => {
     const origOverflow = document.body.style.overflow;
@@ -45,6 +100,18 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
   }, [onClose]);
 
   const selectedCycle = cycles.find((c) => c.id === selectedCycleId) || cycles[0];
+
+  const getCycleEmployeeCount = (cycleId: string, cycleCode?: string) => {
+    return employeeList.filter(
+      (e) =>
+        e.status !== 'INACTIVE' &&
+        ((e.cycleId && e.cycleId === cycleId) || (e.cycleCode && cycleCode && e.cycleCode === cycleCode))
+    ).length;
+  };
+
+  const selectedCycleEmployeeCount = selectedCycle
+    ? getCycleEmployeeCount(selectedCycle.id, selectedCycle.code)
+    : 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +159,7 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-semibold text-white">Initiate Annual Appraisal Cohort</h3>
-              <p className="text-xs text-slate-300">8-Cycle Automated 4-Quarter Rollup</p>
+              <p className="text-xs text-slate-300">Appraisal Cycle Automated 4-Quarter Rollup</p>
             </div>
           </div>
           <button
@@ -141,35 +208,83 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
 
             {/* Cycle Selector */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Select 8-Cycle Cohort <span className="text-red-500">*</span>
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {cycles.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setSelectedCycleId(c.id)}
-                    className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                      selectedCycleId === c.id
-                        ? 'border-indigo-600 bg-indigo-50/40 dark:bg-indigo-950/40 ring-2 ring-indigo-600/20'
-                        : 'border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full"
-                        style={{ backgroundColor: c.colorHex || '#4f46e5' }}
-                      />
-                      <div>
-                        <div className="text-xs font-semibold text-slate-900 dark:text-white">{c.name}</div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400">Appraisal: Month {c.appraisalMonth}</div>
-                      </div>
-                    </div>
-                    {selectedCycleId === c.id && <ChevronRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Select Appraisal Cycle <span className="text-red-500">*</span>
+                </label>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Total Active Employees: <strong className="text-slate-800 dark:text-slate-200">{employeeList.filter(e => e.status !== 'INACTIVE').length}</strong>
+                </span>
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                {cycles.filter((c) => c.active !== false).map((c) => {
+                  const count = getCycleEmployeeCount(c.id, c.code);
+                  const isSelected = selectedCycleId === c.id;
+                  const isCurrentCycle = c.id === defaultCurrentCycleId;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSelectedCycleId(c.id)}
+                      className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        isSelected
+                          ? 'border-indigo-600 bg-indigo-50/40 dark:bg-indigo-950/40 ring-2 ring-indigo-600/20'
+                          : 'border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: c.colorHex || '#4f46e5' }}
+                        />
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-semibold text-slate-900 dark:text-white">{c.name}</span>
+                            {isCurrentCycle && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.2 text-indigo-700 dark:text-indigo-300 bg-indigo-100/90 dark:bg-indigo-900/60 rounded border border-indigo-200 dark:border-indigo-800">
+                                Current
+                              </span>
+                            )}
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700">
+                              <Users className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400" />
+                              {count}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                            Appraisal: Month {c.appraisalMonth} • {c.appraisalMonth === 6 ? 'Jan–Jul' : 'Aug–Dec'}
+                          </div>
+                        </div>
+                      </div>
+                      {isSelected && <ChevronRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Selected Cycle Enrolled Headcount Callout */}
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-200/60 dark:border-indigo-800/60">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span>{selectedCycle?.name || 'Selected Cohort'}:</span>
+                    <span className="text-indigo-600 dark:text-indigo-400 font-bold">
+                      {selectedCycleEmployeeCount} Active {selectedCycleEmployeeCount === 1 ? 'Employee' : 'Employees'} Enrolled
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {selectedCycle?.appraisalMonth === 6
+                      ? 'Employees who joined January to July • Annual 4-Quarter Rollup'
+                      : 'Employees who joined August to December • Annual 4-Quarter Rollup'}
+                  </div>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-750 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs">
+                {selectedCycle?.code || 'COHORT'}
+              </span>
             </div>
 
             {/* Appraisal Year */}
@@ -181,16 +296,16 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
                   onChange={(e) => setAppraisalYear(Number(e.target.value))}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                 >
-                  <option value={2026} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">2026 (Current)</option>
-                  <option value={2025} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">2025</option>
-                  <option value={2027} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">2027</option>
+                  <option value={currentYear} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{currentYear} (Current)</option>
+                  <option value={currentYear - 1} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{currentYear - 1}</option>
+                  <option value={currentYear + 1} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{currentYear + 1}</option>
                 </select>
               </div>
 
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Target Cycle Month</label>
                 <div className="px-3 py-2 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                  Month {selectedCycle?.appraisalMonth || '9'} (Due for Annual Review)
+                  Month {selectedCycle?.appraisalMonth || '6'} (Due for Annual Review)
                 </div>
               </div>
             </div>
@@ -221,7 +336,7 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || selectedCycleEmployeeCount === 0}
                 className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? (
@@ -232,7 +347,9 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    <span>Initiate {selectedCycle?.name || 'Cohort'}</span>
+                    <span>
+                      Initiate {selectedCycle?.name || 'Cohort'} ({selectedCycleEmployeeCount} {selectedCycleEmployeeCount === 1 ? 'Employee' : 'Employees'})
+                    </span>
                   </>
                 )}
               </button>

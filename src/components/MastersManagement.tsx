@@ -239,6 +239,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
   };
 
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const activeCycles = (cycles || []).filter((c) => c.active !== false);
 
   return (
     <div className="space-y-6">
@@ -610,13 +611,13 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
               <Calendar className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">8-Cycle Framework Master</h3>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Appraisal Cycle Framework Master</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">Configure appraisal months and cycle designations</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-              {cycles?.length || 0} Cycles
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+              {activeCycles.length} Active Cycles
             </span>
             <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
               {employees?.length || 0} Total Headcount
@@ -631,8 +632,8 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {cycles?.map((cycle) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {activeCycles.map((cycle) => {
             const cycleEmployees = (employees || []).filter(
               (e) => e.cycleId === cycle.id || e.cycleCode === cycle.code
             );

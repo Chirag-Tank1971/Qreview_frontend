@@ -436,8 +436,8 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
                     onChange={(e) => setFilterCycle(e.target.value)}
                     className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500"
                   >
-                    <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All 8 Cycles (A - H)</option>
-                    {cycles.map((c) => (
+                    <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All Cycles</option>
+                    {cycles.filter((c) => c.active !== false).map((c) => (
                       <option key={c.id} value={c.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                         {c.name} (Month {c.appraisalMonth})
                       </option>

@@ -395,7 +395,7 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
     {
       id: 'employees',
       title: 'Employee Master Directory',
-      description: 'Bulk create/update employees, 8-cycle calendar assignments, base CTC, and reporting managers.',
+      description: 'Bulk create/update employees, appraisal cycle assignments, base CTC, and reporting managers.',
       icon: Users,
       color: 'indigo',
       badge: 'Core Foundation',
@@ -1006,10 +1006,10 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                 onChange={(e) => setExportCycleId(e.target.value)}
                 className="text-xs font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-200 focus:ring-1 focus:ring-indigo-500"
               >
-                <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All 8 Joining Cycles (A - H)</option>
-                {cycles.map((c) => (
+                <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Appraisal Cycles</option>
+                {cycles.filter((c) => c.active !== false).map((c) => (
                   <option key={c.id} value={c.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
-                    {c.name.startsWith('Cycle') ? c.name : `Cycle ${c.code} (${c.name})`}
+                    {c.name}
                   </option>
                 ))}
               </select>

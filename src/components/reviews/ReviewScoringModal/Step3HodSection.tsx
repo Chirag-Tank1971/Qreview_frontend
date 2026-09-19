@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Sparkles, Lock, UserCheck, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, Sparkles, Lock, UserCheck, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { EmployeeReview, ReviewStatus } from '../../../types';
 
 interface Step3HodSectionProps {
@@ -15,6 +15,9 @@ interface Step3HodSectionProps {
   setHrComments: (val: string) => void;
   canEdit: boolean;
   isHrOrAdmin: boolean;
+  canHodAct: boolean;
+  hodComments: string;
+  setHodComments: (val: string) => void;
   saving: boolean;
   aiLoading: boolean;
   aiSuccessNote: string;
@@ -35,6 +38,9 @@ export const Step3HodSection: React.FC<Step3HodSectionProps> = ({
   setHrComments,
   canEdit,
   isHrOrAdmin,
+  canHodAct,
+  hodComments,
+  setHodComments,
   saving,
   aiLoading,
   aiSuccessNote,
@@ -139,6 +145,28 @@ export const Step3HodSection: React.FC<Step3HodSectionProps> = ({
               placeholder="HR notes regarding cohort normalization, cycle appraisal recommendation, or increment approval..."
               className="w-full text-xs p-3 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/30 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />
+          </div>
+        )}
+
+        {(canHodAct || review.status === 'HOD_PENDING') && (
+          <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-2 mb-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+              <label className="block text-xs font-bold text-violet-950 dark:text-violet-200">
+                HOD Observations
+              </label>
+            </div>
+            <textarea
+              rows={2}
+              disabled={!canHodAct}
+              value={hodComments}
+              onChange={(e) => setHodComments(e.target.value)}
+              placeholder="Optional notes on the manager's assessment before approving or returning..."
+              className="w-full text-xs p-3 rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50/40 dark:bg-violet-950/30 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 disabled:bg-slate-100 dark:disabled:bg-slate-850"
+            />
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">
+              Current Stage: <span className="font-semibold text-violet-600 dark:text-violet-400">{review.status}</span> • Live Weighted Score: <span className="font-mono font-bold">{computedScore.toFixed(2)}/5.00</span>. Use the Approve / Return to Manager actions below to record your decision.
+            </p>
           </div>
         )}
 

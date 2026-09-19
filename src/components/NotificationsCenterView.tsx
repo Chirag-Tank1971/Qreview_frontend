@@ -333,6 +333,27 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
           badgeColor: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800',
           config: { subTab: 'reviews', ...meta, ...(meta.reviewId ? { status: 'ALL' } : {}) },
         };
+      case 'HOD_PENDING':
+        return {
+          tab: 'reviews',
+          label: 'HOD Review Pending',
+          badgeColor: 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200/80 dark:border-violet-800',
+          config: { subTab: 'reviews', ...meta, ...(meta.reviewId ? { status: 'ALL' } : { status: 'HOD_PENDING' }) },
+        };
+      case 'HOD_APPROVED':
+        return {
+          tab: 'reviews',
+          label: 'HOD Approved — HR Review',
+          badgeColor: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800',
+          config: { subTab: 'reviews', ...meta, ...(meta.reviewId ? { status: 'ALL' } : {}) },
+        };
+      case 'HOD_MISSING_EXCEPTION':
+        return {
+          tab: 'reviews',
+          label: 'Review Blocked: No HOD Configured',
+          badgeColor: 'bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border-red-200/80 dark:border-red-800',
+          config: { subTab: 'reviews', ...meta, ...(meta.reviewId ? { status: 'ALL' } : { status: 'HOD_PENDING' }) },
+        };
       default:
         return {
           tab: 'portal',
@@ -355,6 +376,11 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
     switch (type) {
       case 'HOD_ACTION_REQUIRED':
         return <Building2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />;
+      case 'HOD_PENDING':
+      case 'HOD_APPROVED':
+        return <Building2 className="w-5 h-5 text-violet-600 dark:text-violet-400" />;
+      case 'HOD_MISSING_EXCEPTION':
+        return <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />;
       case 'BUDGET_ALERT':
         return <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />;
       case 'CALIBRATION_WARNING':
@@ -375,7 +401,7 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
     const unread = notifications.filter((n) => !n.isRead).length;
     const urgent = notifications.filter((n) => n.priority === 'HIGH').length;
     const reviews = notifications.filter((n) =>
-      ['REVIEW_ASSIGNED', 'DUE_SOON', 'OVERDUE', 'MANAGER_SUBMITTED', 'RETURNED', 'HR_COMPLETED'].includes(n.type)
+      ['REVIEW_ASSIGNED', 'DUE_SOON', 'OVERDUE', 'MANAGER_SUBMITTED', 'RETURNED', 'HR_COMPLETED', 'HOD_PENDING', 'HOD_APPROVED', 'HOD_MISSING_EXCEPTION'].includes(n.type)
     ).length;
     const appraisals = notifications.filter((n) =>
       ['BUDGET_ALERT', 'CALIBRATION_WARNING', 'HOD_ACTION_REQUIRED', 'APPRAISAL_DUE', 'LETTER_RELEASED', 'LETTER_ACKNOWLEDGED'].includes(n.type)
@@ -390,7 +416,7 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
       // Tab filter
       if (activeTab === 'unread' && (notif.isRead === true || String(notif.isRead) === 'true')) return false;
       if (activeTab === 'reviews') {
-        const reviewTypes = ['REVIEW_ASSIGNED', 'DUE_SOON', 'OVERDUE', 'MANAGER_SUBMITTED', 'RETURNED', 'HR_COMPLETED'];
+        const reviewTypes = ['REVIEW_ASSIGNED', 'DUE_SOON', 'OVERDUE', 'MANAGER_SUBMITTED', 'RETURNED', 'HR_COMPLETED', 'HOD_PENDING', 'HOD_APPROVED', 'HOD_MISSING_EXCEPTION'];
         if (!reviewTypes.includes(notif.type)) return false;
       }
       if (activeTab === 'appraisals') {

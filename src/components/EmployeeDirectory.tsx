@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Employee, Department, Designation, Cycle, KraTemplate } from '../types';
+import { Employee, Department, Designation, Cycle, KraTemplate, ReviewPeriod } from '../types';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from '../context/ToastContext';
@@ -69,6 +69,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
   const [designations, setDesignations] = useState<Designation[]>(initialDesignations || []);
   const [cycles, setCycles] = useState<Cycle[]>(initialCycles || []);
   const [kraTemplates, setKraTemplates] = useState<KraTemplate[]>(initialKraTemplates || []);
+  const [reviewPeriods, setReviewPeriods] = useState<ReviewPeriod[]>([]);
   const [loading, setLoading] = useState(
     !(initialEmployees && initialEmployees.length > 0 && initialDepartments && initialDepartments.length > 0)
   );
@@ -114,18 +115,20 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
   const loadData = async () => {
     setLoading(true);
     try {
-      const [empRes, deptRes, desRes, cycRes, kraRes] = await Promise.all([
+      const [empRes, deptRes, desRes, cycRes, kraRes, periodRes] = await Promise.all([
         api.getEmployees(),
         api.getDepartments(),
         api.getDesignations(),
         api.getCycles(),
         api.getKraTemplates().catch(() => []),
+        api.getReviewPeriods().catch(() => []),
       ]);
       setEmployees(empRes);
       setDepartments(deptRes);
       setDesignations(desRes);
       setCycles(cycRes);
       setKraTemplates(kraRes || []);
+      setReviewPeriods(periodRes || []);
     } catch (err) {
       console.error('Failed to load employee master data:', err);
     } finally {
@@ -266,7 +269,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Headcount directory, 8-Cycle appraisal cohorts, departments, and reviewer assignments.
+            Headcount directory, June/September appraisal cohorts, departments, and reviewer assignments.
           </p>
         </div>
 
@@ -407,14 +410,14 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
               </div>
               <div className="flex items-baseline gap-2 mt-2">
                 <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono tracking-tight">
-                  {cycles.length || 8}
+                  {cycles.filter((c) => c.active !== false).length}
                 </span>
                 <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 px-1.5 py-0.5 rounded">
-                  Cycles A–H
+                  June & September
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                Staggered review schedules
+                Annual appraisal windows
               </p>
             </div>
           </div>
@@ -468,10 +471,10 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                   onChange={(e) => setSelectedCycle(e.target.value)}
                   className="h-9 pl-2.5 pr-7 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 appearance-none cursor-pointer"
                 >
-                  <option value="">All Cycles (A-H)</option>
-                  {cycles.map((c) => (
+                  <option value="">All Cycles</option>
+                  {cycles.filter((c) => c.active !== false).map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name.startsWith('Cycle') ? c.name : `Cycle ${c.code} (${c.name})`}
+                      {c.name}
                     </option>
                   ))}
                 </select>
@@ -757,7 +760,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
 
                             {/* Cycle */}
                             <td className="px-4 py-3.5">
-                              <CycleBadge code={emp.cycleCode || cycleInfo?.code || 'A'} />
+                              <CycleBadge code={emp.cycleCode || cycleInfo?.code} cycleName={emp.cycleName || cycleInfo?.name} />
                             </td>
 
                             {/* Hierarchy */}
@@ -970,6 +973,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
         departments={departments}
         designations={designations}
         cycles={cycles}
+        reviewPeriods={reviewPeriods}
         allEmployees={employees}
         kraTemplates={kraTemplates}
       />

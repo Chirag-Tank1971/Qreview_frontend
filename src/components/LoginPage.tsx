@@ -184,7 +184,7 @@ export const LoginPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold tracking-tight text-base text-slate-900 dark:text-white">
-                AppraisalOS
+                MintReview System
               </span>
               <span className="hidden sm:inline-flex items-center px-2 py-0.2 rounded-full text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60">
                 Enterprise v2.4
@@ -341,8 +341,8 @@ export const LoginPage: React.FC = () => {
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {import.meta.env.DEV
-                    ? 'Welcome to AppraisalOS. Choose a demo persona or enter credentials.'
-                    : 'Welcome to AppraisalOS. Enter your credentials to access your account.'}
+                    ? 'Welcome to MintReview System. Choose a demo persona or enter credentials.'
+                    : 'Welcome to MintReview System. Enter your credentials to access your account.'}
                 </p>
               </div>
 
@@ -544,7 +544,7 @@ export const LoginPage: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <span>Sign In to AppraisalOS</span>
+                      <span>Sign In to MintReview System</span>
                       <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
                     </>
                   )}
@@ -566,7 +566,7 @@ export const LoginPage: React.FC = () => {
 
       {/* Global Enterprise Footer - Compact 32px */}
       <footer className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-2 sm:py-2.5 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-400 dark:text-slate-600 shrink-0 border-t border-slate-200/60 dark:border-slate-800/60 gap-1.5">
-        <span>© 2026 AppraisalOS Inc. All rights reserved. Enterprise Performance & Appraisal Calibration.</span>
+        <span>© 2026 MintReview System Inc. All rights reserved. Enterprise Performance & Appraisal Calibration.</span>
         <div className="flex items-center gap-3">
           <span className="hover:text-slate-600 dark:hover:text-slate-400 transition-colors cursor-pointer">Security</span>
           <span>•</span>

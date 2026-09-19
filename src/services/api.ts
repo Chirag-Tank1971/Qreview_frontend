@@ -29,7 +29,7 @@ import {
   ManagementAttentionItem,
   ManagementAppraisalSummaryData,
   ManagementEmployeeDossier,
-} from '../types';
+} from '../types'
 
 // Resolve API Base URL: respects VITE_API_BASE_URL; falls back to relative '/api' in production
 const API_BASE = import.meta.env.VITE_API_BASE_URL
@@ -65,7 +65,7 @@ export async function fetchWithAutoRefresh(url: string, options: RequestInit = {
   }
   options.headers = headers;
 
-  let res = await fetch(url, options);
+  const res = await fetch(url, options);
 
   // If 401 Unauthorized and not an auth endpoint, attempt transparent token refresh
   if (res.status === 401 && !url.includes('/auth/login') && !url.includes('/auth/refresh')) {
@@ -814,6 +814,36 @@ export const api = {
     return res.json();
   },
 
+  async hodApproveReview(id: string, data?: { hodComments?: string }): Promise<EmployeeReview> {
+    invalidateApiCache('/reviews');
+    invalidateApiCache('/notifications');
+    const res = await fetch(`${API_BASE}/reviews/${id}/hod-approve`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data || {}),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to approve review' }));
+      throw new Error(err.error || 'Failed to approve review');
+    }
+    return res.json();
+  },
+
+  async hodReturnReview(id: string, data: { reason: string }): Promise<EmployeeReview> {
+    invalidateApiCache('/reviews');
+    invalidateApiCache('/notifications');
+    const res = await fetch(`${API_BASE}/reviews/${id}/hod-return`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to return review' }));
+      throw new Error(err.error || 'Failed to return review');
+    }
+    return res.json();
+  },
+
   // Annual Appraisal & Salary Increment API (Phase 5)
   async getAppraisals(params?: {
     cycleId?: string;
@@ -1393,7 +1423,7 @@ export const api = {
       }
       return JSON.parse(text);
     } catch (err: any) {
-      throw new Error(err.message || 'Failed to synthesize review');
+      throw new Error(err.message || 'Failed to synthesize review', { cause: err });
     }
   },
 
@@ -1425,7 +1455,7 @@ export const api = {
       }
       return JSON.parse(text);
     } catch (err: any) {
-      throw new Error(err.message || 'Failed to generate talent insights');
+      throw new Error(err.message || 'Failed to generate talent insights', { cause: err });
     }
   },
 

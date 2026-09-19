@@ -108,8 +108,14 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
     (appraisal.managerId === currentUser?.employeeId || appraisal.managerId === currentUser?.id);
   const isHod = userRole === 'HOD';
   const isHr = userRole === 'HR' || userRole === 'SUPER_ADMIN';
+  const isSuperAdmin = userRole === 'SUPER_ADMIN';
   const isLocked = appraisal.isLocked || appraisal.status === 'LOCKED';
-  const canEdit = !isLocked && !isHod && (isHr || isManager);
+  const canHodAct =
+    isHod &&
+    appraisal.hodId === currentUser?.employeeId &&
+    ['MANAGER_RECOMMENDED', 'HOD_CALIBRATED'].includes(appraisal.status) &&
+    !isLocked;
+  const canEdit = !isLocked && (isHr || isManager || canHodAct);
 
   // Filter promotion designations strictly to the employee's current department
   const departmentDesignations = React.useMemo(() => {
@@ -762,11 +768,11 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                       <textarea
                         rows={2}
                         value={hodNotes}
-                        disabled={!canEdit || !isHr}
+                        disabled={!canEdit || !(isHr || canHodAct)}
                         onChange={(e) => setHodNotes(e.target.value)}
                         placeholder="Department review notes..."
                         className={`w-full px-3 py-2 border rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none ${
-                          !canEdit || !isHr
+                          !canEdit || !(isHr || canHodAct)
                             ? 'bg-slate-100/90 dark:bg-slate-850 border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-90'
                             : 'bg-purple-50/30 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500'
                         }`}
@@ -829,13 +835,13 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                     <div className="text-xs text-slate-500 dark:text-slate-400">
                       Current Action Gate:{' '}
                       <strong className="text-slate-800 dark:text-slate-200">
-                        {isHod
-                          ? 'Department Appraisal Monitoring (View-Only)'
-                          : appraisal.status === 'PENDING'
+                        {appraisal.status === 'PENDING'
                           ? 'Stage 1: Manager Recommendation'
                           : appraisal.status === 'MANAGER_RECOMMENDED'
-                          ? 'Stage 2: HR Review & Approval'
-                          : 'Stage 3: Final Approval & Lock'}
+                          ? 'Stage 2: HOD Calibration'
+                          : appraisal.status === 'HOD_CALIBRATED'
+                          ? 'Stage 3: HR Final Approval'
+                          : 'Stage 4: Final Lock (Super Admin)'}
                       </strong>
                     </div>
 
@@ -843,6 +849,10 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                       {isRestrictedFromIncrement ? (
                         <div className="text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800">
                           Increments & approvals restricted ({appraisal.employeeStatus})
+                        </div>
+                      ) : appraisal.status === 'MANAGER_RECOMMENDED' && !appraisal.hodId ? (
+                        <div className="text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-800">
+                          No HOD assigned — assign one via Employee Master to unblock calibration
                         </div>
                       ) : (
                         <>
@@ -858,7 +868,19 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                             </button>
                           )}
 
-                          {isHr && (appraisal.status === 'HOD_CALIBRATED' || appraisal.status === 'MANAGER_RECOMMENDED') && (
+                          {canHodAct && (
+                            <button
+                              type="button"
+                              disabled={isSubmitting}
+                              onClick={() => handleOpenConfirm('HOD')}
+                              className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer"
+                            >
+                              {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                              <span>Submit HOD Calibration</span>
+                            </button>
+                          )}
+
+                          {isHr && appraisal.status === 'HOD_CALIBRATED' && (
                             <button
                               type="button"
                               disabled={isSubmitting}
@@ -870,7 +892,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                             </button>
                           )}
 
-                          {isHr && appraisal.status === 'HR_APPROVED' && (
+                          {appraisal.status === 'HR_APPROVED' && isSuperAdmin && (
                             <button
                               type="button"
                               disabled={isSubmitting}
@@ -880,6 +902,12 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                               {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
                               <span>Lock Appraisal & Release to Employee</span>
                             </button>
+                          )}
+
+                          {appraisal.status === 'HR_APPROVED' && !isSuperAdmin && (
+                            <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                              Awaiting Super Admin final lock
+                            </div>
                           )}
                         </>
                       )}
@@ -1051,6 +1079,27 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                         <div>Final Increment: <strong>+{appraisal.hrApproval.finalIncrementPercent}%</strong></div>
                         <div>Revised CTC: <strong>{currencySymbol}{appraisal.hrApproval.revisedCtc.toLocaleString()}</strong></div>
                         <div>Letter Released: <strong>{appraisal.hrApproval.letterGenerated ? 'YES' : 'NO'}</strong></div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Stage 4: Final Lock */}
+                  <div className="p-4 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center">
+                          4
+                        </span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">Stage 4: Final Lock (Super Admin)</span>
+                      </div>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {appraisal.isLocked ? '✓ Locked' : 'Pending'}
+                      </span>
+                    </div>
+                    {appraisal.isLocked && (
+                      <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1 bg-slate-50 dark:bg-slate-850 p-3 rounded-lg border border-slate-100 dark:border-slate-700/60">
+                        <div>Locked By: <strong>{appraisal.lockedByName || 'Super Admin'}</strong></div>
+                        <div>Locked At: <strong>{appraisal.lockedAt ? new Date(appraisal.lockedAt).toLocaleString() : '—'}</strong></div>
                       </div>
                     )}
                   </div>

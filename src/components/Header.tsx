@@ -205,7 +205,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <Layers className="w-4 h-4" />
                 </div>
                 <span className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight">
-                  AppraisalOS
+                  MintReview System
                 </span>
               </button>
 

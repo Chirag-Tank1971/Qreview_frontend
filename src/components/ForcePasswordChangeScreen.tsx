@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   Layers,
@@ -61,7 +61,7 @@ export const ForcePasswordChangeScreen: React.FC = () => {
             <Layers className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-sm font-bold text-white tracking-tight leading-none">Performance & Appraisal Portal</p>
+            <p className="text-sm font-bold text-white tracking-tight leading-none">MintReview System</p>
             <p className="text-[11px] text-slate-400 mt-0.5">Enterprise Calibration System</p>
           </div>
         </div>

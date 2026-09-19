@@ -449,7 +449,7 @@ export function downloadAuditCertificatePdf(data: CertificateData): void {
   doc.setFontSize(9);
   doc.setTextColor(100, 116, 139); // Slate 500
   doc.text(
-    'Formal attestation of 8-Cycle appraisal compliance, score immutability & cryptographic signatures.',
+    'Formal attestation of appraisal cycle compliance, score immutability & cryptographic signatures.',
     pageWidth / 2,
     curY,
     { align: 'center' }

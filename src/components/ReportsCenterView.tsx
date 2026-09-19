@@ -447,17 +447,17 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
             </select>
           )}
 
-          {/* Cycle Filter (A-H) */}
+          {/* Cycle Filter */}
           {['quarterly-status', 'pending-overdue', 'employee-history', 'appraisal-due'].includes(activeReport) && (
             <select
               value={selectedCycle}
               onChange={(e) => setSelectedCycle(e.target.value)}
               className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer text-xs"
             >
-              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All 8 Cycles (A - H)</option>
-              {cycles.map((c) => (
+              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Cycles</option>
+              {cycles.filter((c) => c.active !== false).map((c) => (
                 <option key={c.id} value={c.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
-                  {c.name.startsWith('Cycle') ? c.name : `Cycle ${c.code} (${c.name})`}
+                  {c.name}
                 </option>
               ))}
             </select>
@@ -578,7 +578,7 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
                             <td className="px-4 py-3 text-slate-700 dark:text-slate-200 font-medium">{row.managerName}</td>
                             <td className="px-4 py-3">
                               <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold rounded">
-                                Cycle {row.cycleCode}
+                                {row.cycleName || `Cycle ${row.cycleCode}`}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{row.periodName}</td>
@@ -711,7 +711,7 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
                         </td>
                         <td className="px-4 py-3">
                           <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold rounded">
-                            Cycle {row.cycleCode}
+                            {row.cycleName || `Cycle ${row.cycleCode}`}
                           </span>
                         </td>
                         <td className="px-3 py-3 text-center font-mono font-medium text-slate-700 dark:text-slate-300">
@@ -873,7 +873,7 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
           )}
 
           {/* ========================================================================= */}
-          {/* 6. 8-CYCLE APPRAISAL DUE REPORT */}
+          {/* 6. APPRAISAL DUE REPORT */}
           {/* ========================================================================= */}
           {activeReport === 'appraisal-due' && data.reportData && (
             <div className="space-y-4">
@@ -889,7 +889,7 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
                         <tr>
                           <th className="px-4 py-3">Employee</th>
                           <th className="px-4 py-3">Department & Role</th>
-                          <th className="px-4 py-3">8-Cycle Schedule</th>
+                          <th className="px-4 py-3">Cycle Schedule</th>
                           <th className="px-4 py-3">Current CTC</th>
                           <th className="px-4 py-3">4-Qtr Average</th>
                           <th className="px-4 py-3">Proposed Increment</th>
@@ -909,7 +909,7 @@ export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ department
                               <span className="text-[10px] text-slate-400 dark:text-slate-500">{row.designationName}</span>
                             </td>
                             <td className="px-4 py-3">
-                              <div className="font-bold text-slate-900 dark:text-white">Cycle {row.cycleCode}</div>
+                              <div className="font-bold text-slate-900 dark:text-white">{row.cycleName || `Cycle ${row.cycleCode}`}</div>
                               <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Month: {row.appraisalMonthName}</span>
                             </td>
                             <td className="px-4 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">

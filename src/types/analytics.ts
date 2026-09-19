@@ -82,6 +82,7 @@ export interface ManagementOrganizationSummary {
   totalQuarterlyReviews: number;
   completedReviews: number;
   pendingManagerReviews: number;
+  pendingHodReviews: number;
   pendingHrReviews: number;
   returnedReviews: number;
   overdueReviews: number;
@@ -136,6 +137,7 @@ export interface ManagementDepartmentPerformanceItem {
   completedReviews: number;
   completionRate: number;
   managerPending: number;
+  hodPending: number;
   hrPending: number;
   returnedCount: number;
   overdueCount: number;

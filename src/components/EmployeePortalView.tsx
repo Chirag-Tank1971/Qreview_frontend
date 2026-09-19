@@ -356,7 +356,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
 
               {/* Right Cycle Cohort & CTC Highlight */}
               <div className="grid grid-cols-1 xs:grid-cols-3 sm:grid-cols-3 gap-2.5 w-full lg:w-auto lg:flex lg:items-center">
-                {/* 8-Cycle Badge */}
+                {/* Appraisal Cycle Badge */}
                 <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 rounded-[6px] p-2.5 sm:p-3 text-center">
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold block mb-1">
                     Appraisal Cohort
@@ -365,7 +365,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                     <CycleBadge code={currentEmp.cycleCode} />
                   </div>
                   <span className="text-[9px] text-slate-400 dark:text-slate-500 block mt-1">
-                    Annual: {currentEmp.cycleCode === 'F' ? 'September' : currentEmp.cycleCode === 'D' ? 'June' : 'Quarterly'}
+                    Annual: {currentEmp.cycleName || 'Not Assigned'}
                   </span>
                 </div>
 
@@ -983,7 +983,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                         </div>
                       </div>
 
-                      {/* 8-Cycle Appraisal Framework info */}
+                      {/* Appraisal Cycle Framework info */}
                       <div className="bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 rounded-[6px] p-3 flex items-start gap-2.5">
                         <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                         <div className="space-y-0.5">
@@ -991,7 +991,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                             Upcoming Appraisal Cohort: {currentEmp.cycleName || `Cycle ${currentEmp.cycleCode}`}
                           </h6>
                           <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-                            Under the 8-Cycle Distributed Framework, employees in this cohort are calibrated annually during their scheduled review window. Your quarterly review scores contribute to the rolling performance score used during calibration.
+                            Employees in this cohort are calibrated annually during their scheduled June or September review window. Your quarterly review scores contribute to the rolling performance score used during calibration.
                           </p>
                         </div>
                       </div>

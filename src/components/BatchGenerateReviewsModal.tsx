@@ -68,10 +68,17 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
   }, [periods]);
 
   // Calculate target employee count
+  const selectedCycle = cycles.find((c) => c.id === selectedCycleId);
   const eligibleEmployees = employees.filter((emp) => {
     if (emp.status !== 'ACTIVE' && emp.status !== 'PROBATION') return false;
     if (selectedDepartmentId !== 'ALL' && emp.departmentId !== selectedDepartmentId) return false;
-    if (selectedCycleId !== 'ALL' && emp.cycleId !== selectedCycleId) return false;
+    if (
+      selectedCycleId !== 'ALL' &&
+      emp.cycleId !== selectedCycleId &&
+      (!selectedCycle || emp.cycleCode !== selectedCycle.code)
+    ) {
+      return false;
+    }
     return true;
   });
 
@@ -213,8 +220,8 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
                   onChange={(e) => setSelectedCycleId(e.target.value)}
                   className="w-full text-xs p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-indigo-500 font-medium"
                 >
-                  <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All Cycles (A through H)</option>
-                  {cycles.map((c) => (
+                  <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All Cycles</option>
+                  {cycles.filter((c) => c.active !== false).map((c) => (
                     <option key={c.id} value={c.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                       {c.name}
                     </option>

@@ -313,6 +313,7 @@ function AppContent() {
                     departments={departments}
                     cycles={cycles}
                     designations={designations}
+                    employees={employees}
                     initialConfig={appraisalConfig}
                     onClearInitialConfig={() => setAppraisalConfig(null)}
                   />
@@ -422,7 +423,7 @@ function AppContent() {
           <div className="w-full px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span className="font-semibold text-slate-700 dark:text-slate-300">Performance & Appraisal Management</span>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">MintReview System</span>
               <span className="text-slate-400">•</span>
               <span>Enterprise Edition</span>
             </div>

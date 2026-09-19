@@ -82,7 +82,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterDepartmentId, setFilterDepartmentId] = useState<string>('ALL');
-  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [filterStatus, setFilterStatus] = useState<string>(currentUser?.role === 'HOD' ? 'HOD_PENDING' : 'ALL');
   const [appraisalDueOnly, setAppraisalDueOnly] = useState<boolean>(false);
   const [myReportsOnly, setMyReportsOnly] = useState<boolean>(false);
   const [hideInactive, setHideInactive] = useState<boolean>(false);
@@ -114,7 +114,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       } else if (initialConfig.status) {
         let normalized = initialConfig.status;
         if (normalized === 'SELF_ASSESSED') normalized = 'MANAGER_PENDING';
-        const validStatuses = ['ALL', 'MANAGER_PENDING', 'MANAGER_COMPLETED', 'HR_PENDING', 'HR_COMPLETED', 'CLOSED', 'RETURNED', 'ASSIGNED', 'DRAFT'];
+        const validStatuses = ['ALL', 'MANAGER_PENDING', 'MANAGER_COMPLETED', 'HOD_PENDING', 'HR_PENDING', 'HR_COMPLETED', 'CLOSED', 'RETURNED', 'ASSIGNED', 'DRAFT'];
         if (!validStatuses.includes(normalized)) normalized = 'ALL';
         setFilterStatus(normalized);
       }
@@ -346,7 +346,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   };
 
   // Helper for status badge styling
-  const getStatusBadge = (status: ReviewStatus, managerName?: string) => {
+  const getStatusBadge = (status: ReviewStatus, managerName?: string, hodId?: string) => {
     switch (status) {
       case 'DRAFT':
       case 'ASSIGNED':
@@ -368,6 +368,23 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60">
             <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
             <span>Mgr Submitted</span>
+          </span>
+        );
+      case 'HOD_PENDING':
+        if (!hodId) {
+          return (
+            <div className="flex flex-col gap-0.5">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-red-50 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800/60 w-max">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                <span>No HOD Assigned</span>
+              </span>
+            </div>
+          );
+        }
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-violet-50 dark:bg-violet-950/60 text-violet-800 dark:text-violet-300 border border-violet-200 dark:border-violet-800/60">
+            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+            <span>HOD Pending</span>
           </span>
         );
       case 'HR_PENDING':
@@ -445,7 +462,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
     if (!score || score === 0) {
       return <span className="text-xs text-slate-400 font-medium">Pending</span>;
     }
-    let color = 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+    let color: string;
     if (score >= 4.5) color = 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60';
     else if (score >= 3.5) color = 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60';
     else if (score >= 2.5) color = 'bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border-sky-200 dark:border-sky-800/60';
@@ -702,6 +719,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Statuses</option>
               <option value="MANAGER_PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Manager Pending</option>
               <option value="MANAGER_COMPLETED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Manager Completed</option>
+              <option value="HOD_PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HOD Pending</option>
               <option value="HR_PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR Pending</option>
               <option value="HR_COMPLETED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR Completed</option>
               <option value="ASSIGNED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Assigned</option>
@@ -851,7 +869,9 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
         ) : viewMode === 'cards' ? (
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/50 dark:bg-slate-950/40">
             {displayedReviews.map((r) => {
-              const isPendingMyAction = (currentUser?.role === 'REPORTING_MANAGER' || currentUser?.role === 'MANAGER') && r.status === 'MANAGER_PENDING';
+              const isPendingMyAction =
+                ((currentUser?.role === 'REPORTING_MANAGER' || currentUser?.role === 'MANAGER') && r.status === 'MANAGER_PENDING') ||
+                (currentUser?.role === 'HOD' && r.status === 'HOD_PENDING' && r.hodId === currentUser?.employeeId);
               return (
                 <div
                   key={r.id}
@@ -885,7 +905,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                           </p>
                         </div>
                       </div>
-                      <span className="shrink-0">{getStatusBadge(r.status, r.managerName)}</span>
+                      <span className="shrink-0">{getStatusBadge(r.status, r.managerName, r.hodId)}</span>
                     </div>
 
                     {/* Department & Cycle */}
@@ -958,7 +978,15 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                         }`}
                       >
                         <Edit3 className="w-3.5 h-3.5" />
-                        <span>{currentUser?.role === 'HOD' ? 'View Review' : isPendingMyAction ? 'Score Review Now' : 'Open Review Sheet'}</span>
+                        <span>
+                          {currentUser?.role === 'HOD'
+                            ? isPendingMyAction
+                              ? 'Review Now'
+                              : 'View Review'
+                            : isPendingMyAction
+                            ? 'Score Review Now'
+                            : 'Open Review Sheet'}
+                        </span>
                         <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
                       </button>
                     )}
@@ -1045,7 +1073,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                     <td className="py-3 px-4">{getScoreBadge(r.finalScore)}</td>
 
                     {/* Status */}
-                    <td className="py-3 px-4">{getStatusBadge(r.status, r.managerName)}</td>
+                    <td className="py-3 px-4">{getStatusBadge(r.status, r.managerName, r.hodId)}</td>
 
                     {/* Manager */}
                     <td className="py-3 px-4">
@@ -1067,7 +1095,13 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                           className="px-3 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 rounded-lg border border-indigo-200 dark:border-indigo-800 transition-colors inline-flex items-center space-x-1 cursor-pointer"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
-                          <span>{currentUser?.role === 'HOD' ? 'View Review' : 'Score / View'}</span>
+                          <span>
+                            {currentUser?.role === 'HOD'
+                              ? r.status === 'HOD_PENDING' && r.hodId === currentUser?.employeeId
+                                ? 'Review Now'
+                                : 'View Review'
+                              : 'Score / View'}
+                          </span>
                         </button>
                       )}
                     </td>

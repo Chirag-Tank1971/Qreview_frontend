@@ -60,15 +60,18 @@ export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
           ) : (
             <div className="relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">
               {review.actionHistory.map((action, idx) => {
-                const isReturned = action.action === 'RETURNED';
-                const isApproved = action.action === 'APPROVED';
+                const isReturned = action.action === 'RETURNED' || action.action === 'HOD_RETURNED';
+                const isApproved = action.action === 'APPROVED' || action.action === 'HOD_APPROVED';
                 const isClosed = action.action === 'CLOSED';
+                const isException = action.action === 'HOD_MISSING_EXCEPTION';
 
                 return (
                   <div key={action.id || idx} className="relative">
                     <div
                       className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full bg-white dark:bg-slate-850 border-2 flex items-center justify-center shadow-xs ${
-                        isReturned
+                        isException
+                          ? 'border-red-500'
+                          : isReturned
                           ? 'border-rose-500'
                           : isApproved
                           ? 'border-emerald-500'
@@ -79,7 +82,9 @@ export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
                     >
                       <div
                         className={`w-1.5 h-1.5 rounded-full ${
-                          isReturned
+                          isException
+                            ? 'bg-red-500'
+                            : isReturned
                             ? 'bg-rose-500'
                             : isApproved
                             ? 'bg-emerald-500'
@@ -94,7 +99,9 @@ export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
                       <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                         <span
                           className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
-                            isReturned
+                            isException
+                              ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800'
+                              : isReturned
                               ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
                               : isApproved
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'

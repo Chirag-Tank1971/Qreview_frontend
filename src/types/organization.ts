@@ -52,6 +52,8 @@ export interface Employee {
   cycleCode: string;
   cycleName?: string;
   cycleColor?: string;
+  startingReviewPeriodId: string;
+  startingReviewPeriodName?: string;
   currentKraTemplateId?: string;
   currentKraTemplateName?: string;
   status: EmployeeStatus;
@@ -80,6 +82,7 @@ export interface CreateEmployeePayload {
   joiningDate: string;
   status: EmployeeStatus;
   cycleId: string;
+  startingReviewPeriodId: string;
   managerId?: string;
   hodId?: string;
   currentKraTemplateId?: string;
@@ -100,4 +103,4 @@ export interface CreateEmployeeResponse {
   [key: string]: any;
 }
 
-export interface UpdateEmployeePayload extends Partial<CreateEmployeePayload> {}
+export type UpdateEmployeePayload = Partial<CreateEmployeePayload>;

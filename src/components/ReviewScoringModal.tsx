@@ -59,6 +59,8 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
   const [employeeComments, setEmployeeComments] = useState('');
   const [statusModalRemarks, setStatusModalRemarks] = useState('');
   const [showStatusModal, setShowStatusModal] = useState<ReviewStatus | null>(null);
+  const [isHodReturnFlow, setIsHodReturnFlow] = useState(false);
+  const [hodComments, setHodComments] = useState('');
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -119,6 +121,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
       if (
         review.status === 'HR_PENDING' ||
         review.status === 'HR_COMPLETED' ||
+        review.status === 'HOD_PENDING' ||
         review.status === 'CLOSED'
       ) {
         setWizardStep(3);
@@ -158,12 +161,16 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
 
   if (!isOpen || !review) return null;
 
-  // Permissions: Only assigned Reporting Manager or HR / Super Admin can score and edit. HOD has view-only access.
+  // Permissions: Only assigned Reporting Manager or HR / Super Admin can score and edit KRA ratings.
+  // HOD never edits Manager ratings — HOD instead reviews the submitted assessment and
+  // approves/returns it via canHodAct below.
   const isHrOrAdmin = currentUser?.role === 'HR' || currentUser?.role === 'SUPER_ADMIN';
   const isManager =
     (currentUser?.role === 'REPORTING_MANAGER' || currentUser?.role === 'MANAGER') &&
     (review.managerId === currentUser?.employeeId || review.managerId === currentUser?.id);
   const canEdit = !review.isClosed && (isHrOrAdmin || isManager);
+  const isHod = currentUser?.role === 'HOD' && review.hodId === currentUser?.employeeId;
+  const canHodAct = isHod && review.status === 'HOD_PENDING' && !review.isClosed;
 
   // Detect if user has entered unsaved scores, notes, or commentary
   const hasUnsavedChanges = useMemo(() => {
@@ -372,6 +379,58 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
       const errMsg = err.message || 'Failed to update review status.';
       setErrorMessage(errMsg);
       toast.error(errMsg, 'Status Update Error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // HOD approves the manager's submitted assessment. Transitions: HOD_PENDING -> HR_PENDING
+  const handleHodApprove = async () => {
+    setSaving(true);
+    setErrorMessage('');
+    try {
+      await api.hodApproveReview(review.id, { hodComments });
+      const succMsg = `Review approved and forwarded to HR for ${review.employeeName}.`;
+      setSuccessMessage(succMsg);
+      toast.success(succMsg, 'Review Approved');
+      setTimeout(() => {
+        onSaved();
+      }, 600);
+    } catch (err: any) {
+      const errMsg = err.message || 'Failed to approve review.';
+      setErrorMessage(errMsg);
+      toast.error(errMsg, 'Approval Error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // HOD returns the review to the reporting manager with a mandatory reason.
+  // Transitions: HOD_PENDING -> MANAGER_PENDING
+  const handleHodReturn = async (reason: string) => {
+    if (!reason || !reason.trim()) {
+      const msg = 'A return reason is mandatory. Please provide specific feedback for the manager.';
+      setErrorMessage(msg);
+      toast.warning(msg, 'Reason Required');
+      return;
+    }
+    setSaving(true);
+    setErrorMessage('');
+    try {
+      await api.hodReturnReview(review.id, { reason });
+      setShowStatusModal(null);
+      setIsHodReturnFlow(false);
+      setStatusModalRemarks('');
+      const succMsg = `Review returned to ${review.managerName} for correction.`;
+      setSuccessMessage(succMsg);
+      toast.success(succMsg, 'Review Returned');
+      setTimeout(() => {
+        onSaved();
+      }, 600);
+    } catch (err: any) {
+      const errMsg = err.message || 'Failed to return review.';
+      setErrorMessage(errMsg);
+      toast.error(errMsg, 'Return Error');
     } finally {
       setSaving(false);
     }
@@ -615,6 +674,9 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               setHrComments={setHrComments}
               canEdit={canEdit}
               isHrOrAdmin={isHrOrAdmin}
+              canHodAct={canHodAct}
+              hodComments={hodComments}
+              setHodComments={setHodComments}
               saving={saving}
               aiLoading={aiLoading}
               aiSuccessNote={aiSuccessNote}
@@ -733,6 +795,32 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                   </button>
                 </>
               )
+            ) : canHodAct ? (
+              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => {
+                    setIsHodReturnFlow(true);
+                    setStatusModalRemarks('');
+                    setShowStatusModal('MANAGER_PENDING');
+                  }}
+                  className="px-3.5 py-2 text-xs font-bold text-amber-800 dark:text-amber-200 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-800 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Return to Manager</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={handleHodApprove}
+                  className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <UserCheck className="w-3.5 h-3.5" />
+                  <span>Approve Review</span>
+                </button>
+              </div>
             ) : null}
           </div>
         </div>
@@ -744,8 +832,13 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
           review={review}
           remarks={statusModalRemarks}
           setRemarks={setStatusModalRemarks}
-          onClose={() => setShowStatusModal(null)}
-          onConfirm={(st) => handleStatusTransition(st)}
+          onClose={() => {
+            setShowStatusModal(null);
+            setIsHodReturnFlow(false);
+          }}
+          onConfirm={(st) =>
+            isHodReturnFlow ? handleHodReturn(statusModalRemarks) : handleStatusTransition(st)
+          }
           saving={saving}
         />
 

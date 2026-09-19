@@ -261,7 +261,7 @@ export const ReportVisualSection: React.FC<ReportVisualSectionProps> = ({
   }
 
   // =========================================================================
-  // 5. 8-CYCLE APPRAISAL DUE REPORT
+  // 5. APPRAISAL DUE REPORT
   // =========================================================================
   if (activeReport === 'appraisal-due') {
     const cycleMap = new Map<string, number>();
@@ -272,8 +272,8 @@ export const ReportVisualSection: React.FC<ReportVisualSectionProps> = ({
 
     if (Array.isArray(data.reportData)) {
       data.reportData.forEach((row: any) => {
-        const cCode = `Cycle ${row.cycleCode || '?'}`;
-        cycleMap.set(cCode, (cycleMap.get(cCode) || 0) + 1);
+        const cName = row.cycleName || `Cycle ${row.cycleCode || '?'}`;
+        cycleMap.set(cName, (cycleMap.get(cName) || 0) + 1);
 
         const inc = Number(row.proposedIncrement) || 0;
         if (inc <= 5) bracket0to5++;

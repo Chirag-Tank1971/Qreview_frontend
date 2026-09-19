@@ -67,7 +67,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
     const updateResolvedTheme = () => {
-      let resolvedDark = false;
+      let resolvedDark: boolean;
       if (theme === 'dark') {
         resolvedDark = true;
       } else if (theme === 'light') {

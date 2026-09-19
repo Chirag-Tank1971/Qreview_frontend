@@ -235,6 +235,11 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
     switch (type) {
       case 'HOD_ACTION_REQUIRED':
         return <Building2 className="w-4 h-4 text-purple-600" />;
+      case 'HOD_PENDING':
+      case 'HOD_APPROVED':
+        return <Building2 className="w-4 h-4 text-violet-600" />;
+      case 'HOD_MISSING_EXCEPTION':
+        return <AlertTriangle className="w-4 h-4 text-red-600" />;
       case 'BUDGET_ALERT':
         return <DollarSign className="w-4 h-4 text-emerald-600" />;
       case 'CALIBRATION_WARNING':
@@ -425,6 +430,48 @@ export const NotificationHubDrawer: React.FC<NotificationHubDrawerProps> = ({
           config: {
             ...meta,
             status: meta.reviewId ? 'ALL' : (meta.status || 'HR_PENDING'),
+            periodId: meta.periodId,
+            reviewId: meta.reviewId,
+          },
+        };
+
+      case 'HOD_PENDING':
+        return {
+          tab: 'reviews',
+          sectionLabel: 'HOD Review Pending',
+          badgeLabel: 'Quarterly Reviews',
+          badgeColor: 'bg-violet-50 text-violet-700 border-violet-200',
+          config: {
+            ...meta,
+            status: meta.reviewId ? 'ALL' : (meta.status || 'HOD_PENDING'),
+            periodId: meta.periodId,
+            reviewId: meta.reviewId,
+          },
+        };
+
+      case 'HOD_APPROVED':
+        return {
+          tab: 'reviews',
+          sectionLabel: 'HR Calibration & Review Approval',
+          badgeLabel: 'Quarterly Reviews',
+          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          config: {
+            ...meta,
+            status: meta.reviewId ? 'ALL' : (meta.status || 'HR_PENDING'),
+            periodId: meta.periodId,
+            reviewId: meta.reviewId,
+          },
+        };
+
+      case 'HOD_MISSING_EXCEPTION':
+        return {
+          tab: 'reviews',
+          sectionLabel: 'Review Blocked: No HOD Configured',
+          badgeLabel: 'Exception',
+          badgeColor: 'bg-red-50 text-red-700 border-red-200',
+          config: {
+            ...meta,
+            status: meta.reviewId ? 'ALL' : (meta.status || 'HOD_PENDING'),
             periodId: meta.periodId,
             reviewId: meta.reviewId,
           },

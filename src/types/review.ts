@@ -6,6 +6,7 @@ export type ReviewStatus =
   | 'ASSIGNED'
   | 'MANAGER_PENDING'
   | 'MANAGER_COMPLETED'
+  | 'HOD_PENDING'
   | 'HR_PENDING'
   | 'RETURNED'
   | 'HR_COMPLETED'
@@ -53,6 +54,8 @@ export interface ReviewAction {
     | 'RESUBMITTED'
     | 'APPROVED'
     | 'HOD_APPROVED'
+    | 'HOD_RETURNED'
+    | 'HOD_MISSING_EXCEPTION'
     | 'HR_COMPLETED'
     | 'CLOSED';
   performedBy: string;
@@ -113,8 +116,10 @@ export interface ReviewSummaryStats {
   draft: number;
   managerPending: number;
   managerCompleted: number;
+  hodPending: number;
   hrPending: number;
   closed: number;
+  exceptions: number;
   averageScore: number;
   completionRate: number;
   distribution: {
