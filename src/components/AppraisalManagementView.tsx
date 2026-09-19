@@ -25,6 +25,7 @@ import {
   Loader2,
   LayoutGrid,
   List,
+  RotateCcw,
 } from 'lucide-react';
 import {
   Appraisal,
@@ -232,9 +233,20 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
     }
   };
 
-  const getAppraisalStatusBadge = (status: string, hodId?: string) => {
+  const getAppraisalStatusBadge = (status: string, hodId?: string, hodReturn?: Appraisal['hodReturn']) => {
     switch (status) {
       case 'PENDING':
+        if (hodReturn) {
+          return (
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 cursor-help"
+              title={`Returned by ${hodReturn.returnedByName}: ${hodReturn.reason}`}
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>HOD Returned</span>
+            </span>
+          );
+        }
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
@@ -693,7 +705,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                           </p>
                         </div>
                       </div>
-                      <span className="shrink-0">{getAppraisalStatusBadge(appr.status, appr.hodId)}</span>
+                      <span className="shrink-0">{getAppraisalStatusBadge(appr.status, appr.hodId, appr.hodReturn)}</span>
                     </div>
 
                     {/* Department & Cycle Info */}
@@ -986,7 +998,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
 
                       {/* Workflow Stage */}
                       <td className="py-3.5 px-3 text-center">
-                        {getAppraisalStatusBadge(appr.status, appr.hodId)}
+                        {getAppraisalStatusBadge(appr.status, appr.hodId, appr.hodReturn)}
                       </td>
 
                       {/* Action */}

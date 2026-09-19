@@ -961,6 +961,23 @@ export const api = {
     return res.json();
   },
 
+  async returnAppraisalToManager(id: string, data: { reason: string }): Promise<Appraisal> {
+    const res = await fetch(`${API_BASE}/appraisals/${id}/hod-return`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to return appraisal to manager' }));
+      const message =
+        (Array.isArray(err.details) && err.details.length > 0)
+          ? err.details.map((d: any) => d.message).join('; ')
+          : (err.error || 'Failed to return appraisal to manager');
+      throw new Error(message);
+    }
+    return res.json();
+  },
+
   async submitHrApproval(
     id: string,
     data: {
@@ -987,14 +1004,31 @@ export const api = {
     return res.json();
   },
 
-  async lockAppraisal(id: string): Promise<Appraisal> {
+  async lockAppraisal(
+    id: string,
+    data?: {
+      finalIncrementPercent?: number;
+      finalRating?: string;
+      revisedCtc?: number;
+      effectiveDate?: string;
+      promotionApproved?: boolean;
+      promotionDesignationId?: string;
+      promotionDesignationName?: string;
+      notes?: string;
+    }
+  ): Promise<Appraisal> {
     const res = await fetch(`${API_BASE}/appraisals/${id}/lock`, {
       method: 'PUT',
       headers: getAuthHeaders(),
+      body: JSON.stringify(data || {}),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Failed to lock appraisal' }));
-      throw new Error(err.error || 'Failed to lock appraisal');
+      const message =
+        (Array.isArray(err.details) && err.details.length > 0)
+          ? err.details.map((d: any) => d.message).join('; ')
+          : (err.error || 'Failed to lock appraisal');
+      throw new Error(message);
     }
     return res.json();
   },

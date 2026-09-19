@@ -19,6 +19,7 @@ import {
   Loader2,
   ShieldCheck,
   Briefcase,
+  RotateCcw,
 } from 'lucide-react';
 import { Appraisal, Designation, User as AuthUser, EmployeeStatus } from '../types';
 import { api } from '../services/api';
@@ -44,7 +45,8 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showLetterModal, setShowLetterModal] = useState<boolean>(false);
-  const [confirmActionType, setConfirmActionType] = useState<'MANAGER' | 'HOD' | 'HR_APPROVE' | 'LOCK' | null>(null);
+  const [confirmActionType, setConfirmActionType] = useState<'MANAGER' | 'HOD' | 'HOD_RETURN' | 'HR_APPROVE' | 'LOCK' | null>(null);
+  const [hodReturnReason, setHodReturnReason] = useState<string>('');
 
   // Form states
   const [incrementPercent, setIncrementPercent] = useState<number>(
@@ -261,6 +263,31 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
     }
   };
 
+  // HOD Return to Manager
+  const handleHodReturn = async () => {
+    if (!hodReturnReason.trim()) {
+      const msg = 'Please provide a reason for returning this appraisal to the manager.';
+      setError(msg);
+      toast.warning(msg, 'Reason Required');
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await api.returnAppraisalToManager(appraisal.id, { reason: hodReturnReason.trim() });
+      setConfirmActionType(null);
+      setHodReturnReason('');
+      toast.success(`Appraisal returned to manager for ${appraisal.employeeName}.`, 'Returned to Manager');
+      onRefresh();
+    } catch (err: any) {
+      const errMsg = err.message || 'Failed to return appraisal to manager';
+      setError(errMsg);
+      toast.error(errMsg, 'Return Error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // HR Approval Submit
   const handleHrApprove = async () => {
     if (isRestrictedFromIncrement) {
@@ -298,7 +325,18 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
     setIsSubmitting(true);
     setError(null);
     try {
-      await api.lockAppraisal(appraisal.id);
+      await api.lockAppraisal(appraisal.id, {
+        finalIncrementPercent: incrementPercent,
+        finalRating: appraisal.finalRating || appraisal.recommendedRating,
+        revisedCtc: calculatedRevisedCtc,
+        effectiveDate,
+        promotionApproved: promotionRecommended,
+        promotionDesignationId: promotionRecommended ? promotionDesignationId : undefined,
+        promotionDesignationName: promotionRecommended
+          ? designations.find((d) => d.id === promotionDesignationId)?.name || appraisal.promotionDesignationName
+          : undefined,
+        notes: hrNotes,
+      });
       setConfirmActionType(null);
       toast.success(`Appraisal officially locked and compensation letter released!`, 'Letter Released');
       onRefresh();
@@ -312,8 +350,11 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
     }
   };
 
-  const handleOpenConfirm = (type: 'MANAGER' | 'HOD' | 'HR_APPROVE' | 'LOCK') => {
+  const handleOpenConfirm = (type: 'MANAGER' | 'HOD' | 'HOD_RETURN' | 'HR_APPROVE' | 'LOCK') => {
     setError(null);
+    if (type === 'HOD_RETURN') {
+      setHodReturnReason('');
+    }
     if (type === 'MANAGER') {
       if (!justification.trim()) {
         const msg = 'Please provide a manager recommendation justification before submitting.';
@@ -336,6 +377,8 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
       handleManagerSubmit();
     } else if (confirmActionType === 'HOD') {
       handleHodSubmit();
+    } else if (confirmActionType === 'HOD_RETURN') {
+      handleHodReturn();
     } else if (confirmActionType === 'HR_APPROVE') {
       handleHrApprove();
     } else if (confirmActionType === 'LOCK') {
@@ -402,6 +445,22 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
               </button>
             </div>
           </div>
+
+          {/* HOD RETURNED BANNER */}
+          {appraisal.status === 'PENDING' && appraisal.hodReturn && (
+            <div className="px-6 py-3 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-200 text-xs flex items-start gap-2.5">
+              <RotateCcw className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">
+                  Returned by HOD {appraisal.hodReturn.returnedByName}
+                  {appraisal.hodReturn.returnedAt ? ` on ${new Date(appraisal.hodReturn.returnedAt).toLocaleDateString()}` : ''}
+                </p>
+                <p className="text-rose-800 dark:text-rose-300 text-[11px] mt-0.5">
+                  Reason: {appraisal.hodReturn.reason}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* INACTIVE / NOTICE RESTRICTION BANNER */}
           {isRestrictedFromIncrement && (
@@ -872,6 +931,18 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                             <button
                               type="button"
                               disabled={isSubmitting}
+                              onClick={() => handleOpenConfirm('HOD_RETURN')}
+                              className="flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer border border-rose-200 dark:border-rose-800"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              <span>Return to Manager</span>
+                            </button>
+                          )}
+
+                          {canHodAct && (
+                            <button
+                              type="button"
+                              disabled={isSubmitting}
                               onClick={() => handleOpenConfirm('HOD')}
                               className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer"
                             >
@@ -1128,6 +1199,70 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
             }}
           >
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150">
+              {confirmActionType === 'HOD_RETURN' ? (
+                <div className="p-6 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400">
+                      <RotateCcw className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">Return to Manager</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Sends this appraisal back to the Reporting Manager for rework.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500 dark:text-slate-400">Employee</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        {appraisal.employeeName} ({appraisal.employeeCode})
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                      Reason for return <span className="text-rose-500">*</span>
+                    </label>
+                    <textarea
+                      value={hodReturnReason}
+                      onChange={(e) => setHodReturnReason(e.target.value)}
+                      rows={3}
+                      placeholder="Explain what the manager needs to revisit or correct"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                    />
+                  </div>
+
+                  {error && (
+                    <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs rounded-xl flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2.5 pt-2">
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => setConfirmActionType(null)}
+                      className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isSubmitting || !hodReturnReason.trim()}
+                      onClick={handleExecuteConfirmAction}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer"
+                    >
+                      {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                      <span>Confirm & Return to Manager</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
               <div className="p-6 space-y-4">
                 {/* Header */}
                 <div className="flex items-center gap-3">
@@ -1305,9 +1440,10 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                   </span>
                 </button>
               </div>
+              </div>
+              )}
             </div>
-          </div>
-        </div>,
+          </div>,
         document.body
       )}
     </>,
