@@ -140,6 +140,12 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
     // Only trigger remote fetch if props were not provided
     if (!initialEmployees || initialEmployees.length === 0) {
       loadData();
+    } else {
+      // Review periods are never passed in as a prop, so they must always be
+      // fetched here even when employees/departments/etc. already arrived
+      // from the parent — otherwise the "Starting Review Period" selector
+      // stays empty until an unrelated re-fetch (e.g. a page refresh) happens.
+      api.getReviewPeriods().then(setReviewPeriods).catch(() => setReviewPeriods([]));
     }
   }, []);
 
