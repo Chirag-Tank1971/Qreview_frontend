@@ -1162,7 +1162,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       </option>
                       {activeCycles.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.name} ({c.code} — {c.appraisalMonth === 6 ? 'Jan–Jul joiners' : 'Aug–Dec joiners'})
+                          {c.name} ({c.appraisalMonth === 6 ? 'Jan–Jul' : 'Aug–Dec'})
                         </option>
                       ))}
                     </select>
