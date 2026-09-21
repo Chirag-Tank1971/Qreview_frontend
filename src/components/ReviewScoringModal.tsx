@@ -26,6 +26,7 @@ import {
   Send,
   AlertTriangle,
   Award,
+  Loader2,
 } from 'lucide-react';
 import {
   Step1SelfSection,
@@ -909,9 +910,9 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                     type="button"
                     disabled={saving}
                     onClick={() => handleSaveHodScores(true)}
-                    className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
+                    className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <Save className="w-3.5 h-3.5" />
+                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                     <span>Save Draft</span>
                   </button>
 
@@ -923,9 +924,9 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                       setStatusModalRemarks('');
                       setShowStatusModal('MANAGER_PENDING');
                     }}
-                    className="px-3.5 py-2 text-xs font-bold text-amber-800 dark:text-amber-200 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-800 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
+                    className="px-3.5 py-2 text-xs font-bold text-amber-800 dark:text-amber-200 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-800 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
+                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
                     <span>Return to Manager</span>
                   </button>
 
@@ -933,9 +934,9 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                     type="button"
                     disabled={saving}
                     onClick={() => handleSaveHodScores(false)}
-                    className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer"
+                    className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <Send className="w-3.5 h-3.5" />
+                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                     <span>Submit to HR</span>
                   </button>
                 </div>
@@ -960,9 +961,9 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                     type="button"
                     disabled={saving}
                     onClick={() => handleSaveScores(true)}
-                    className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
+                    className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <Save className="w-3.5 h-3.5" />
+                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                     <span>Save Draft</span>
                   </button>
 
@@ -971,9 +972,9 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                       type="button"
                       disabled={saving}
                       onClick={() => setShowStatusModal('HR_COMPLETED')}
-                      className="px-3.5 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-800 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
+                      className="px-3.5 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-800 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <UserCheck className="w-3.5 h-3.5" />
+                      {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserCheck className="w-3.5 h-3.5" />}
                       <span>Approve (HR)</span>
                     </button>
                   )}
@@ -982,9 +983,9 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                     type="button"
                     disabled={saving}
                     onClick={() => setShowStatusModal('CLOSED')}
-                    className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer ring-2 ring-indigo-500/30"
+                    className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer ring-2 ring-indigo-500/30 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <Lock className="w-3.5 h-3.5" />
+                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
                     <span>Final Lock & Close</span>
                   </button>
                 </div>
@@ -994,9 +995,9 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                     type="button"
                     disabled={saving}
                     onClick={() => handleSaveScores(true)}
-                    className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
+                    className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <Save className="w-3.5 h-3.5" />
+                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                     <span>Save Draft</span>
                   </button>
 
@@ -1004,9 +1005,9 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                     type="button"
                     disabled={saving}
                     onClick={() => handleSaveScores(false)}
-                    className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer"
+                    className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <Send className="w-3.5 h-3.5" />
+                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                     <span>Submit Evaluation</span>
                   </button>
                 </>

@@ -37,6 +37,7 @@ import {
   ArrowUpRight,
   Info,
   RefreshCw,
+  Loader2,
   Sliders,
   Mail,
   Phone,
@@ -121,6 +122,11 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // True once the initial employee-list fetch below has settled (success or failure) — lets
+  // the selectedEmployeeId-watcher effect tell "no employee selected yet because the list is
+  // still loading" apart from "no employee selected because there genuinely are none", instead
+  // of assuming the latter on every mount before the list fetch has even resolved.
+  const [employeesLoaded, setEmployeesLoaded] = useState(false);
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<'appraisal' | 'reviews' | 'kras' | 'growth'>('appraisal');
@@ -192,6 +198,8 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
       } catch (err) {
         console.error('Failed to load employee list for ESS:', err);
         setIsLoading(false);
+      } finally {
+        setEmployeesLoaded(true);
       }
     }
     loadEmployees();
@@ -200,11 +208,17 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
   // Fetch ESS data whenever selectedEmployeeId changes
   useEffect(() => {
     if (!selectedEmployeeId) {
-      setIsLoading(false);
+      // Only treat "nothing selected" as final once the employee-list fetch above has
+      // actually settled — otherwise this fires on mount before that fetch resolves and
+      // prematurely flips isLoading off, flashing the "no employees" empty state before the
+      // real list (and a real selection) has had a chance to load.
+      if (employeesLoaded) {
+        setIsLoading(false);
+      }
       return;
     }
     loadEssOverview(selectedEmployeeId);
-  }, [selectedEmployeeId]);
+  }, [selectedEmployeeId, employeesLoaded]);
 
   const loadEssOverview = async (empId: string) => {
     try {
@@ -260,7 +274,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
   const isStage2Done = Boolean(activeAppraisal && ['HOD_CALIBRATED', 'HR_APPROVED', 'COMPLETED', 'LOCKED', 'APPROVED'].includes(activeAppraisal.status));
   const isStage3Done = Boolean(activeAppraisal && ['HR_APPROVED', 'COMPLETED', 'LOCKED', 'APPROVED'].includes(activeAppraisal.status));
 
-  if (isLoading && !essData && (selectedEmployeeId || (propEmployees && propEmployees.length > 0))) {
+  if (isLoading && !essData) {
     return <PageSkeletonLoader variant="portal" />;
   }
 
@@ -944,7 +958,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
                                       : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
                                   }`}
                                 >
-                                  <ShieldCheck className="w-4 h-4" />
+                                  {isSubmittingAck ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                                   <span>{isSubmittingAck ? 'Signing...' : 'Sign & Digitally Acknowledge'}</span>
                                 </button>
                               </div>

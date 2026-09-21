@@ -46,6 +46,7 @@ import {
   ShieldAlert,
   Play,
   AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 
 export interface ReviewViewConfig {
@@ -95,6 +96,9 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   const [isInitiateModalOpen, setIsInitiateModalOpen] = useState<boolean>(false);
   const [isPeriodModalOpen, setIsPeriodModalOpen] = useState<boolean>(false);
   const [updatingPeriodId, setUpdatingPeriodId] = useState<string | null>(null);
+  // Tracks which of the three status-change buttons on the updating row was actually clicked,
+  // so only that one shows a spinner instead of all three (they share updatingPeriodId).
+  const [updatingTargetStatus, setUpdatingTargetStatus] = useState<'ACTIVE' | 'LOCKED' | 'UPCOMING' | null>(null);
   const handledReviewIdRef = useRef<string | null>(null);
   const openedViaDirectActionRef = useRef<boolean>(false);
 
@@ -264,6 +268,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
 
   const handleUpdatePeriodStatus = async (periodId: string, newStatus: 'ACTIVE' | 'LOCKED' | 'UPCOMING') => {
     setUpdatingPeriodId(periodId);
+    setUpdatingTargetStatus(newStatus);
     try {
       await api.updateReviewPeriod(periodId, { status: newStatus });
       toast.success(`Period status updated to ${newStatus}`);
@@ -273,6 +278,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       toast.error(err.message || 'Failed to update period status');
     } finally {
       setUpdatingPeriodId(null);
+      setUpdatingTargetStatus(null);
     }
   };
 
@@ -1228,9 +1234,13 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                         <button
                           disabled={isUpdating}
                           onClick={() => handleUpdatePeriodStatus(period.id, 'ACTIVE')}
-                          className="px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 rounded-lg border border-emerald-300 dark:border-emerald-800 transition-colors flex items-center space-x-1 disabled:opacity-50"
+                          className="px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 rounded-lg border border-emerald-300 dark:border-emerald-800 transition-colors flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <Play className="w-3.5 h-3.5" />
+                          {isUpdating && updatingTargetStatus === 'ACTIVE' ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Play className="w-3.5 h-3.5" />
+                          )}
                           <span>Make Active</span>
                         </button>
                       )}
@@ -1239,9 +1249,13 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                         <button
                           disabled={isUpdating}
                           onClick={() => handleUpdatePeriodStatus(period.id, 'LOCKED')}
-                          className="px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 hover:bg-amber-200 dark:hover:bg-amber-900/80 rounded-lg border border-amber-300 dark:border-amber-800 transition-colors flex items-center space-x-1 disabled:opacity-50"
+                          className="px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 hover:bg-amber-200 dark:hover:bg-amber-900/80 rounded-lg border border-amber-300 dark:border-amber-800 transition-colors flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <Lock className="w-3.5 h-3.5" />
+                          {isUpdating && updatingTargetStatus === 'LOCKED' ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Lock className="w-3.5 h-3.5" />
+                          )}
                           <span>Lock Period</span>
                         </button>
                       )}
@@ -1250,9 +1264,12 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                         <button
                           disabled={isUpdating}
                           onClick={() => handleUpdatePeriodStatus(period.id, 'UPCOMING')}
-                          className="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg border border-slate-300 dark:border-slate-700 transition-colors disabled:opacity-50"
+                          className="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg border border-slate-300 dark:border-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
                         >
-                          Set Upcoming
+                          {isUpdating && updatingTargetStatus === 'UPCOMING' && (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          )}
+                          <span>Set Upcoming</span>
                         </button>
                       )}
                     </div>

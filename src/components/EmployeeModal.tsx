@@ -42,6 +42,7 @@ import {
   UserCheck,
   RotateCcw,
   Layers,
+  Loader2,
 } from 'lucide-react';
 
 /**
@@ -1897,7 +1898,10 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                   className="px-5 py-2 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   {loading ? (
-                    'Saving...'
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Saving...
+                    </>
                   ) : isRehiring ? (
                     <>
                       <UserCheck className="w-3.5 h-3.5" />

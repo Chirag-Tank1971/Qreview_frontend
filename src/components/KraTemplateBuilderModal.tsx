@@ -13,6 +13,7 @@ import {
   Info,
   Scale,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 
 interface KraTemplateBuilderModalProps {
@@ -552,7 +553,7 @@ export const KraTemplateBuilderModal: React.FC<KraTemplateBuilderModalProps> = (
               disabled={submitting || !isExact100}
               className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              <CheckCircle2 className="w-4 h-4" />
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
               {submitting ? 'Saving Template...' : template ? 'Update Template' : 'Save & Publish Template'}
             </button>
           </div>

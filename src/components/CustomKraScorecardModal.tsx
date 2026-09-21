@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Target, Plus, Trash2, CheckCircle2, Briefcase, Building2, Users, UserCheck, Calendar, Hash } from 'lucide-react';
+import { X, Target, Plus, Trash2, CheckCircle2, Briefcase, Building2, Users, UserCheck, Calendar, Hash, Loader2 } from 'lucide-react';
 import { toast } from '../context/ToastContext';
 
 export interface CustomKraRow {
@@ -15,7 +15,7 @@ export interface CustomKraRow {
 interface CustomKraScorecardModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onDone: (rows: CustomKraRow[]) => void;
+  onDone: (rows: CustomKraRow[]) => void | Promise<void>;
   initialKras: CustomKraRow[];
   employeeCode: string;
   name: string;
@@ -55,6 +55,7 @@ export const CustomKraScorecardModal: React.FC<CustomKraScorecardModalProps> = (
   cycleName,
 }) => {
   const [rows, setRows] = useState<CustomKraRow[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -63,6 +64,7 @@ export const CustomKraScorecardModal: React.FC<CustomKraScorecardModalProps> = (
           ? initialKras.map((k) => ({ ...k, id: k.id || `kra_${Date.now()}_${Math.random().toString(36).substr(2, 6)}` }))
           : [blankRow(25), blankRow(25), blankRow(25), blankRow(25)]
       );
+      setIsSubmitting(false);
     }
   }, [isOpen, initialKras]);
 
@@ -81,7 +83,7 @@ export const CustomKraScorecardModal: React.FC<CustomKraScorecardModalProps> = (
     });
   };
 
-  const handleDone = () => {
+  const handleDone = async () => {
     const filtered = rows
       .map((r) => ({
         ...r,
@@ -102,7 +104,12 @@ export const CustomKraScorecardModal: React.FC<CustomKraScorecardModalProps> = (
       return;
     }
 
-    onDone(filtered);
+    setIsSubmitting(true);
+    try {
+      await onDone(filtered);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const headerFields: Array<{ label: string; value: string; icon: React.ReactNode }> = [
@@ -256,17 +263,28 @@ export const CustomKraScorecardModal: React.FC<CustomKraScorecardModalProps> = (
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors shadow-2xs cursor-pointer"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleDone}
-              className="px-5 py-2 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+              disabled={isSubmitting}
+              className="px-5 py-2 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Done — Assign Scorecard
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Assigning...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Done — Assign Scorecard
+                </>
+              )}
             </button>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { Lock, UserCheck, RotateCcw } from 'lucide-react';
+import { Lock, UserCheck, RotateCcw, Loader2 } from 'lucide-react';
 import { EmployeeReview, ReviewStatus } from '../../../types';
 
 interface StatusRemarksModalProps {
@@ -123,7 +123,7 @@ export const StatusRemarksModal: React.FC<StatusRemarksModalProps> = ({
           <button
             disabled={saving}
             onClick={() => onConfirm(status)}
-            className={`px-4 py-1.5 text-xs font-semibold text-white rounded-lg shadow-xs cursor-pointer ${
+            className={`px-4 py-1.5 text-xs font-semibold text-white rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed ${
               status === 'CLOSED'
                 ? 'bg-indigo-600 hover:bg-indigo-700'
                 : status === 'HR_COMPLETED'
@@ -131,6 +131,7 @@ export const StatusRemarksModal: React.FC<StatusRemarksModalProps> = ({
                 : 'bg-amber-600 hover:bg-amber-700'
             }`}
           >
+            {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             {status === 'CLOSED'
               ? 'Confirm & Final Lock'
               : status === 'HR_COMPLETED'

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Kra, Department } from '../types';
 import { toast } from '../context/ToastContext';
-import { Target, Plus, Search, Filter, CheckCircle2, ShieldCheck, HelpCircle, Edit2, Layers, Tag } from 'lucide-react';
+import { Target, Plus, Search, Filter, CheckCircle2, ShieldCheck, HelpCircle, Edit2, Layers, Tag, Loader2 } from 'lucide-react';
 
 interface KraLibraryModalProps {
   kras: Kra[];
@@ -305,7 +305,16 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
                   disabled={submitting}
                   className="px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
                 >
-                  {submitting ? 'Saving...' : editingKra ? 'Update KRA' : 'Save KRA'}
+                  {submitting ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Saving...
+                    </span>
+                  ) : editingKra ? (
+                    'Update KRA'
+                  ) : (
+                    'Save KRA'
+                  )}
                 </button>
               </div>
             </form>

@@ -16,6 +16,7 @@ import {
   TrendingUp,
   UserCheck,
   MessageSquare,
+  Loader2,
 } from 'lucide-react';
 import { EmployeeReview, ReviewKraSnapshot } from '../types';
 import { api } from '../services/api';
@@ -693,9 +694,9 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => handleSubmit(true)}
-                  className="flex-1 sm:flex-none flex items-center justify-center space-x-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer shadow-2xs"
+                  className="flex-1 sm:flex-none flex items-center justify-center space-x-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Save className="w-3.5 h-3.5" />
+                  {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                   <span>Save Draft</span>
                 </button>
 
@@ -703,9 +704,9 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => handleSubmit(false)}
-                  className="w-full sm:w-auto flex items-center justify-center space-x-1.5 px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl transition-all shadow-xs cursor-pointer"
+                  className="w-full sm:w-auto flex items-center justify-center space-x-1.5 px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl transition-all shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                   <span>{isSubmitting ? 'Submitting...' : isAlreadySubmitted ? 'Update Self-Assessment' : 'Submit to Manager'}</span>
                 </button>
               </>

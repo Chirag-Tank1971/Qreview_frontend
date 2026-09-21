@@ -20,6 +20,7 @@ import {
   UserMinus,
   CheckCircle2,
   Clock,
+  Loader2,
 } from 'lucide-react';
 
 interface MastersManagementProps {
@@ -344,9 +345,9 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
             <button
               type="submit"
               disabled={deptLoading}
-              className="w-full py-2 bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+              className="w-full py-2 bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Plus className="w-3.5 h-3.5" />
+              {deptLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
               <span>{deptLoading ? 'Creating...' : 'Create Department'}</span>
             </button>
           </form>
@@ -423,9 +424,9 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                       <button
                         onClick={() => handleUpdateDepartment(d.id)}
                         disabled={deptUpdateLoading}
-                        className="w-full py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                        className="w-full py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        <Save className="w-3.5 h-3.5" />
+                        {deptUpdateLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                         <span>{deptUpdateLoading ? 'Saving...' : 'Save Changes'}</span>
                       </button>
                     </div>
@@ -560,9 +561,9 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
             <button
               type="submit"
               disabled={desLoading}
-              className="w-full py-2 bg-slate-900 hover:bg-slate-800 dark:bg-purple-600 dark:hover:bg-purple-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+              className="w-full py-2 bg-slate-900 hover:bg-slate-800 dark:bg-purple-600 dark:hover:bg-purple-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Plus className="w-3.5 h-3.5" />
+              {desLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
               <span>{desLoading ? 'Creating...' : 'Create Designation'}</span>
             </button>
           </form>
@@ -678,10 +679,10 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                     <button
                       onClick={() => handleUpdateCycle(cycle.id)}
                       disabled={cycleLoading}
-                      className="w-full py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      className="w-full py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Save Changes</span>
+                      {cycleLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                      <span>{cycleLoading ? 'Saving...' : 'Save Changes'}</span>
                     </button>
                   </div>
                 ) : (
