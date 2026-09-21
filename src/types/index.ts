@@ -7,3 +7,4 @@ export * from './governance';
 export * from './bulk';
 export * from './ai';
 export * from './analytics';
+export * from './pip';

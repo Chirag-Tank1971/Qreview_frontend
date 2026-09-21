@@ -60,6 +60,9 @@ const ManagementDashboardView = lazy(() =>
 const DepartmentHierarchyView = lazy(() =>
   import('./components/DepartmentHierarchyView').then((m) => ({ default: m.DepartmentHierarchyView }))
 );
+const PerformanceImprovementPlansView = lazy(() =>
+  import('./components/PerformanceImprovementPlansView').then((m) => ({ default: m.PerformanceImprovementPlansView }))
+);
 
 // Modals lazy loaded on demand
 const EmployeeModal = lazy(() =>
@@ -163,6 +166,7 @@ function AppContent() {
   const [reviewConfig, setReviewConfig] = useState<ReviewViewConfig | null>(null);
   const [reportsConfig, setReportsConfig] = useState<ReportsViewConfig | null>(null);
   const [portalConfig, setPortalConfig] = useState<EmployeePortalConfig | null>(null);
+  const [pipConfig, setPipConfig] = useState<{ pipId?: string } | null>(null);
 
   // Auto-land on Executive Management Dashboard for MANAGEMENT role
   useEffect(() => {
@@ -205,6 +209,7 @@ function AppContent() {
     setReviewConfig(tab === 'reviews' ? options || null : null);
     setReportsConfig(tab === 'reports' ? options || null : null);
     setPortalConfig(tab === 'portal' ? options || null : null);
+    setPipConfig(tab === 'pip' ? options || null : null);
     setView(tab as AppView);
   };
 
@@ -214,6 +219,7 @@ function AppContent() {
     setAppraisalConfig(null);
     setReportsConfig(null);
     setPortalConfig(null);
+    setPipConfig(null);
 
     // If current view is not permitted for the user's role, automatically redirect to their primary allowed workspace
     if (user?.role && !isViewPermitted(currentView, user.role)) {
@@ -350,6 +356,13 @@ function AppContent() {
                   <NotificationsCenterView
                     currentUser={user}
                     onNavigate={(tab, opts) => handleNavigate(tab as AppView, opts)}
+                  />
+                ) : currentView === 'pip' && ['SUPER_ADMIN', 'HR', 'HOD', 'REPORTING_MANAGER', 'MANAGER', 'EMPLOYEE'].includes(user?.role || '') ? (
+                  <PerformanceImprovementPlansView
+                    currentUser={user}
+                    employees={employees}
+                    departments={departments}
+                    initialConfig={pipConfig}
                   />
                 ) : currentView === 'kras' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
                   <KraManagementView

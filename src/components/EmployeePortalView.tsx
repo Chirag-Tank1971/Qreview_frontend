@@ -26,13 +26,13 @@ import {
   Clock,
   Printer,
   Download,
-  ChevronRight,
   UserCheck,
   Building2,
   Briefcase,
   Star,
   CheckSquare,
   ShieldCheck,
+  ClipboardList,
   ExternalLink,
   ArrowUpRight,
   Info,
@@ -205,6 +205,57 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
     loadEmployees();
   }, [employeeProfile, propEmployees]);
 
+  // Lightweight "on PIP" flag for the record currently being viewed — just enough to red-flag
+  // the dashboard and link to the Performance Plans page; full plan detail lives there now, not
+  // duplicated on this page. Same viewing rule as the record selector: HR/Admin can browse any
+  // employee, everyone else can only ever be looking at their own record.
+  const [activePipFlag, setActivePipFlag] = useState<{ id: string; endDate: string } | null>(null);
+  // Set only when there is no currently active plan but the most recent one resolved as
+  // FAILED — flags that the employee's last improvement plan was unsuccessful so HR/the
+  // employee's chain sees it without digging into Performance Plans.
+  const [failedPipFlag, setFailedPipFlag] = useState<{
+    id: string;
+    decidedByName: string;
+    decidedAt: string;
+    notes?: string;
+  } | null>(null);
+  const canViewSelectedPipStatus = user?.role === 'SUPER_ADMIN' || user?.role === 'HR' || selectedEmployeeId === employeeProfile?.id;
+
+  useEffect(() => {
+    if (!selectedEmployeeId || !canViewSelectedPipStatus) {
+      setActivePipFlag(null);
+      setFailedPipFlag(null);
+      return;
+    }
+    api
+      .getPips()
+      .then((plans) => {
+        const mine = plans.filter((p) => p.employeeId === selectedEmployeeId);
+        const active = mine.find((p) => p.status === 'ACTIVE' || p.status === 'EXTENDED');
+        setActivePipFlag(active ? { id: active.id, endDate: active.endDate } : null);
+
+        if (!active) {
+          const mostRecent = [...mine].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())[0];
+          setFailedPipFlag(
+            mostRecent && mostRecent.status === 'FAILED' && mostRecent.outcome && !mostRecent.failureResolution
+              ? {
+                  id: mostRecent.id,
+                  decidedByName: mostRecent.outcome.decidedByName,
+                  decidedAt: mostRecent.outcome.decidedAt,
+                  notes: mostRecent.outcome.notes,
+                }
+              : null
+          );
+        } else {
+          setFailedPipFlag(null);
+        }
+      })
+      .catch(() => {
+        setActivePipFlag(null);
+        setFailedPipFlag(null);
+      });
+  }, [selectedEmployeeId, canViewSelectedPipStatus]);
+
   // Fetch ESS data whenever selectedEmployeeId changes
   useEffect(() => {
     if (!selectedEmployeeId) {
@@ -327,7 +378,11 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Native Page Header & Employee Switcher */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+      <div
+        className={`flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b ${
+          activePipFlag ? 'border-rose-300 dark:border-rose-800' : 'border-slate-200 dark:border-slate-800'
+        }`}
+      >
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
@@ -337,6 +392,16 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               Self-Service Portal
             </span>
+            {activePipFlag && (
+              <button
+                onClick={() => { window.location.hash = '#pip'; }}
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-bold rounded-[4px] bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 cursor-pointer hover:bg-rose-200 dark:hover:bg-rose-900/60 transition-colors animate-pulse"
+                title={`Active until ${new Date(activePipFlag.endDate).toLocaleDateString()} — click to view`}
+              >
+                <ClipboardList className="w-3 h-3" />
+                On PIP
+              </button>
+            )}
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Personal appraisals, quarterly reviews, compensation letters, and KRA goals.
@@ -371,6 +436,55 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
           </div>
         )}
       </div>
+
+      {activePipFlag && (
+        <div className="flex items-center justify-between gap-3 p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-300 dark:border-rose-800 rounded-[8px]">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/60 flex items-center justify-center shrink-0">
+              <ClipboardList className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-rose-800 dark:text-rose-200">
+                Currently on a Performance Improvement Plan
+              </p>
+              <p className="text-[11px] text-rose-600 dark:text-rose-400">
+                Active until {new Date(activePipFlag.endDate).toLocaleDateString()}. Annual appraisal processing is on hold until this plan resolves.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => { window.location.hash = '#pip'; }}
+            className="shrink-0 px-3 py-1.5 text-[11px] font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors cursor-pointer"
+          >
+            View Plan
+          </button>
+        </div>
+      )}
+
+      {failedPipFlag && (
+        <div className="flex items-center justify-between gap-3 p-3 bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-400 dark:border-rose-700 rounded-[8px]">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-rose-200 dark:bg-rose-900/80 flex items-center justify-center shrink-0">
+              <AlertCircle className="w-4 h-4 text-rose-700 dark:text-rose-300" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-rose-900 dark:text-rose-200">
+                Performance Improvement Plan Not Successful
+              </p>
+              <p className="text-[11px] text-rose-700 dark:text-rose-400">
+                Decided by {failedPipFlag.decidedByName} on {new Date(failedPipFlag.decidedAt).toLocaleDateString()}.
+                {failedPipFlag.notes ? ` ${failedPipFlag.notes}` : ' Review with HR for next steps.'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => { window.location.hash = '#pip'; }}
+            className="shrink-0 px-3 py-1.5 text-[11px] font-bold text-white bg-rose-700 hover:bg-rose-800 rounded-lg transition-colors cursor-pointer"
+          >
+            View Details
+          </button>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-[8px] border border-slate-200 dark:border-slate-800">

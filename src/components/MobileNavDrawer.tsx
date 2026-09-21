@@ -22,6 +22,7 @@ import {
   Layers,
   UserCheck,
   ChevronRight,
+  ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -133,6 +134,13 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
       subtitle: 'Org tree, HODs, & reporting lines',
       icon: Layers,
       roles: ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'],
+    },
+    {
+      id: 'pip',
+      label: 'Performance Plans',
+      subtitle: 'Improvement plans, goals & check-ins',
+      icon: ClipboardList,
+      roles: ['SUPER_ADMIN', 'HR', 'HOD', 'REPORTING_MANAGER', 'MANAGER', 'EMPLOYEE'],
     },
     {
       id: 'kras',

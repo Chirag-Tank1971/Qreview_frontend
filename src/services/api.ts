@@ -29,6 +29,7 @@ import {
   ManagementAttentionItem,
   ManagementAppraisalSummaryData,
   ManagementEmployeeDossier,
+  PerformanceImprovementPlan,
 } from '../types'
 
 // Resolve API Base URL: respects VITE_API_BASE_URL; falls back to relative '/api' in production
@@ -1654,6 +1655,175 @@ export const api = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to fetch employee performance dossier'));
+    return res.json();
+  },
+
+  // ==========================================
+  // Performance Improvement Plans (PIPs)
+  // ==========================================
+
+  async getPips(status?: string): Promise<PerformanceImprovementPlan[]> {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+    const res = await fetchWithAutoRefresh(`${API_BASE}/pips${qs}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to fetch performance improvement plans'));
+    return res.json();
+  },
+
+  async getPip(id: string): Promise<PerformanceImprovementPlan> {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/pips/${id}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to fetch performance improvement plan'));
+    return res.json();
+  },
+
+  async getPipAnalytics(): Promise<{
+    total: number;
+    activeCount: number;
+    byStatus: Record<string, number>;
+    successRate: number | null;
+    avgDurationDays: number | null;
+    byDepartment: Record<string, number>;
+  }> {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/pips/analytics`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to fetch performance improvement plan analytics'));
+    return res.json();
+  },
+
+  async createPip(data: {
+    employeeId: string;
+    reason: string;
+    category?: string;
+    triggeredByReviewId?: string;
+    startDate: string;
+    durationDays: number;
+    goals: Array<{ description: string; targetMetric?: string; dueDate?: string }>;
+    publish?: boolean;
+  }): Promise<PerformanceImprovementPlan> {
+    invalidateApiCache('/pips');
+    const res = await fetch(`${API_BASE}/pips`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to create performance improvement plan' }));
+      throw new Error(err.error || 'Failed to create performance improvement plan');
+    }
+    return res.json();
+  },
+
+  async updatePip(id: string, data: Partial<{
+    reason: string;
+    category: string;
+    startDate: string;
+    durationDays: number;
+    goals: Array<{ id?: string; description: string; targetMetric?: string; dueDate?: string; status?: string }>;
+  }>): Promise<PerformanceImprovementPlan> {
+    invalidateApiCache('/pips');
+    const res = await fetch(`${API_BASE}/pips/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to update performance improvement plan' }));
+      throw new Error(err.error || 'Failed to update performance improvement plan');
+    }
+    return res.json();
+  },
+
+  async publishPip(id: string): Promise<PerformanceImprovementPlan> {
+    invalidateApiCache('/pips');
+    invalidateApiCache('/notifications');
+    const res = await fetch(`${API_BASE}/pips/${id}/publish`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to publish performance improvement plan' }));
+      throw new Error(err.error || 'Failed to publish performance improvement plan');
+    }
+    return res.json();
+  },
+
+  async addPipCheckIn(
+    id: string,
+    notes: string,
+    goalRatings?: Array<{ goalId: string; rating: number }>
+  ): Promise<PerformanceImprovementPlan> {
+    invalidateApiCache('/pips');
+    invalidateApiCache('/notifications');
+    const res = await fetch(`${API_BASE}/pips/${id}/checkins`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ notes, goalRatings }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to add check-in' }));
+      throw new Error(err.error || 'Failed to add check-in');
+    }
+    return res.json();
+  },
+
+  async acknowledgePip(id: string, comments?: string): Promise<PerformanceImprovementPlan> {
+    invalidateApiCache('/pips');
+    invalidateApiCache('/notifications');
+    const res = await fetch(`${API_BASE}/pips/${id}/acknowledge`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ comments }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to acknowledge performance improvement plan' }));
+      throw new Error(err.error || 'Failed to acknowledge performance improvement plan');
+    }
+    return res.json();
+  },
+
+  async recordPipOutcome(id: string, data: { decision: 'SUCCEEDED' | 'FAILED' | 'EXTENDED'; notes?: string; additionalDays?: number }): Promise<PerformanceImprovementPlan> {
+    invalidateApiCache('/pips');
+    invalidateApiCache('/notifications');
+    invalidateApiCache('/appraisals');
+    const res = await fetch(`${API_BASE}/pips/${id}/outcome`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to record outcome' }));
+      throw new Error(err.error || 'Failed to record outcome');
+    }
+    return res.json();
+  },
+
+  async cancelPip(id: string, reason: string): Promise<PerformanceImprovementPlan> {
+    invalidateApiCache('/pips');
+    invalidateApiCache('/appraisals');
+    const res = await fetch(`${API_BASE}/pips/${id}/cancel`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ reason }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to cancel performance improvement plan' }));
+      throw new Error(err.error || 'Failed to cancel performance improvement plan');
+    }
+    return res.json();
+  },
+
+  async resolvePipFailure(
+    id: string,
+    data: { action: string; notes?: string }
+  ): Promise<PerformanceImprovementPlan> {
+    invalidateApiCache('/pips');
+    const res = await fetch(`${API_BASE}/pips/${id}/resolve-failure`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to record failure resolution' }));
+      throw new Error(err.error || 'Failed to record failure resolution');
+    }
     return res.json();
   },
 

@@ -88,6 +88,51 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
     }
   }, [currentUser]);
 
+  // Keep this page's own list in sync in real time: new notifications can arrive from
+  // background jobs (reminders, escalations, etc.) with no local action to trigger a refresh,
+  // so on top of the 'notifications-updated' event fired by this tab's own mutations, poll
+  // periodically while the page is visible — otherwise the header bell (which has its own
+  // poller) drifts ahead of whatever this page fetched once on mount.
+  useEffect(() => {
+    const POLL_INTERVAL_MS = 15000;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+    const startPolling = () => {
+      if (intervalId) return;
+      intervalId = setInterval(fetchNotifications, POLL_INTERVAL_MS);
+    };
+
+    if (document.visibilityState === 'visible') {
+      startPolling();
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchNotifications();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    const handleNotificationsUpdated = () => fetchNotifications();
+    window.addEventListener('notifications-updated', handleNotificationsUpdated);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('notifications-updated', handleNotificationsUpdated);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleMarkAsRead = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setNotifications((prev) =>
@@ -351,6 +396,18 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
           label: 'Review Blocked: No HOD Configured',
           badgeColor: 'bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border-red-200/80 dark:border-red-800',
           config: { subTab: 'reviews', ...meta, ...(meta.reviewId ? { status: 'ALL' } : { status: 'HOD_PENDING' }) },
+        };
+      case 'PIP_ASSIGNED':
+      case 'PIP_CHECKIN':
+      case 'PIP_ACKNOWLEDGED':
+      case 'PIP_SUCCEEDED':
+      case 'PIP_FAILED':
+      case 'PIP_EXTENDED':
+        return {
+          tab: 'pip',
+          label: 'Performance Improvement Plan',
+          badgeColor: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200/80 dark:border-amber-800',
+          config: { pipId: meta.pipId },
         };
       default:
         return {

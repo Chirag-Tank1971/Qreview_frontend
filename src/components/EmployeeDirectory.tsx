@@ -71,9 +71,23 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
   const [cycles, setCycles] = useState<Cycle[]>(initialCycles || []);
   const [kraTemplates, setKraTemplates] = useState<KraTemplate[]>(initialKraTemplates || []);
   const [reviewPeriods, setReviewPeriods] = useState<ReviewPeriod[]>([]);
+  const [employeeIdsOnPip, setEmployeeIdsOnPip] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(
     initialEmployees === undefined
   );
+
+  useEffect(() => {
+    if (!isHRorAdmin) return;
+    api
+      .getPips()
+      .then((plans) => {
+        const active = plans.filter((p) => p.status === 'ACTIVE' || p.status === 'EXTENDED');
+        setEmployeeIdsOnPip(new Set(active.map((p) => p.employeeId)));
+      })
+      .catch(() => {
+        // Non-critical — the badge just won't show if this fails.
+      });
+  }, [isHRorAdmin]);
 
   // Sync with incoming master data props
   useEffect(() => {
@@ -592,7 +606,14 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate">{emp.employeeCode} • {emp.email}</p>
                             </div>
                           </div>
-                          {getStatusBadge(emp.status, emp.isPastEmployee)}
+                          <div className="flex flex-col items-end gap-1">
+                            {getStatusBadge(emp.status, emp.isPastEmployee)}
+                            {employeeIdsOnPip.has(emp.id) && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                On PIP
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         <div className="space-y-1 text-xs">
@@ -814,7 +835,16 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                             )}
 
                             {/* Status */}
-                            <td className="px-4 py-3.5">{getStatusBadge(emp.status, emp.isPastEmployee)}</td>
+                            <td className="px-4 py-3.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {getStatusBadge(emp.status, emp.isPastEmployee)}
+                                {employeeIdsOnPip.has(emp.id) && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                    On PIP
+                                  </span>
+                                )}
+                              </div>
+                            </td>
 
                             {/* Joining / Relieving Date */}
                             <td className="px-4 py-3.5 text-slate-500 dark:text-slate-400 text-[11px]">

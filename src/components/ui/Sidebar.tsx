@@ -12,6 +12,7 @@ import {
   Sparkles,
   Upload,
   Shield,
+  ClipboardList,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -79,6 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'employees', label: 'Employee Directory', icon: Users },
         { id: 'hierarchy', label: 'Department & Hierarchy', icon: Layers },
+        { id: 'pip', label: 'Performance Plans', icon: ClipboardList },
       ],
     },
     {
