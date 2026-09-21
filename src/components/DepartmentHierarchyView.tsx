@@ -22,6 +22,7 @@ import {
   TrendingUp,
   Filter,
   Plus,
+  Upload,
 } from 'lucide-react';
 import { CycleBadge } from './ui/CycleBadge';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
@@ -275,7 +276,72 @@ export const DepartmentHierarchyView: React.FC<DepartmentHierarchyViewProps> = (
   };
 
   if (departments.length === 0) {
-    return <PageSkeletonLoader variant="hierarchy" />;
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => {
+                  if (onBackToDirectory) {
+                    onBackToDirectory();
+                  } else {
+                    window.location.hash = '#employees';
+                  }
+                }}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shrink-0"
+                title="Back to Employee Directory"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  Department & Manager Hierarchy
+                </h1>
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                  Org Structure
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 pl-9">
+              Multi-tiered reporting structures, department head allocations, and span-of-control analytics.
+            </p>
+          </div>
+        </div>
+
+        <div className="p-10 sm:p-14 text-center bg-white dark:bg-slate-900 rounded-[12px] border border-slate-200 dark:border-slate-800 max-w-lg mx-auto my-12 shadow-sm">
+          <div className="w-14 h-14 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-200 dark:border-indigo-800">
+            <Building2 className="w-7 h-7" />
+          </div>
+          <h2 className="text-base font-bold text-slate-900 dark:text-white">
+            No Departments Configured
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto leading-relaxed">
+            The database was cleanly reset. Departments and reporting hierarchy will be auto-created as soon as you import your employee sheet via <strong>Bulk Data Tools</strong>.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={() => { window.location.hash = '#bulk'; }}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors cursor-pointer shadow-sm"
+            >
+              <Upload className="w-4 h-4" />
+              Go to Bulk Data Tools
+            </button>
+            <button
+              onClick={() => {
+                if (onBackToDirectory) onBackToDirectory();
+                else window.location.hash = '#employees';
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
+            >
+              <Users className="w-4 h-4" />
+              Employee Directory
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

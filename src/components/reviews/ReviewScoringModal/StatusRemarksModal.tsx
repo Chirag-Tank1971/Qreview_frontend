@@ -12,6 +12,11 @@ interface StatusRemarksModalProps {
   onClose: () => void;
   onConfirm: (status: ReviewStatus) => void;
   saving: boolean;
+  /** Only relevant when status === 'RETURNED' and this is an HR-initiated return (not the HOD return flow). */
+  showTargetSelector?: boolean;
+  returnTarget?: 'MANAGER' | 'HOD';
+  setReturnTarget?: (target: 'MANAGER' | 'HOD') => void;
+  hodAvailable?: boolean;
 }
 
 export const StatusRemarksModal: React.FC<StatusRemarksModalProps> = ({
@@ -23,6 +28,10 @@ export const StatusRemarksModal: React.FC<StatusRemarksModalProps> = ({
   onClose,
   onConfirm,
   saving,
+  showTargetSelector,
+  returnTarget = 'MANAGER',
+  setReturnTarget,
+  hodAvailable = true,
 }) => {
   if (!isOpen || !status) return null;
 
@@ -47,6 +56,8 @@ export const StatusRemarksModal: React.FC<StatusRemarksModalProps> = ({
               ? 'Final Lock & Close Quarterly Review'
               : status === 'HR_COMPLETED'
               ? 'Approve Review (HR Calibration)'
+              : showTargetSelector
+              ? `Return Review to ${returnTarget === 'HOD' ? review.hodName || 'HOD' : review.managerName}`
               : `Return Review to ${review.managerName}`}
           </span>
         </h4>
@@ -55,8 +66,40 @@ export const StatusRemarksModal: React.FC<StatusRemarksModalProps> = ({
             ? `This will permanently lock the review for ${review.employeeName}. All ratings, scores, and growth comments will be preserved and locked.`
             : status === 'HR_COMPLETED'
             ? `Mark this review as HR Approved and record calibration remarks in the audit trail:`
+            : showTargetSelector
+            ? `Choose who should recalibrate this review, then provide the reason:`
             : `Provide audit remarks or return instructions for ${review.managerName}:`}
         </p>
+
+        {showTargetSelector && setReturnTarget && (
+          <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => setReturnTarget('MANAGER')}
+              className={`flex-1 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                returnTarget === 'MANAGER'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              Manager ({review.managerName})
+            </button>
+            <button
+              type="button"
+              disabled={!hodAvailable}
+              onClick={() => setReturnTarget('HOD')}
+              title={!hodAvailable ? 'No HOD is configured for this employee' : undefined}
+              className={`flex-1 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                returnTarget === 'HOD'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              HOD {review.hodName ? `(${review.hodName})` : ''}
+            </button>
+          </div>
+        )}
+
         <textarea
           rows={3}
           value={remarks}

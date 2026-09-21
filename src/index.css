@@ -111,6 +111,10 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     font-family: var(--font-sans);
     background-color: var(--bg-app);
@@ -266,6 +270,56 @@
 
 .animate-page-enter {
   animation: fadeIn 150ms ease-out both;
+}
+
+/* Indeterminate top loading bar: a single bar slides across while a view is still loading */
+@keyframes pageLoadingSlide {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(50%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.animate-page-loading-slide {
+  animation: pageLoadingSlide 1s ease-in-out infinite;
+}
+
+/* Toast slide-in / slide-out (anchored top-right, so it slides in/out from the right edge) */
+@keyframes toastSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(24px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes toastSlideOut {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(24px) scale(0.98);
+  }
+}
+
+.animate-toast-in {
+  animation: toastSlideIn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Duration must match EXIT_ANIMATION_MS in ToastContext.tsx — the toast is removed from
+   state exactly when this animation finishes playing. */
+.animate-toast-out {
+  animation: toastSlideOut 200ms cubic-bezier(0.4, 0, 1, 1) both;
 }
 
 .animate-entrance,

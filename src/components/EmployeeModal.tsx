@@ -1,8 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Employee, Department, Designation, Cycle, KraTemplate, ReviewPeriod, UserRole, CreateEmployeeResponse } from '../types';
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
+import { CustomKraScorecardModal, CustomKraRow } from './CustomKraScorecardModal';
+
+function defaultCustomKraRows(): CustomKraRow[] {
+  return [
+    { id: 'kra_1', title: '', weight: 25, target: '100% Target SLA', measurementCriteria: '' },
+    { id: 'kra_2', title: '', weight: 25, target: '100% Target SLA', measurementCriteria: '' },
+    { id: 'kra_3', title: '', weight: 25, target: '100% Target SLA', measurementCriteria: '' },
+    { id: 'kra_4', title: '', weight: 25, target: '100% Target SLA', measurementCriteria: '' },
+  ];
+}
 import {
   X,
   Building2,
@@ -31,6 +41,7 @@ import {
   Edit2,
   UserCheck,
   RotateCcw,
+  Layers,
 } from 'lucide-react';
 
 /**
@@ -95,6 +106,13 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   const [status, setStatus] = useState<'ACTIVE' | 'INACTIVE' | 'PROBATION' | 'NOTICE'>('ACTIVE');
   const [relievingDate, setRelievingDate] = useState('');
 
+  // Additional Organization & Employment Details
+  const [confirmationDate, setConfirmationDate] = useState('');
+  const [gender, setGender] = useState<'Male' | 'Female' | 'Other' | string>('Male');
+  const [employmentType, setEmploymentType] = useState('Permanent');
+  const [probationPeriodDays, setProbationPeriodDays] = useState<number | string>(90);
+  const [companyName, setCompanyName] = useState('M INTERGRAPH SYSTEMS PRIVATE LIMITED');
+
   // Past / Inactive state helpers
   const wasPastEmployee = Boolean(employeeToEdit?.status === 'INACTIVE') || Boolean(employeeToEdit?.isPastEmployee) || Boolean(rehireTarget);
   const isInactive = status === 'INACTIVE';
@@ -108,6 +126,12 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   const [hodId, setHodId] = useState('');
   const [currentKraTemplateId, setCurrentKraTemplateId] = useState('');
   const [availableTemplates, setAvailableTemplates] = useState<KraTemplate[]>(kraTemplates);
+  const [kraAssignmentMode, setKraAssignmentMode] = useState<'TEMPLATE' | 'CUSTOM'>('CUSTOM');
+  const [customKras, setCustomKras] = useState<CustomKraRow[]>(defaultCustomKraRows());
+  const kraHydratedForRef = useRef<string | null>(null);
+
+  const totalCustomWeight = customKras.reduce((sum, item) => sum + (Number(item.weight) || 0), 0);
+  const [showCustomKraModal, setShowCustomKraModal] = useState(false);
 
   // Form Fields: Compensation
   const [currentCtc, setCurrentCtc] = useState<number | string>(1800000);
@@ -142,6 +166,62 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         .catch(() => {});
     }
   }, [isOpen, kraTemplates]);
+
+  // Hydrate the KRA editor from the employee's actual assigned scorecard once per
+  // modal-open session. Runs once availableTemplates has loaded; deliberately does
+  // NOT re-run on every subsequent availableTemplates change, so it never clobbers
+  // KRA rows HR is actively editing in the scorecard modal.
+  useEffect(() => {
+    if (!isOpen) {
+      kraHydratedForRef.current = null;
+      return;
+    }
+
+    const targetEmp = employeeToEdit || rehireTarget;
+    const sessionKey = targetEmp?.id || 'NEW';
+    if (kraHydratedForRef.current === sessionKey) return;
+
+    if (!targetEmp) {
+      setKraAssignmentMode('CUSTOM');
+      setCustomKras(defaultCustomKraRows());
+      kraHydratedForRef.current = sessionKey;
+      return;
+    }
+
+    const tplId = targetEmp.currentKraTemplateId;
+    if (!tplId) {
+      setKraAssignmentMode('CUSTOM');
+      setCustomKras(defaultCustomKraRows());
+      kraHydratedForRef.current = sessionKey;
+      return;
+    }
+
+    const tpl = availableTemplates.find((t) => t.id === tplId);
+    if (!tpl) {
+      // Templates haven't finished loading yet — try again next render.
+      return;
+    }
+
+    const isOwnedByEmployee = tpl.employeeId === targetEmp.id || (Boolean(tpl.employeeCode) && tpl.employeeCode === targetEmp.employeeCode);
+    if (isOwnedByEmployee) {
+      setKraAssignmentMode('CUSTOM');
+      setCustomKras(
+        tpl.items && tpl.items.length > 0
+          ? tpl.items.map((it, idx) => ({
+              id: it.id || `kra_existing_${idx}`,
+              title: it.title || '',
+              weight: it.weight ?? 0,
+              target: it.target || '100% Target SLA',
+              description: it.description,
+              measurementCriteria: it.measurementCriteria,
+            }))
+          : defaultCustomKraRows()
+      );
+    } else {
+      setKraAssignmentMode('TEMPLATE');
+    }
+    kraHydratedForRef.current = sessionKey;
+  }, [isOpen, employeeToEdit, rehireTarget, availableTemplates]);
 
   // Helper to check if an employee is an HOD
   const isEmployeeHod = (emp: Employee) => {
@@ -243,6 +323,11 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
       setCurrentKraTemplateId(employeeToEdit.currentKraTemplateId || '');
       setCurrentCtc(employeeToEdit.currentCtc !== undefined ? employeeToEdit.currentCtc : 1800000);
       setCurrency(employeeToEdit.currency || '₹');
+      setConfirmationDate(employeeToEdit.confirmationDate ? employeeToEdit.confirmationDate.split('T')[0] : '');
+      setGender(employeeToEdit.gender || 'Male');
+      setEmploymentType(employeeToEdit.employmentType || 'Permanent');
+      setProbationPeriodDays(employeeToEdit.probationPeriodDays !== undefined ? employeeToEdit.probationPeriodDays : 90);
+      setCompanyName(employeeToEdit.companyName || 'M INTERGRAPH SYSTEMS PRIVATE LIMITED');
       if (initialRehire) {
         setStatus('ACTIVE');
         const todayStr = new Date().toISOString().split('T')[0];
@@ -289,19 +374,26 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
             if (freshEmp.systemRole) {
               setSystemRole(freshEmp.systemRole);
             }
+            if (freshEmp.confirmationDate !== undefined) {
+              setConfirmationDate(freshEmp.confirmationDate ? freshEmp.confirmationDate.split('T')[0] : '');
+            }
+            if (freshEmp.gender) setGender(freshEmp.gender);
+            if (freshEmp.employmentType) setEmploymentType(freshEmp.employmentType);
+            if (freshEmp.probationPeriodDays !== undefined) setProbationPeriodDays(freshEmp.probationPeriodDays);
+            if (freshEmp.companyName) setCompanyName(freshEmp.companyName);
           }
         })
         .catch(() => {});
     } else {
       const maxNum = (allEmployees || []).reduce((max, emp) => {
-        const match = emp.employeeCode?.match(/EMP-(\d+)/i);
+        const match = emp.employeeCode?.match(/(?:MS|EMP-?)(\d+)/i);
         if (match) {
           const num = parseInt(match[1], 10);
           return num > max ? num : max;
         }
         return max;
       }, 0);
-      const nextCode = `EMP-${String(maxNum + 1).padStart(3, '0')}`;
+      const nextCode = `MS${String(maxNum + 1).padStart(4, '0')}`;
       const defaultDept = departments[0]?.id || '';
       const defaultDeptObj = departments.find((d) => d.id === defaultDept);
 
@@ -314,6 +406,11 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
       setDepartmentId(defaultDept);
       setDesignationId('');
       setJoiningDate(todayStr);
+      setConfirmationDate('');
+      setGender('Male');
+      setEmploymentType('Permanent');
+      setProbationPeriodDays(90);
+      setCompanyName('M INTERGRAPH SYSTEMS PRIVATE LIMITED');
       const suggestedCycle = getSuggestedCycle(todayStr, activeCycles);
       setCycleId(suggestedCycle?.id || activeCycles[0]?.id || '');
       setHasUserManuallyChangedCycle(false);
@@ -347,6 +444,11 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     const todayStr = new Date().toISOString().split('T')[0];
     setDesignationId(pastEmp.designationId || '');
     setJoiningDate(todayStr);
+    setConfirmationDate('');
+    setGender(pastEmp.gender || 'Male');
+    setEmploymentType(pastEmp.employmentType || 'Permanent');
+    setProbationPeriodDays(pastEmp.probationPeriodDays !== undefined ? pastEmp.probationPeriodDays : 90);
+    setCompanyName(pastEmp.companyName || 'M INTERGRAPH SYSTEMS PRIVATE LIMITED');
     const suggestedRehireCycle = getSuggestedCycle(todayStr, activeCycles);
     setCycleId(suggestedRehireCycle?.id || activeCycles[0]?.id || '');
     setHasUserManuallyChangedCycle(false);
@@ -404,83 +506,93 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     systemRole === 'MANAGER' ||
     Boolean(currentDes && (currentDes.level >= 3 || currentDes.name?.toLowerCase().includes('manager') || currentDes.name?.toLowerCase().includes('lead')));
 
-  // Filter available managers:
-  // Managers report directly to HODs. HODs can report to senior HODs/Executives or have no L1 manager.
-  // Regular employees should report to managers, or HOD if no intermediate managers exist in the department.
-  const departmentManagers = allEmployees
-    .filter((emp) => {
-      if (employeeToEdit && emp.id === employeeToEdit.id) return false;
-      if (departmentId && emp.departmentId !== departmentId && !isTargetHod) return false;
-      if (emp.status === 'INACTIVE' || emp.isPastEmployee) return false;
+  // Reporting Managers from all departments + All HODs (strictly exclude regular employees)
+  const departmentManagers = (() => {
+    return allEmployees
+      .filter((emp) => {
+        // Exclude the employee themselves if editing
+        if (employeeToEdit && emp.id === employeeToEdit.id) return false;
+        // Exclude inactive / past employees (unless currently assigned as this employee's manager)
+        if ((emp.status === 'INACTIVE' || emp.isPastEmployee) && (!employeeToEdit || emp.id !== employeeToEdit.managerId)) {
+          return false;
+        }
+        // Always include currently assigned manager so data isn't lost on edit
+        if (employeeToEdit && emp.id === employeeToEdit.managerId) {
+          return true;
+        }
 
-      const isHod = isEmployeeHod(emp);
-      if (isTargetHod || isTargetManager) {
-        // Managers and HODs can have HODs as their reporting manager!
-        return true;
-      }
+        const empDes = designations.find((d) => d.id === emp.designationId);
+        const desName = (emp.designationName || empDes?.name || '').toLowerCase();
 
-      // For regular staff, exclude HODs ONLY if there are other departmental managers available
-      if (isHod) {
-        const hasOtherManagers = allEmployees.some(
-          (other) =>
-            other.id !== emp.id &&
-            other.departmentId === departmentId &&
-            other.status !== 'INACTIVE' &&
-            !other.isPastEmployee &&
-            !isEmployeeHod(other) &&
-            (other.systemRole === 'MANAGER' || isReportingManagerDesignation(other.designationName))
-        );
-        return !hasOtherManagers;
-      }
+        // 1. Check system role
+        const isMgrOrHodRole =
+          emp.systemRole === 'MANAGER' ||
+          emp.systemRole === 'HOD' ||
+          (emp as any).role === 'MANAGER' ||
+          (emp as any).role === 'REPORTING_MANAGER' ||
+          (emp as any).role === 'HOD';
 
-      const empDes = designations.find((d) => d.id === emp.designationId);
-      const isAlreadyManaging = allEmployees.some((other) => other.managerId === emp.id && other.status !== 'INACTIVE');
-      const isMgrTitle = isReportingManagerDesignation(emp.designationName || empDes?.name);
-      const isMgrRole =
-        emp.systemRole === 'MANAGER' ||
-        (emp as any).role === 'MANAGER' ||
-        (emp as any).role === 'REPORTING_MANAGER';
+        // 2. Check if HOD
+        const isHod = isEmployeeHod(emp);
 
-      return isAlreadyManaging || isMgrTitle || isMgrRole;
-    })
-    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        // 3. Check designation keywords for manager, lead, supervisor, head, director, vp, hod
+        const isMgrOrLeadTitle =
+          desName.includes('manager') ||
+          desName.includes('lead') ||
+          desName.includes('head') ||
+          desName.includes('supervisor') ||
+          desName.includes('director') ||
+          desName.includes('vp') ||
+          desName.includes('vice president') ||
+          desName.includes('hod');
 
-  // Filter available HODs to the selected department
-  const departmentHods = allEmployees
-    .filter((emp) => {
-      if (employeeToEdit && emp.id === employeeToEdit.id) return false;
-      if (departmentId && emp.departmentId !== departmentId) return false;
-      if (emp.status === 'INACTIVE' || emp.isPastEmployee) return false;
+        // 4. Check if actively assigned as manager of any active employee
+        const isAlreadyManaging = allEmployees.some((other) => other.managerId === emp.id && other.status !== 'INACTIVE');
 
-      const empDes = designations.find((d) => d.id === emp.designationId);
-      const desName = (emp.designationName || empDes?.name || '').toLowerCase();
-      const isOfficialDeptHod = selectedDeptObj?.hodId === emp.id;
-      const isHodTitle =
-        desName.includes('hod') ||
-        desName.includes('head') ||
-        desName.includes('director') ||
-        desName.includes('vp') ||
-        desName.includes('vice president') ||
-        emp.systemRole === 'HOD';
+        return isMgrOrHodRole || isHod || isMgrOrLeadTitle || isAlreadyManaging;
+      })
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  })();
 
-      return isOfficialDeptHod || isHodTitle;
-    })
-    .sort((a, b) => {
-      // Prioritize official department HOD first, then same department HODs
-      const aIsOfficial = selectedDeptObj?.hodId === a.id;
-      const bIsOfficial = selectedDeptObj?.hodId === b.id;
-      if (aIsOfficial && !bIsOfficial) return -1;
-      if (!aIsOfficial && bIsOfficial) return 1;
+  // Head of Departments (HODs) from all departments (strictly HODs only)
+  const departmentHods = (() => {
+    return allEmployees
+      .filter((emp) => {
+        // Exclude the employee themselves if editing
+        if (employeeToEdit && emp.id === employeeToEdit.id) return false;
+        // Exclude inactive / past employees (unless currently assigned as this employee's HOD)
+        if ((emp.status === 'INACTIVE' || emp.isPastEmployee) && (!employeeToEdit || emp.id !== employeeToEdit.hodId)) {
+          return false;
+        }
+        // Always include currently assigned HOD so data isn't lost on edit
+        if (employeeToEdit && emp.id === employeeToEdit.hodId) {
+          return true;
+        }
 
-      if (departmentId) {
-        const aSame = a.departmentId === departmentId;
-        const bSame = b.departmentId === departmentId;
-        if (aSame && !bSame) return -1;
-        if (!aSame && bSame) return 1;
-      }
+        const empDes = designations.find((d) => d.id === emp.designationId);
+        const desName = (emp.designationName || empDes?.name || '').toLowerCase();
 
-      return (a.name || '').localeCompare(b.name || '');
-    });
+        const isOfficialDeptHod = departments.some((d) => d.hodId === emp.id || d.hodId === emp.employeeCode);
+        const isOrgWideHod = emp.systemRole === 'HOD' || (emp as any).role === 'HOD' || emp.employeeCode === 'MS0016';
+        const isHodTitle =
+          desName.includes('hod') ||
+          desName.includes('head of') ||
+          desName.includes('head') ||
+          desName.includes('director') ||
+          desName.includes('vp') ||
+          desName.includes('vice president');
+
+        return isOfficialDeptHod || isOrgWideHod || isHodTitle || isEmployeeHod(emp);
+      })
+      .sort((a, b) => {
+        const aIsOfficial = a.employeeCode === 'MS0016' || selectedDeptObj?.hodId === a.id;
+        const bIsOfficial = b.employeeCode === 'MS0016' || selectedDeptObj?.hodId === b.id;
+        if (aIsOfficial && !bIsOfficial) return -1;
+        if (!aIsOfficial && bIsOfficial) return 1;
+
+        return (a.name || '').localeCompare(b.name || '');
+      });
+  })();
 
   // Auto-select KRA template matching department or designation if not set
   useEffect(() => {
@@ -591,7 +703,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         toast.warning('Reporting Manager is required.', 'Validation Error');
         return;
       }
-      if (!hodId) {
+      if (!hodId && !isTargetHod) {
         setError('Head of Department (HOD) is required.');
         toast.warning('Head of Department is required.', 'Validation Error');
         return;
@@ -601,6 +713,35 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         toast.warning('Annual CTC must be a positive number.', 'Validation Error');
         return;
       }
+    }
+
+    let validCustomKras: Array<{ title: string; weight: number; target: string; description?: string; measurementCriteria?: string }> | undefined = undefined;
+
+    if (!isInactive && kraAssignmentMode === 'CUSTOM') {
+      const filtered = customKras
+        .map((k) => ({
+          title: k.title.trim(),
+          weight: Number(k.weight) || 0,
+          target: k.target.trim() || '100% Target SLA',
+          description: k.description?.trim(),
+          measurementCriteria: k.measurementCriteria?.trim(),
+        }))
+        .filter((k) => k.title.length > 0);
+
+      if (filtered.length === 0) {
+        setError('Please provide at least one KRA for this employee.');
+        toast.warning('Please provide at least one KRA.', 'Validation Error');
+        return;
+      }
+
+      const sumWeight = filtered.reduce((s, k) => s + k.weight, 0);
+      if (sumWeight !== 100) {
+        setError(`Total KRA weightage must sum to exactly 100% (currently ${sumWeight}%).`);
+        toast.warning(`Total KRA weightage is ${sumWeight}%. It must sum to 100%.`, 'Weightage Mismatch');
+        return;
+      }
+
+      validCustomKras = filtered;
     }
 
     setLoading(true);
@@ -626,11 +767,17 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
             departmentId,
             designationId,
             joiningDate: new Date(joiningDate).toISOString(),
+            confirmationDate: confirmationDate ? new Date(confirmationDate).toISOString() : undefined,
+            gender: gender || undefined,
+            employmentType: employmentType || undefined,
+            probationPeriodDays: status === 'PROBATION' && probationPeriodDays !== '' ? Number(probationPeriodDays) : undefined,
+            companyName: companyName.trim() || undefined,
             cycleId,
             startingReviewPeriodId,
             managerId: managerId || undefined,
             hodId: hodId || undefined,
-            currentKraTemplateId: currentKraTemplateId || undefined,
+            currentKraTemplateId: kraAssignmentMode === 'TEMPLATE' ? currentKraTemplateId || undefined : undefined,
+            customKras: validCustomKras,
             currentCtc: parsedCtc,
             currency,
             status,
@@ -660,11 +807,17 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
           departmentId,
           designationId,
           joiningDate: new Date(joiningDate).toISOString(),
+          confirmationDate: confirmationDate ? new Date(confirmationDate).toISOString() : undefined,
+          gender: gender || undefined,
+          employmentType: employmentType || undefined,
+          probationPeriodDays: status === 'PROBATION' && probationPeriodDays !== '' ? Number(probationPeriodDays) : undefined,
+          companyName: companyName.trim() || undefined,
           cycleId,
           startingReviewPeriodId,
           managerId: managerId || undefined,
           hodId: hodId || undefined,
-          currentKraTemplateId: currentKraTemplateId || undefined,
+          currentKraTemplateId: kraAssignmentMode === 'TEMPLATE' ? currentKraTemplateId || undefined : undefined,
+          customKras: validCustomKras,
           currentCtc: parsedCtc,
           currency,
           status,
@@ -896,7 +1049,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       disabled={isInactive}
                       value={employeeCode}
                       onChange={(e) => setEmployeeCode(e.target.value.toUpperCase())}
-                      placeholder="EMP-001"
+                      placeholder="MS0001"
                       className="w-full border rounded-xl pl-9 pr-3 py-2 text-xs font-mono bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-slate-200 dark:border-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                     />
                   </div>
@@ -998,6 +1151,26 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                   </div>
                 </div>
 
+                {/* Gender */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Gender
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
+                    <select
+                      disabled={isInactive}
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
                 {/* Base Office / Work Location */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -1015,6 +1188,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       <option value="Mumbai Branch">Mumbai Branch</option>
                       <option value="Delhi NCR Hub">Delhi NCR Hub</option>
                       <option value="Hyderabad Tech Center">Hyderabad Tech Center</option>
+                      <option value="Jaipur Office">Jaipur Office</option>
                       <option value="Remote - India">Remote - India</option>
                       <option value="Global Remote">Global Remote</option>
                     </select>
@@ -1043,6 +1217,23 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                           }
                         }
                       }}
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
+                    />
+                  </div>
+                </div>
+
+                {/* Confirmation Date */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Confirmation Date
+                  </label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
+                    <input
+                      type="date"
+                      disabled={isInactive}
+                      value={confirmationDate}
+                      onChange={(e) => setConfirmationDate(e.target.value)}
                       className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                     />
                   </div>
@@ -1198,6 +1389,73 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                   </p>
                 </div>
 
+                {/* Employment Type */}
+                <div className={status === 'PROBATION' ? 'sm:col-span-1' : 'sm:col-span-2'}>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Employment Type
+                  </label>
+                  <div className="relative">
+                    <Briefcase className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
+                    <select
+                      disabled={isInactive}
+                      value={employmentType}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEmploymentType(val);
+                        if (val === 'Probationary' && status !== 'PROBATION') {
+                          setStatus('PROBATION');
+                          if (!probationPeriodDays) setProbationPeriodDays(90);
+                        }
+                      }}
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
+                    >
+                      <option value="Permanent">Permanent</option>
+                      <option value="Contract">Contract</option>
+                      <option value="Intern">Intern</option>
+                      <option value="Probationary">Probationary</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Probation Period In Days (Shown only when Employment Status is PROBATION) */}
+                {status === 'PROBATION' && (
+                  <div className="animate-in fade-in duration-200">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Probation Period (Days)
+                    </label>
+                    <div className="relative">
+                      <Clock className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
+                      <input
+                        type="number"
+                        min="0"
+                        disabled={isInactive}
+                        value={probationPeriodDays}
+                        onChange={(e) => setProbationPeriodDays(e.target.value)}
+                        placeholder="e.g. 90 or 120"
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Company / Legal Entity */}
+                <div className="sm:col-span-3">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Company / Legal Entity
+                  </label>
+                  <div className="relative">
+                    <Building2 className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      disabled={isInactive}
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      placeholder="M INTERGRAPH SYSTEMS PRIVATE LIMITED"
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
+                    />
+                  </div>
+                </div>
+
                 {/* Employment Status Selector (Spans Full Width across sm:col-span-3) */}
                 <div className="sm:col-span-3">
                   <div className="flex items-center justify-between mb-1.5">
@@ -1234,6 +1492,11 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                           type="button"
                           onClick={() => {
                             setStatus(key as any);
+                            if (key === 'PROBATION') {
+                              if (!probationPeriodDays) {
+                                setProbationPeriodDays(90);
+                              }
+                            }
                             if (key === 'INACTIVE') {
                               if (!relievingDate) {
                                 setRelievingDate(new Date().toISOString().split('T')[0]);
@@ -1307,7 +1570,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {/* Reporting Manager (L1) */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -1326,7 +1589,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                     </option>
                     {departmentManagers.map((emp) => (
                       <option key={emp.id} value={emp.id}>
-                        {emp.name} ({emp.designationName || emp.systemRole || 'Reporting Manager'})
+                        {emp.name} ({emp.designationName || emp.systemRole || 'Manager'}{emp.departmentName ? ` • ${emp.departmentName}` : ''})
                       </option>
                     ))}
                   </select>
@@ -1335,48 +1598,135 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {/* Head of Department (HOD) */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Head of Dept (HOD) <span className="text-rose-500">*</span>
+                    Head of Dept (HOD) {isTargetHod ? '(Optional for HOD)' : <span className="text-rose-500">*</span>}
                   </label>
                   <select
-                    required
+                    required={!isTargetHod}
                     disabled={isInactive}
                     value={hodId}
                     onChange={(e) => setHodId(e.target.value)}
                     className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                   >
-                    <option value="" disabled>
-                      Select Department HOD *
+                    <option value="" disabled={!isTargetHod}>
+                      {isTargetHod ? 'Self / Executive Head of Department' : 'Select Head of Department (HOD) *'}
                     </option>
                     {departmentHods.map((emp) => {
-                      const isOfficial = emp.id === selectedDeptObj?.hodId;
+                      const isOfficial = emp.id === selectedDeptObj?.hodId || emp.employeeCode === 'MS0016';
                       return (
                         <option key={emp.id} value={emp.id}>
-                          {emp.name} ({emp.designationName || 'HOD'}){isOfficial ? ' ★ Official HOD' : ''}
+                          {emp.name} ({emp.designationName || 'HOD'}{emp.departmentName ? ` • ${emp.departmentName}` : ''}){isOfficial ? ' ★ Official HOD' : ''}
                         </option>
                       );
                     })}
                   </select>
                 </div>
+              </div>
 
-                {/* Assigned Goal / KRA Template */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Goal / KRA Template
-                  </label>
-                  <select
-                    disabled={isInactive}
-                    value={currentKraTemplateId}
-                    onChange={(e) => setCurrentKraTemplateId(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
-                  >
-                    <option value="">Auto-Assign / Default Template</option>
-                    {availableTemplates.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.title || t.name} ({t.departmentName || 'General'})
-                      </option>
-                    ))}
-                  </select>
+              {/* KRA / Performance Scorecard Section */}
+              <div className="bg-slate-50/80 dark:bg-slate-850/60 border border-slate-200 dark:border-slate-750 rounded-2xl p-3.5 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <Target className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                        Key Result Areas (KRAs)
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Assign custom individual KRAs for this employee or select from the standard template library.
+                    </p>
+                  </div>
+
+                  <div className="inline-flex p-0.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+                    <button
+                      type="button"
+                      disabled={isInactive}
+                      onClick={() => {
+                        setKraAssignmentMode('CUSTOM');
+                        setShowCustomKraModal(true);
+                      }}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                        kraAssignmentMode === 'CUSTOM'
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <Target className="w-3.5 h-3.5" />
+                      Custom Scorecard
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isInactive}
+                      onClick={() => setKraAssignmentMode('TEMPLATE')}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                        kraAssignmentMode === 'TEMPLATE'
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      Template Library
+                    </button>
+                  </div>
                 </div>
+
+                {kraAssignmentMode === 'TEMPLATE' ? (
+                  <div className="py-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Choose Standard KRA Template
+                    </label>
+                    <select
+                      disabled={isInactive}
+                      value={currentKraTemplateId}
+                      onChange={(e) => setCurrentKraTemplateId(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
+                    >
+                      <option value="">Auto-Assign / Default Template</option>
+                      {availableTemplates.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.title || t.name} ({t.departmentName || 'General'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-white dark:bg-slate-800 px-3.5 py-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const filledCount = customKras.filter((k) => k.title.trim().length > 0).length;
+                        return filledCount > 0 ? (
+                          <>
+                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                              {filledCount} KRA{filledCount === 1 ? '' : 's'} filled • Total Weightage:
+                            </span>
+                            <span
+                              className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                totalCustomWeight === 100
+                                  ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                                  : 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-700'
+                              }`}
+                            >
+                              {totalCustomWeight}% / 100% {totalCustomWeight === 100 ? '✓ Balanced' : ''}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                            No custom KRAs added yet. Build the employee's scorecard to continue.
+                          </span>
+                        );
+                      })()}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isInactive}
+                      onClick={() => setShowCustomKraModal(true)}
+                      className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                    >
+                      <Target className="w-3.5 h-3.5" />
+                      {customKras.some((k) => k.title.trim().length > 0) ? 'Edit Scorecard' : 'Build Scorecard'}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1463,6 +1813,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       System Access Role <span className="text-rose-500">*</span>
                     </label>
                     <select
+                      required
                       disabled={isInactive}
                       value={systemRole}
                       onChange={(e) => {
@@ -1572,6 +1923,23 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
           </form>
         </div>
       )}
+
+      <CustomKraScorecardModal
+        isOpen={showCustomKraModal}
+        onClose={() => setShowCustomKraModal(false)}
+        onDone={(rows) => {
+          setCustomKras(rows);
+          setShowCustomKraModal(false);
+        }}
+        initialKras={customKras}
+        employeeCode={employeeCode}
+        name={name}
+        designationName={currentDes?.name}
+        departmentName={selectedDeptObj?.name}
+        managerName={allEmployees.find((e) => e.id === managerId)?.name}
+        hodName={allEmployees.find((e) => e.id === hodId)?.name}
+        cycleName={cycles.find((c) => c.id === cycleId)?.name}
+      />
     </div>,
     document.body
   );

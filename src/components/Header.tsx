@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useNotifications } from '../context/NotificationsContext';
 import { UserRole } from '../types';
-import { api } from '../services/api';
-import { NotificationHubDrawer } from './NotificationHubDrawer';
 import {
   Shield,
   UserCheck,
@@ -49,11 +48,10 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { user, employeeProfile, logout, switchRole, isLoading } = useAuth();
   const { theme, isDark, setTheme, toggleTheme } = useTheme();
+  const { unreadCount: unreadNotifCount } = useNotifications();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isPersonaMenuOpen, setIsPersonaMenuOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0);
   const [isSwitchingRole, setIsSwitchingRole] = useState(false);
 
   const personaDropdownRef = useRef<HTMLDivElement>(null);
@@ -88,36 +86,6 @@ export const Header: React.FC<HeaderProps> = ({
     };
   }, []);
 
-  const fetchUnreadCount = async () => {
-    try {
-      const notifs = await api.getNotifications();
-      if (Array.isArray(notifs)) {
-        setUnreadNotifCount(notifs.filter((n) => !n.isRead).length);
-      }
-    } catch (e) {
-      // quiet fallback
-    }
-  };
-
-  useEffect(() => {
-    fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 15000);
-
-    const handleUpdated = (e: Event) => {
-      const customEvent = e as CustomEvent<{ count?: number }>;
-      if (customEvent.detail && typeof customEvent.detail.count === 'number') {
-        setUnreadNotifCount(customEvent.detail.count);
-      }
-      fetchUnreadCount();
-    };
-
-    window.addEventListener('notifications-updated', handleUpdated);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('notifications-updated', handleUpdated);
-    };
-  }, [user]);
-
   const roleConfigs: Record<
     UserRole,
     { label: string; shortLabel: string; icon: React.ComponentType<{ className?: string }> }
@@ -137,7 +105,7 @@ export const Header: React.FC<HeaderProps> = ({
     { role: 'SUPER_ADMIN' as UserRole, name: 'System Admin', title: 'Super Admin', userId: 'usr_sa', icon: Shield },
     { role: 'HR' as UserRole, name: 'Frank HR Manager', title: 'HR Manager', userId: 'usr_mgr_hr', icon: UserCheck },
     { role: 'MANAGER' as UserRole, name: 'Dave Eng Manager', title: 'Reporting Manager', userId: 'usr_mgr_eng', icon: Briefcase },
-    { role: 'HOD' as UserRole, name: 'Alice Engineering HOD', title: 'Dept Head (HOD)', userId: 'usr_hod_eng', icon: Building2 },
+    { role: 'HOD' as UserRole, name: 'Nikhilesh Srivastava', title: 'Dept Head (HOD)', userId: 'usr_hod_nikhilesh', icon: Building2 },
     { role: 'MANAGEMENT' as UserRole, name: 'Executive Management', title: 'C-Suite / Board', userId: 'usr_mgmt_persona', icon: Sparkles },
     { role: 'EMPLOYEE' as UserRole, name: 'Grace Engineer', title: 'Employee (ESS)', userId: 'usr_com_1', icon: Layers },
   ];
@@ -471,16 +439,6 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Automated Notifications Drawer */}
-        <NotificationHubDrawer
-          isOpen={isNotificationOpen}
-          onClose={() => {
-            setIsNotificationOpen(false);
-            fetchUnreadCount();
-          }}
-          currentUser={user}
-          onNavigate={onNavigate}
-        />
       </header>
 
       {/* Mobile Bottom Navigation Bar (Visible only on Mobile screens < md) */}

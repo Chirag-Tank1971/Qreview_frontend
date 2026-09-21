@@ -43,6 +43,12 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Accurate eligible-employee count, sourced from the same filtering the backend actually
+  // uses to generate reviews (status/department/cycle + already-has-a-review + tenure) —
+  // never computed client-side, so it can't drift from what generation actually does.
+  const [eligiblePreview, setEligiblePreview] = useState<{ eligibleCount: number; skippedExisting: number; skippedTenure: number; skippedNoKra: number } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
   useEffect(() => {
     if (!isOpen) return;
     const origOverflow = document.body.style.overflow;
@@ -67,21 +73,40 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
     }
   }, [periods]);
 
-  // Calculate target employee count
-  const selectedCycle = cycles.find((c) => c.id === selectedCycleId);
-  const eligibleEmployees = employees.filter((emp) => {
-    if (emp.status !== 'ACTIVE' && emp.status !== 'PROBATION') return false;
-    if (selectedDepartmentId !== 'ALL' && emp.departmentId !== selectedDepartmentId) return false;
-    if (
-      selectedCycleId !== 'ALL' &&
-      emp.cycleId !== selectedCycleId &&
-      (!selectedCycle || emp.cycleCode !== selectedCycle.code)
-    ) {
-      return false;
+  // Accurate eligible count from the backend — mirrors the exact same status/department/
+  // cycle/existing-review/tenure filtering the generate-batch route uses, so this number
+  // always matches what generation will actually do (a purely client-side status+dept+cycle
+  // filter previously overcounted employees who already had a review for this period, or
+  // who fail the minimum-tenure check).
+  useEffect(() => {
+    if (!selectedPeriodId) {
+      setEligiblePreview(null);
+      return;
     }
-    return true;
-  });
+    let cancelled = false;
+    setPreviewLoading(true);
+    api
+      .previewBatchReviews({
+        reviewPeriodId: selectedPeriodId,
+        departmentId: selectedDepartmentId !== 'ALL' ? selectedDepartmentId : undefined,
+        cycleId: selectedCycleId !== 'ALL' ? selectedCycleId : undefined,
+        overrideExisting,
+      })
+      .then((res) => {
+        if (!cancelled) setEligiblePreview(res);
+      })
+      .catch(() => {
+        if (!cancelled) setEligiblePreview(null);
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPeriodId, selectedDepartmentId, selectedCycleId, overrideExisting]);
 
+  const eligibleCount = eligiblePreview?.eligibleCount ?? 0;
   const selectedPeriod = periods.find((p) => p.id === selectedPeriodId);
 
   const handleGenerate = async (e: React.FormEvent) => {
@@ -253,10 +278,23 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
                 <Users className="w-4 h-4 text-slate-600 dark:text-slate-400" />
                 <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Eligible Employees in Scope:</span>
               </div>
-              <span className="text-sm font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-800 px-2.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-700 shadow-2xs">
-                {eligibleEmployees.length} employees
-              </span>
+              {previewLoading ? (
+                <RotateCw className="w-3.5 h-3.5 text-slate-400 animate-spin" />
+              ) : (
+                <span className="text-sm font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-800 px-2.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  {eligibleCount} employees
+                </span>
+              )}
             </div>
+            {!previewLoading && eligiblePreview && (eligiblePreview.skippedExisting > 0 || eligiblePreview.skippedTenure > 0 || eligiblePreview.skippedNoKra > 0) && (
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 -mt-2">
+                {eligiblePreview.skippedExisting > 0 && (
+                  <>{eligiblePreview.skippedExisting} already have a review for this period{!overrideExisting ? ' (unchecked "Re-snapshot" above skips them)' : ''}. </>
+                )}
+                {eligiblePreview.skippedNoKra > 0 && <>{eligiblePreview.skippedNoKra} have no KRA scorecard assigned yet. </>}
+                {eligiblePreview.skippedTenure > 0 && <>{eligiblePreview.skippedTenure} don't yet meet the minimum tenure for this quarter.</>}
+              </p>
+            )}
           </div>
 
           {/* FOOTER */}
@@ -270,7 +308,7 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
             </button>
             <button
               type="submit"
-              disabled={loading || eligibleEmployees.length === 0}
+              disabled={loading || previewLoading || eligibleCount === 0}
               className="px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
@@ -281,7 +319,7 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
               ) : (
                 <>
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Generate {eligibleEmployees.length} Reviews</span>
+                  <span>Generate {eligibleCount} Reviews</span>
                 </>
               )}
             </button>

@@ -22,6 +22,10 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
+// Must match the CSS animation-duration of .animate-toast-out in index.css — the toast is
+// only actually removed from state once its slide-out animation has finished playing.
+const EXIT_ANIMATION_MS = 200;
+
 // Standalone global dispatcher so toasts can be triggered even outside React component trees
 let globalToastDispatcher: ToastContextType | null = null;
 
@@ -38,7 +42,11 @@ export const toast = {
 
 export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  // Toasts currently mid slide-out — still rendered (so the exit animation can play) but
+  // no longer "live" (their auto-dismiss timer has already fired or been cancelled).
+  const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
   const timersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const exitTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   const removeToast = useCallback((id: string) => {
     const existingTimer = timersRef.current.get(id);
@@ -46,7 +54,22 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       clearTimeout(existingTimer);
       timersRef.current.delete(id);
     }
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+
+    // Already leaving (e.g. close button double-clicked) — don't restart the exit animation.
+    if (exitTimersRef.current.has(id)) return;
+
+    setLeavingIds((prev) => new Set(prev).add(id));
+    const exitTimer = setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+      setLeavingIds((prev) => {
+        if (!prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      exitTimersRef.current.delete(id);
+    }, EXIT_ANIMATION_MS);
+    exitTimersRef.current.set(id, exitTimer);
   }, []);
 
   const showToast = useCallback(
@@ -130,9 +153,9 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           <div
             key={t.id}
             role="alert"
-            className={`pointer-events-auto border rounded-2xl shadow-2xl p-4 flex items-start gap-3 backdrop-blur-md transition-all duration-300 transform translate-y-0 animate-in fade-in slide-in-from-top-4 ${getBorderColor(
-              t.type
-            )}`}
+            className={`pointer-events-auto border rounded-2xl shadow-2xl p-4 flex items-start gap-3 backdrop-blur-md ${
+              leavingIds.has(t.id) ? 'animate-toast-out' : 'animate-toast-in'
+            } ${getBorderColor(t.type)}`}
           >
             {getIcon(t.type)}
             <div className="flex-1 min-w-0 pr-1">

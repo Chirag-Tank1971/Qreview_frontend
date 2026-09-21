@@ -872,6 +872,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               const isPendingMyAction =
                 ((currentUser?.role === 'REPORTING_MANAGER' || currentUser?.role === 'MANAGER') && r.status === 'MANAGER_PENDING') ||
                 (currentUser?.role === 'HOD' && r.status === 'HOD_PENDING' && r.hodId === currentUser?.employeeId);
+              const scoredKraCount = r.kraSnapshot?.filter((k) => (k.rating || 0) > 0).length || 0;
               return (
                 <div
                   key={r.id}
@@ -931,7 +932,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                             Scored KRAs
                           </span>
                           <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                            {r.kraScores?.length || 0} / {r.kraSnapshot?.length || 0}
+                            {scoredKraCount} / {r.kraSnapshot?.length || 0}
                           </span>
                         </div>
                       </div>
@@ -947,7 +948,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                           style={{
                             width: `${
                               r.kraSnapshot?.length
-                                ? Math.round(((r.kraScores?.length || 0) / r.kraSnapshot.length) * 100)
+                                ? Math.round((scoredKraCount / r.kraSnapshot.length) * 100)
                                 : 0
                             }%`,
                           }}

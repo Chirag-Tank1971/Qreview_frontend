@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { NotificationsProvider } from './context/NotificationsContext';
 import { Header } from './components/Header';
 import { LoginPage } from './components/LoginPage';
 import { LoginModal } from './components/LoginModal';
@@ -13,7 +14,8 @@ import { useMasterData } from './hooks/useMasterData';
 import { useUrlHashView, AppView, isViewPermitted } from './hooks/useUrlHashView';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Sidebar } from './components/ui/Sidebar';
-import { KraTemplate } from './types';
+import { KraTemplate, Employee } from './types';
+import type { CustomKraRow } from './components/CustomKraScorecardModal';
 import { ReviewViewConfig } from './components/QuarterlyReviewView';
 import { AppraisalViewConfig } from './components/AppraisalManagementView';
 import { EmployeePortalConfig } from './components/EmployeePortalView';
@@ -68,6 +70,9 @@ const KraTemplateBuilderModal = lazy(() =>
 );
 const KraLibraryModal = lazy(() =>
   import('./components/KraLibraryModal').then((m) => ({ default: m.KraLibraryModal }))
+);
+const AssignKraModal = lazy(() =>
+  import('./components/AssignKraModal').then((m) => ({ default: m.AssignKraModal }))
 );
 
 const VIEW_META: Record<string, { title: string; subtitle: string; tag: string; tagColor: string }> = {
@@ -151,7 +156,7 @@ function AppContent() {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   // Synchronized URL Hash Navigation
-  const { currentView, setView } = useUrlHashView();
+  const { currentView, setView, isPending: isViewPending } = useUrlHashView();
 
   // View-specific configurations for direct workflow navigation
   const [appraisalConfig, setAppraisalConfig] = useState<AppraisalViewConfig | null>(null);
@@ -187,6 +192,11 @@ function AppContent() {
   const [isTemplateBuilderOpen, setIsTemplateBuilderOpen] = useState(false);
   const [isKraLibraryOpen, setIsKraLibraryOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<KraTemplate | null>(null);
+
+  // Assign/Edit Employee-Owned KRA Scorecard Modal State
+  const [isAssignKraModalOpen, setIsAssignKraModalOpen] = useState(false);
+  const [assignKraTargetEmployee, setAssignKraTargetEmployee] = useState<Employee | null>(null);
+  const [assignKraInitialRows, setAssignKraInitialRows] = useState<CustomKraRow[]>([]);
 
   const canManageKras = user?.role === 'SUPER_ADMIN' || user?.role === 'HR';
 
@@ -239,7 +249,7 @@ function AppContent() {
   return (
     <div className="h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
       {/* Universal GPU-Accelerated Page Loading Bar */}
-      <PageLoadingProgress currentView={currentView} />
+      <PageLoadingProgress active={isViewPending} />
 
       {/* Unified Enterprise Header */}
       <Header
@@ -271,7 +281,7 @@ function AppContent() {
           onSelectView={handleNavigate}
         />
 
-        <div className="flex flex-col flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden">
+        <div className="flex flex-col flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden scroll-smooth">
           {/* Main Content Area - Full width enterprise canvas */}
           <main className="flex-1 w-full pl-2 sm:pl-3 pr-4 sm:pr-6 lg:pr-8 pt-4 pb-20 md:pb-10">
           {/* Notifications Return-to-Workspace Bar */}
@@ -333,7 +343,7 @@ function AppContent() {
                     initialConfig={reportsConfig}
                   />
                 ) : currentView === 'bulk' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
-                  <BulkImportExportManager currentUser={user} />
+                  <BulkImportExportManager currentUser={user} onDataImported={refreshMasterData} />
                 ) : currentView === 'audit' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
                   <AuditComplianceExplorer currentUser={user} />
                 ) : currentView === 'notifications' ? (
@@ -350,14 +360,43 @@ function AppContent() {
                     employees={employees}
                     canManage={canManageKras}
                     onOpenCreateTemplate={() => {
-                      setEditingTemplate(null);
-                      setIsTemplateBuilderOpen(true);
+                      // New scorecards are always employee-owned now — open the
+                      // employee-picker + Custom Scorecard builder instead of the old
+                      // department/designation-scoped template creator.
+                      setAssignKraTargetEmployee(null);
+                      setAssignKraInitialRows([]);
+                      setIsAssignKraModalOpen(true);
                     }}
                     onOpenEditTemplate={(tmpl) => {
-                      setEditingTemplate(tmpl);
-                      setIsTemplateBuilderOpen(true);
+                      if (tmpl.employeeId) {
+                        // Employee-owned scorecard — edit it through the same
+                        // Custom Scorecard flow so orphan cleanup / ownership
+                        // invariants stay consistent with the rest of the app.
+                        const owner = employees.find((e) => e.id === tmpl.employeeId) || null;
+                        setAssignKraTargetEmployee(owner);
+                        setAssignKraInitialRows(
+                          (tmpl.items || []).map((it, idx) => ({
+                            id: it.id || `kra_existing_${idx}`,
+                            title: it.title || '',
+                            weight: it.weight ?? 0,
+                            target: it.target || '100% Target SLA',
+                            description: it.description,
+                            measurementCriteria: it.measurementCriteria,
+                          }))
+                        );
+                        setIsAssignKraModalOpen(true);
+                      } else {
+                        // Shared/library blueprint — keep the classic template editor.
+                        setEditingTemplate(tmpl);
+                        setIsTemplateBuilderOpen(true);
+                      }
                     }}
                     onOpenLibrary={() => setIsKraLibraryOpen(true)}
+                    onQuickAssign={(emp) => {
+                      setAssignKraTargetEmployee(emp);
+                      setAssignKraInitialRows([]);
+                      setIsAssignKraModalOpen(true);
+                    }}
                   />
                 ) : currentView === 'employees' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
                   <EmployeeDirectory
@@ -467,6 +506,22 @@ function AppContent() {
             onClose={() => setIsKraLibraryOpen(false)}
           />
         )}
+
+        {isAssignKraModalOpen && (
+          <AssignKraModal
+            isOpen={isAssignKraModalOpen}
+            onClose={() => {
+              setIsAssignKraModalOpen(false);
+              setAssignKraTargetEmployee(null);
+              setAssignKraInitialRows([]);
+            }}
+            employees={employees}
+            cycles={cycles}
+            preselectedEmployee={assignKraTargetEmployee}
+            initialKras={assignKraInitialRows}
+            onAssigned={refreshMasterData}
+          />
+        )}
       </Suspense>
     </div>
   );
@@ -477,7 +532,9 @@ export default function App() {
     <ThemeProvider>
       <ToastProvider>
         <AuthProvider>
-          <AppContent />
+          <NotificationsProvider>
+            <AppContent />
+          </NotificationsProvider>
         </AuthProvider>
       </ToastProvider>
     </ThemeProvider>

@@ -25,15 +25,18 @@ import {
   UserCheck,
   Send,
   AlertTriangle,
+  Award,
 } from 'lucide-react';
 import {
   Step1SelfSection,
   Step2ManagerSection,
+  Step3HodScoringSection,
   Step3HodSection,
   ScoreSummaryBar,
   StatusRemarksModal,
   AuditTrailDrawer,
 } from './reviews/ReviewScoringModal';
+import { ReviewLetterModal } from './ReviewLetterModal';
 
 export interface ReviewScoringModalProps {
   review: EmployeeReview | null;
@@ -50,7 +53,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
   onClose,
   onSaved,
 }) => {
-  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
   const [snapshots, setSnapshots] = useState<ReviewKraSnapshot[]>([]);
   const [strengths, setStrengths] = useState('');
   const [improvements, setImprovements] = useState('');
@@ -60,8 +63,10 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
   const [statusModalRemarks, setStatusModalRemarks] = useState('');
   const [showStatusModal, setShowStatusModal] = useState<ReviewStatus | null>(null);
   const [isHodReturnFlow, setIsHodReturnFlow] = useState(false);
-  const [hodComments, setHodComments] = useState('');
+  const [hodOverallComments, setHodOverallComments] = useState('');
+  const [hrReturnTarget, setHrReturnTarget] = useState<'MANAGER' | 'HOD'>('MANAGER');
   const [showAuditModal, setShowAuditModal] = useState(false);
+  const [showLetterModal, setShowLetterModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuccessNote, setAiSuccessNote] = useState('');
@@ -106,27 +111,32 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
           rating: s.rating || 0,
           achievement: s.achievement || '',
           comments: s.comments || '',
+          hodRating: s.hodRating || 0,
+          hodAchievement: s.hodAchievement || '',
+          hodComments: s.hodComments || '',
         }))
       );
       setStrengths(review.strengths || '');
       setImprovements(review.improvements || '');
       setManagerComments(review.managerOverallComments || '');
+      setHodOverallComments(review.hodOverallComments || '');
       setHrComments(review.hrComments || '');
       setEmployeeComments(review.employeeComments || '');
+      setHrReturnTarget('MANAGER');
       setErrorMessage('');
       setSuccessMessage('');
       setAiSuccessNote('');
 
       // Determine initial wizard step:
-      if (
+      if (review.status === 'HOD_PENDING') {
+        setWizardStep(3);
+      } else if (
         review.status === 'HR_PENDING' ||
         review.status === 'HR_COMPLETED' ||
-        review.status === 'HOD_PENDING' ||
-        review.status === 'CLOSED'
+        review.status === 'CLOSED' ||
+        review.status === 'MANAGER_COMPLETED'
       ) {
-        setWizardStep(3);
-      } else if (review.status === 'MANAGER_COMPLETED') {
-        setWizardStep(3);
+        setWizardStep(4);
       } else if (review.selfSubmittedAt) {
         setWizardStep(1);
       } else {
@@ -159,6 +169,29 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
     return snapshots.filter((s) => !s.rating || s.rating === 0).length;
   }, [snapshots]);
 
+  // HOD's own live weighted score, tier, and unrated count — fully independent of the Manager's.
+  const computedHodScore = useMemo(() => {
+    let sum = 0;
+    snapshots.forEach((item) => {
+      const r = item.hodRating || 0;
+      const w = item.weight || 0;
+      sum += (r * w) / 100;
+    });
+    return Number(sum.toFixed(2));
+  }, [snapshots]);
+
+  const hodScoreTier = useMemo(() => {
+    if (computedHodScore === 0) return { label: 'Unscored', color: 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700' };
+    if (computedHodScore >= 4.5) return { label: 'Outstanding (5/5 Tier)', color: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800' };
+    if (computedHodScore >= 3.5) return { label: 'Exceeds Expectations', color: 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800' };
+    if (computedHodScore >= 2.5) return { label: 'Meets Expectations', color: 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800' };
+    return { label: 'Needs Improvement', color: 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800' };
+  }, [computedHodScore]);
+
+  const unratedHodCount = useMemo(() => {
+    return snapshots.filter((s) => !s.hodRating || s.hodRating === 0).length;
+  }, [snapshots]);
+
   if (!isOpen || !review) return null;
 
   // Permissions: Only assigned Reporting Manager or HR / Super Admin can score and edit KRA ratings.
@@ -174,23 +207,33 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
 
   // Detect if user has entered unsaved scores, notes, or commentary
   const hasUnsavedChanges = useMemo(() => {
-    if (!canEdit || !review) return false;
-    if (strengths !== (review.strengths || '')) return true;
-    if (improvements !== (review.improvements || '')) return true;
-    if (managerComments !== (review.managerOverallComments || '')) return true;
-    if (hrComments !== (review.hrComments || '')) return true;
-    if (employeeComments !== (review.employeeComments || '')) return true;
+    if (!review || (!canEdit && !canHodAct)) return false;
+    if (canEdit) {
+      if (strengths !== (review.strengths || '')) return true;
+      if (improvements !== (review.improvements || '')) return true;
+      if (managerComments !== (review.managerOverallComments || '')) return true;
+      if (hrComments !== (review.hrComments || '')) return true;
+      if (employeeComments !== (review.employeeComments || '')) return true;
+    }
+    if (canHodAct && hodOverallComments !== (review.hodOverallComments || '')) return true;
 
     const origMap = new Map((review.kraSnapshot || []).map((k) => [k.id, k]));
     for (const s of snapshots) {
       const orig = origMap.get(s.id) as any;
       if (!orig) return true;
-      if ((s.rating || 0) !== (orig.rating || 0)) return true;
-      if ((s.achievement || '') !== (orig.achievement || '')) return true;
-      if ((s.comments || '') !== (orig.comments || '')) return true;
+      if (canEdit) {
+        if ((s.rating || 0) !== (orig.rating || 0)) return true;
+        if ((s.achievement || '') !== (orig.achievement || '')) return true;
+        if ((s.comments || '') !== (orig.comments || '')) return true;
+      }
+      if (canHodAct) {
+        if ((s.hodRating || 0) !== (orig.hodRating || 0)) return true;
+        if ((s.hodAchievement || '') !== (orig.hodAchievement || '')) return true;
+        if ((s.hodComments || '') !== (orig.hodComments || '')) return true;
+      }
     }
     return false;
-  }, [canEdit, strengths, improvements, managerComments, hrComments, employeeComments, snapshots, review]);
+  }, [canEdit, canHodAct, strengths, improvements, managerComments, hrComments, employeeComments, hodOverallComments, snapshots, review]);
 
   const handleAttemptClose = () => {
     if (hasUnsavedChanges) {
@@ -360,6 +403,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
       await api.updateReviewStatus(review.id, {
         status: newStatus,
         remarks: statusModalRemarks || defaultRemarks,
+        target: newStatus === 'RETURNED' ? hrReturnTarget : undefined,
       });
 
       setShowStatusModal(null);
@@ -369,6 +413,8 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
           ? 'Review successfully finalized, locked, and closed!'
           : newStatus === 'HR_COMPLETED'
           ? 'Review successfully approved by HR!'
+          : newStatus === 'RETURNED'
+          ? `Review returned to ${hrReturnTarget === 'HOD' ? review.hodName || 'HOD' : review.managerName} for recalibration.`
           : `Review status updated to ${newStatus}`;
       setSuccessMessage(succMsg);
       toast.success(succMsg, 'Workflow Updated');
@@ -384,20 +430,53 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
     }
   };
 
-  // HOD approves the manager's submitted assessment. Transitions: HOD_PENDING -> HR_PENDING
-  const handleHodApprove = async () => {
+  // HOD saves or submits their own independent KRA-by-KRA scoring.
+  // On submit, transitions: HOD_PENDING -> HR_PENDING (finalScore becomes the average of
+  // the Manager's and HOD's own scores; the Manager's score/fields are never touched).
+  const handleSaveHodScores = async (isDraft: boolean) => {
     setSaving(true);
     setErrorMessage('');
+    setSuccessMessage('');
+
+    if (review?.employeeStatus === 'INACTIVE') {
+      const msg = 'Cannot submit evaluation for an inactive/offboarded employee.';
+      setErrorMessage(msg);
+      toast.error(msg, 'Action Restricted');
+      setSaving(false);
+      return;
+    }
+
+    if (!isDraft) {
+      const unrated = snapshots.some((s) => !s.hodRating || s.hodRating === 0);
+      if (unrated) {
+        const msg = 'All KRA items must be assigned an HOD rating (1-5) before submitting to HR.';
+        setErrorMessage(msg);
+        toast.warning(msg, 'Incomplete Ratings');
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
-      await api.hodApproveReview(review.id, { hodComments });
-      const succMsg = `Review approved and forwarded to HR for ${review.employeeName}.`;
+      await api.hodApproveReview(review.id, {
+        kraSnapshot: snapshots,
+        hodOverallComments,
+        isDraft,
+      });
+      const succMsg = isDraft
+        ? 'HOD scoring draft saved successfully.'
+        : `Independent HOD scoring submitted and forwarded to HR for ${review.employeeName}.`;
       setSuccessMessage(succMsg);
-      toast.success(succMsg, 'Review Approved');
+      if (isDraft) {
+        toast.info(succMsg, 'Draft Saved');
+      } else {
+        toast.success(succMsg, 'Review Approved');
+      }
       setTimeout(() => {
         onSaved();
       }, 600);
     } catch (err: any) {
-      const errMsg = err.message || 'Failed to approve review.';
+      const errMsg = err.message || 'Failed to save HOD scoring.';
       setErrorMessage(errMsg);
       toast.error(errMsg, 'Approval Error');
     } finally {
@@ -439,6 +518,31 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
   const handlePrint = () => {
     window.print();
   };
+
+  // Derive which "returned" banner (if any) applies to the current state — status alone is
+  // ambiguous for MANAGER_PENDING (fresh vs. HOD-returned) and HOD_PENDING (fresh vs.
+  // HR-returned-to-HOD), so the last relevant action in the audit trail disambiguates.
+  const lastAction = [...(review.actionHistory || [])].reverse().find((a) => a.action !== 'DRAFT_SAVED');
+  const returnBadge: { by: 'HOD' | 'HR'; recipient: string; message: string } | null =
+    review.status === 'RETURNED'
+      ? {
+          by: 'HR',
+          recipient: review.managerName,
+          message: `This evaluation was sent back by HR for the Manager to adjust. Please check the feedback remarks in the Audit Trail, revise scoring on Step 2, and resubmit — it will go straight back to HR without another HOD pass.`,
+        }
+      : review.status === 'MANAGER_PENDING' && lastAction?.action === 'HOD_RETURNED'
+      ? {
+          by: 'HOD',
+          recipient: review.managerName,
+          message: `This evaluation was sent back by the HOD for the Manager to adjust. Please check the feedback remarks in the Audit Trail, revise scoring on Step 2, and resubmit — it will go back to the HOD as usual.`,
+        }
+      : review.status === 'HOD_PENDING' && lastAction?.action === 'RETURNED' && lastAction?.returnTarget === 'HOD'
+      ? {
+          by: 'HR',
+          recipient: review.hodName || 'HOD',
+          message: `This evaluation was sent back by HR for the HOD to recalibrate their own scoring. Once submitted, it will go straight back to HR without another Manager pass.`,
+        }
+      : null;
 
   return createPortal(
     <div
@@ -485,6 +589,16 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
           </div>
 
           <div className="flex items-center space-x-2">
+            {review.isClosed && (
+              <button
+                onClick={() => setShowLetterModal(true)}
+                title="View Quarterly Review Letter"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-xs transition-colors cursor-pointer"
+              >
+                <Award className="w-3.5 h-3.5" />
+                <span>View Letter</span>
+              </button>
+            )}
             <button
               onClick={handlePrint}
               title="Print Review Sheet"
@@ -515,20 +629,20 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
         )}
 
         {/* REVIEW RETURNED BANNER */}
-        {review.status === 'RETURNED' && (
+        {returnBadge && (
           <div className="mx-6 mt-3 px-4 py-3 bg-rose-50/90 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/80 text-rose-900 dark:text-rose-200 text-xs rounded-xl flex items-start gap-3 shadow-xs">
             <div className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 flex items-center justify-center shrink-0 mt-0.5">
               <RotateCcw className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <span className="font-bold text-xs">Review Returned for Recalibration</span>
+                <span className="font-bold text-xs">Returned by {returnBadge.by} — Awaiting {returnBadge.recipient}</span>
                 <span className="text-[10px] bg-rose-200/60 dark:bg-rose-900/60 text-rose-800 dark:text-rose-300 px-2 py-0.5 rounded-md font-medium">
                   Needs Revision
                 </span>
               </div>
               <p className="text-rose-800 dark:text-rose-300 text-[11px] mt-0.5 leading-relaxed">
-                This evaluation was sent back for adjustments. Please check the feedback remarks in Step 3 or review the <strong>Audit Trail</strong> for notes, adjust the scoring or commentary, and resubmit.
+                {returnBadge.message}
               </p>
             </div>
           </div>
@@ -599,7 +713,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
 
             <span className="text-slate-300 dark:text-slate-600">➔</span>
 
-            {/* Step 3 */}
+            {/* Step 3: HOD Scoring */}
             <button
               type="button"
               onClick={() => setWizardStep(3)}
@@ -610,9 +724,32 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               }`}
             >
               <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                wizardStep === 3 ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                wizardStep === 3 ? 'bg-violet-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
               }`}>
                 3
+              </span>
+              <span>HOD Scoring</span>
+              <span className="text-[10px] font-mono font-bold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/50 px-1.5 py-0.2 rounded-md border border-violet-200 dark:border-violet-800">
+                {computedHodScore.toFixed(2)} ★
+              </span>
+            </button>
+
+            <span className="text-slate-300 dark:text-slate-600">➔</span>
+
+            {/* Step 4 */}
+            <button
+              type="button"
+              onClick={() => setWizardStep(4)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                wizardStep === 4
+                  ? 'bg-white dark:bg-slate-750 text-indigo-950 dark:text-white shadow-xs font-bold border border-slate-200 dark:border-slate-700 ring-1 ring-black/5'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                wizardStep === 4 ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+              }`}>
+                4
               </span>
               <span>Growth & Sign-Off</span>
             </button>
@@ -637,11 +774,38 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
         </div>
 
         {/* LIVE SCORE BANNER */}
-        {wizardStep >= 2 && (
+        {wizardStep === 2 && (
           <ScoreSummaryBar
             computedScore={computedScore}
             scoreTier={scoreTier}
             unratedCount={unratedCount}
+          />
+        )}
+        {wizardStep === 3 && (
+          <ScoreSummaryBar
+            computedScore={computedHodScore}
+            scoreTier={hodScoreTier}
+            unratedCount={unratedHodCount}
+          />
+        )}
+        {wizardStep === 4 && (
+          <ScoreSummaryBar
+            computedScore={
+              review.hodScore != null ? Number(((computedScore + review.hodScore) / 2).toFixed(2)) : computedScore
+            }
+            scoreTier={
+              review.hodScore != null
+                ? (() => {
+                    const s = Number(((computedScore + review.hodScore) / 2).toFixed(2));
+                    if (s === 0) return { label: 'Unscored', color: 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700' };
+                    if (s >= 4.5) return { label: 'Outstanding (5/5 Tier)', color: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800' };
+                    if (s >= 3.5) return { label: 'Exceeds Expectations', color: 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800' };
+                    if (s >= 2.5) return { label: 'Meets Expectations', color: 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800' };
+                    return { label: 'Needs Improvement', color: 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800' };
+                  })()
+                : scoreTier
+            }
+            unratedCount={0}
           />
         )}
 
@@ -661,6 +825,16 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
           )}
 
           {wizardStep === 3 && (
+            <Step3HodScoringSection
+              snapshots={snapshots}
+              canHodScore={canHodAct}
+              onKraChange={handleKraChange}
+              hodOverallComments={hodOverallComments}
+              setHodOverallComments={setHodOverallComments}
+            />
+          )}
+
+          {wizardStep === 4 && (
             <Step3HodSection
               review={review}
               computedScore={computedScore}
@@ -674,9 +848,6 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               setHrComments={setHrComments}
               canEdit={canEdit}
               isHrOrAdmin={isHrOrAdmin}
-              canHodAct={canHodAct}
-              hodComments={hodComments}
-              setHodComments={setHodComments}
               saving={saving}
               aiLoading={aiLoading}
               aiSuccessNote={aiSuccessNote}
@@ -690,15 +861,18 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
         <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 flex flex-wrap items-center justify-between gap-3">
           {/* Status Transitions for HR / Admin */}
           <div className="flex items-center space-x-2">
-            {isHrOrAdmin && !review.isClosed && (
+            {isHrOrAdmin && !review.isClosed && review.status === 'HR_PENDING' && (
               <button
                 type="button"
-                onClick={() => setShowStatusModal('RETURNED')}
+                onClick={() => {
+                  setHrReturnTarget('MANAGER');
+                  setShowStatusModal('RETURNED');
+                }}
                 className="px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors flex items-center space-x-1 cursor-pointer"
-                title="Return review to reporting manager for revisions"
+                title="Return review to the Manager or HOD for recalibration"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Return to Manager</span>
+                <span>Return for Recalibration</span>
               </button>
             )}
           </div>
@@ -716,7 +890,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
             {wizardStep > 1 && (
               <button
                 type="button"
-                onClick={() => setWizardStep((prev) => (prev - 1) as 1 | 2 | 3)}
+                onClick={() => setWizardStep((prev) => (prev - 1) as 1 | 2 | 3 | 4)}
                 className="px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl transition-colors flex items-center space-x-1 cursor-pointer"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
@@ -724,10 +898,52 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               </button>
             )}
 
-            {wizardStep < 3 ? (
+            {wizardStep === 3 && canHodAct ? (
+              review.employeeStatus === 'INACTIVE' ? (
+                <div className="text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-3 py-2 rounded-xl border border-rose-200 dark:border-rose-800">
+                  Evaluation submission disabled (Employee Inactive)
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => handleSaveHodScores(true)}
+                    className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Save Draft</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => {
+                      setIsHodReturnFlow(true);
+                      setStatusModalRemarks('');
+                      setShowStatusModal('MANAGER_PENDING');
+                    }}
+                    className="px-3.5 py-2 text-xs font-bold text-amber-800 dark:text-amber-200 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-800 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Return to Manager</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => handleSaveHodScores(false)}
+                    className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Submit to HR</span>
+                  </button>
+                </div>
+              )
+            ) : wizardStep < 4 ? (
               <button
                 type="button"
-                onClick={() => setWizardStep((prev) => (prev + 1) as 1 | 2 | 3)}
+                onClick={() => setWizardStep((prev) => (prev + 1) as 1 | 2 | 3 | 4)}
                 className="px-4 py-2 text-xs font-bold text-white bg-slate-900 dark:bg-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
               >
                 <span>Continue to Step {wizardStep + 1}</span>
@@ -795,32 +1011,6 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                   </button>
                 </>
               )
-            ) : canHodAct ? (
-              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => {
-                    setIsHodReturnFlow(true);
-                    setStatusModalRemarks('');
-                    setShowStatusModal('MANAGER_PENDING');
-                  }}
-                  className="px-3.5 py-2 text-xs font-bold text-amber-800 dark:text-amber-200 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-800 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Return to Manager</span>
-                </button>
-
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={handleHodApprove}
-                  className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer"
-                >
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>Approve Review</span>
-                </button>
-              </div>
             ) : null}
           </div>
         </div>
@@ -840,6 +1030,10 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
             isHodReturnFlow ? handleHodReturn(statusModalRemarks) : handleStatusTransition(st)
           }
           saving={saving}
+          showTargetSelector={!isHodReturnFlow && showStatusModal === 'RETURNED'}
+          returnTarget={hrReturnTarget}
+          setReturnTarget={setHrReturnTarget}
+          hodAvailable={Boolean(review.hodId)}
         />
 
         {/* AUDIT TRAIL DRAWER OVERLAY */}
@@ -848,6 +1042,15 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
           onClose={() => setShowAuditModal(false)}
           review={review}
         />
+
+        {/* QUARTERLY REVIEW LETTER OVERLAY */}
+        {review.isClosed && (
+          <ReviewLetterModal
+            isOpen={showLetterModal}
+            onClose={() => setShowLetterModal(false)}
+            review={review}
+          />
+        )}
 
         {/* UNSAVED CHANGES CONFIRMATION ALERT */}
         {showUnsavedAlert && (
@@ -895,7 +1098,11 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                   disabled={saving}
                   onClick={async () => {
                     setShowUnsavedAlert(false);
-                    await handleSaveScores(true);
+                    if (canHodAct) {
+                      await handleSaveHodScores(true);
+                    } else {
+                      await handleSaveScores(true);
+                    }
                   }}
                   className="w-full sm:w-auto px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
                 >

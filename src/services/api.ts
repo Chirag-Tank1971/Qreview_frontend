@@ -698,6 +698,27 @@ export const api = {
     return res.json();
   },
 
+  async previewBatchReviews(params: {
+    reviewPeriodId: string;
+    departmentId?: string;
+    cycleId?: string;
+    overrideExisting?: boolean;
+  }): Promise<{ eligibleCount: number; skippedExisting: number; skippedTenure: number; skippedNoKra: number }> {
+    const query = new URLSearchParams({ reviewPeriodId: params.reviewPeriodId });
+    if (params.departmentId) query.set('departmentId', params.departmentId);
+    if (params.cycleId) query.set('cycleId', params.cycleId);
+    if (params.overrideExisting) query.set('overrideExisting', 'true');
+
+    const res = await fetch(`${API_BASE}/reviews/generate-batch/preview?${query.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to preview eligible employees' }));
+      throw new Error(err.error || 'Failed to preview eligible employees');
+    }
+    return res.json();
+  },
+
   async checkReviewEligibility(employeeId: string, reviewPeriodId: string): Promise<{
     eligible: boolean;
     canInitiateManually: boolean;
@@ -797,6 +818,8 @@ export const api = {
     data: {
       status: ReviewStatus;
       remarks?: string;
+      /** Only meaningful when status === 'RETURNED' — who HR is returning the review to. Defaults to Manager. */
+      target?: 'MANAGER' | 'HOD';
     }
   ): Promise<EmployeeReview> {
     invalidateApiCache('/reviews');
@@ -814,7 +837,15 @@ export const api = {
     return res.json();
   },
 
-  async hodApproveReview(id: string, data?: { hodComments?: string }): Promise<EmployeeReview> {
+  async hodApproveReview(
+    id: string,
+    data?: {
+      kraSnapshot?: ReviewKraSnapshot[];
+      hodOverallComments?: string;
+      hodComments?: string;
+      isDraft?: boolean;
+    }
+  ): Promise<EmployeeReview> {
     invalidateApiCache('/reviews');
     invalidateApiCache('/notifications');
     const res = await fetch(`${API_BASE}/reviews/${id}/hod-approve`, {
@@ -1113,11 +1144,25 @@ export const api = {
 
   // Automated Notifications & Workflow Hub (Phase 5)
   async getNotifications(): Promise<any[]> {
-    const res = await fetchWithAutoRefresh(`${API_BASE}/notifications`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch notifications');
-    return res.json();
+    // Fetches the full (up to 100-item) notification list — only the Notifications Center
+    // page needs this; everywhere else that just needs a badge number should use
+    // getUnreadNotificationCount() instead, which is far cheaper to poll.
+    return requestWithDedupeAndCache<any[]>(
+      `${API_BASE}/notifications`,
+      { headers: getAuthHeaders() },
+      5000 // 5s cache
+    );
+  },
+
+  async getUnreadNotificationCount(): Promise<number> {
+    // Lightweight badge-count endpoint, safe to poll frequently (e.g. the header bell) —
+    // returns just a number instead of the full notification payload.
+    const { unreadCount } = await requestWithDedupeAndCache<{ unreadCount: number }>(
+      `${API_BASE}/notifications/unread-count`,
+      { headers: getAuthHeaders() },
+      5000 // 5s cache
+    );
+    return unreadCount;
   },
 
   async markNotificationRead(id: string): Promise<any> {
@@ -1127,6 +1172,7 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to mark notification as read');
     const data = await res.json();
+    invalidateApiCache('/notifications');
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('notifications-updated'));
     }
@@ -1140,8 +1186,9 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to mark all notifications as read');
     const data = await res.json();
+    invalidateApiCache('/notifications');
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('notifications-updated', { detail: { count: 0 } }));
+      window.dispatchEvent(new CustomEvent('notifications-updated'));
     }
     return data;
   },
@@ -1153,6 +1200,7 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to delete notification');
     const data = await res.json();
+    invalidateApiCache('/notifications');
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('notifications-updated'));
     }
@@ -1174,11 +1222,11 @@ export const api = {
 
   // Email Notification & Delivery Logs
   async getEmailLogs(limit: number = 50): Promise<{ logs: any[] }> {
-    const res = await fetchWithAutoRefresh(`${API_BASE}/emails/logs?limit=${limit}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to fetch email delivery logs');
-    return res.json();
+    return requestWithDedupeAndCache<{ logs: any[] }>(
+      `${API_BASE}/emails/logs?limit=${limit}`,
+      { headers: getAuthHeaders() },
+      5000 // 5s cache
+    );
   },
 
   async sendTestEmail(email?: string, name?: string): Promise<any> {
@@ -1305,6 +1353,16 @@ export const api = {
       const err = await res.json().catch(() => ({ error: 'Import failed' }));
       throw new Error(err.error || 'Failed to execute bulk import');
     }
+    // A bulk import can touch employees, their KRA assignments, and the reviews that get
+    // auto-generated once a KRA lands — invalidate every cache a subsequent fetch might read
+    // stale data from, regardless of which dataset type was imported.
+    invalidateApiCache('/employees');
+    invalidateApiCache('/kra-templates');
+    invalidateApiCache('/kras');
+    invalidateApiCache('/departments');
+    invalidateApiCache('/designations');
+    invalidateApiCache('/reviews');
+    invalidateApiCache('/appraisals');
     return res.json();
   },
 

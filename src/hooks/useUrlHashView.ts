@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useTransition } from 'react';
 
 export type AppView =
   | 'portal'
@@ -55,10 +55,16 @@ function getInitialView(): AppView {
 
 export function useUrlHashView() {
   const [currentView, setCurrentViewState] = useState<AppView>(getInitialView);
+  // Marks a navigation as low-priority so React keeps the outgoing view on screen until the
+  // next (possibly lazy-loaded) view is ready, and reports that wait back as `isPending` — the
+  // signal a top loading bar can key off without any timers or polling of its own.
+  const [isPending, startTransition] = useTransition();
 
   // Sync hash when view changes
   const setView = useCallback((view: AppView, replaceHistory = false) => {
-    setCurrentViewState(view);
+    startTransition(() => {
+      setCurrentViewState(view);
+    });
     const newHash = `#${view}`;
     if (window.location.hash !== newHash) {
       if (replaceHistory) {
@@ -73,11 +79,13 @@ export function useUrlHashView() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace(/^#\/?/, '').trim();
-      if (VALID_VIEWS.includes(hash as AppView)) {
-        setCurrentViewState(hash as AppView);
-      } else {
-        setCurrentViewState('portal');
-      }
+      startTransition(() => {
+        if (VALID_VIEWS.includes(hash as AppView)) {
+          setCurrentViewState(hash as AppView);
+        } else {
+          setCurrentViewState('portal');
+        }
+      });
     };
 
     window.addEventListener('hashchange', handleHashChange);
@@ -89,5 +97,5 @@ export function useUrlHashView() {
     };
   }, []);
 
-  return { currentView, setView };
+  return { currentView, setView, isPending };
 }

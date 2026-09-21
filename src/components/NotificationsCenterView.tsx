@@ -93,9 +93,8 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
     setNotifications((prev) =>
       prev.map((n) => (n.id === id || (n as any)._id === id ? { ...n, isRead: true } : n))
     );
-    const unreadRemaining = notifications.filter((n) => !n.isRead && n.id !== id && (n as any)._id !== id).length;
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('notifications-updated', { detail: { count: unreadRemaining } }));
+      window.dispatchEvent(new CustomEvent('notifications-updated'));
     }
     try {
       await api.markNotificationRead(id);
@@ -107,7 +106,7 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
   const handleMarkAllRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('notifications-updated', { detail: { count: 0 } }));
+      window.dispatchEvent(new CustomEvent('notifications-updated'));
     }
     try {
       await api.markAllNotificationsRead();
@@ -166,9 +165,8 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
 
     // Optimistically remove from visible list
     setNotifications((prev) => prev.filter((n) => n.id !== id));
-    const unreadRemaining = notifications.filter((n) => !n.isRead && n.id !== id).length;
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('notifications-updated', { detail: { count: unreadRemaining } }));
+      window.dispatchEvent(new CustomEvent('notifications-updated'));
     }
 
     // Start 3-second countdown

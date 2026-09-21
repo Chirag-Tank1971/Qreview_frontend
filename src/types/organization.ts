@@ -67,6 +67,11 @@ export interface Employee {
   systemRole?: UserRole;
   userId?: string;
   lastAppraisalDate?: string;
+  confirmationDate?: string;
+  gender?: 'Male' | 'Female' | 'Other' | string;
+  employmentType?: 'Permanent' | 'Contract' | 'Intern' | string;
+  probationPeriodDays?: number;
+  companyName?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -88,6 +93,13 @@ export interface CreateEmployeePayload {
   currentKraTemplateId?: string;
   currentCtc?: number;
   relievingDate?: string;
+  customKras?: Array<{
+    title: string;
+    weight: number | string;
+    target?: string;
+    description?: string;
+    measurementCriteria?: string;
+  }>;
   [key: string]: any;
 }
 

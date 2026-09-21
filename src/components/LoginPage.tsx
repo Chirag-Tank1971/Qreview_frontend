@@ -80,10 +80,10 @@ const QUICK_ROLES: QuickRole[] = [
     role: 'HOD',
     title: 'Head of Department',
     shortLabel: 'HOD',
-    email: 'alice.hod@company.com',
-    name: 'Alice HOD',
-    department: 'Engineering Org',
-    badge: 'Dept Approvals',
+    email: 'nikhilesh.hod@company.com',
+    name: 'Nikhilesh Srivastava',
+    department: 'Operations & Management',
+    badge: 'Org-wide Approvals',
     accent: 'from-amber-600 to-orange-600',
     badgeColor: 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
     icon: Building2,
@@ -465,7 +465,7 @@ export const LoginPage: React.FC = () => {
                       autoComplete="username"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="e.g. name@company.com or EMP-101"
+                      placeholder="e.g. name@company.com or MS0001"
                       disabled={isActionLocked}
                       className="w-full bg-slate-50/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg pl-8 pr-3 py-1.5 sm:py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all disabled:opacity-60"
                     />

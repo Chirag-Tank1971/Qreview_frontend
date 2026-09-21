@@ -12,8 +12,6 @@ import {
   FileText,
   Users,
   Target,
-  BarChart3,
-  TrendingUp,
   History,
   Filter,
   Check,
@@ -44,6 +42,7 @@ interface BulkImportExportManagerProps {
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB upload guardrail
 const MAX_BATCH_ROWS = 3000; // 3,000 records recommended per batch
+const MAX_FILES = 50; // Real-world KRA scorecards arrive as one workbook per employee — allow selecting/dropping up to 50 at once
 const PREVIEW_PAGE_SIZE = 20; // 20 rows per page to prevent DOM memory ballooning
 
 export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = ({
@@ -58,6 +57,8 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
   const [sampleData, setSampleData] = useState<any[]>([]);
   const [parsedRows, setParsedRows] = useState<any[]>([]);
   const [fileName, setFileName] = useState<string>('');
+  const [fileNames, setFileNames] = useState<string[]>([]);
+  const [skippedFiles, setSkippedFiles] = useState<{ name: string; reason: string }[]>([]);
   const [validationReport, setValidationReport] = useState<BulkValidationReport | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -115,6 +116,8 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
       setParsedRows([]);
       setValidationReport(null);
       setFileName('');
+      setFileNames([]);
+      setSkippedFiles([]);
       setImportResult(null);
     } catch (err) {
       console.error('Failed to load template:', err);
@@ -142,89 +145,237 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
   // ==========================================
   // File Parsing & Handling
   // ==========================================
-  const handleFileUpload = (file: File) => {
-    if (!file) return;
-
-    // 1. File Size Guardrail (Pre-Read Check)
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      toast.error(
-        `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the maximum allowed limit of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)} MB. Please upload a smaller file.`,
-        'File Too Large'
-      );
-      return;
-    }
-
-    setFileName(file.name);
-    setImportResult(null);
-    setIsParsing(true);
-    setPreviewPage(1);
-
+  // Parses a single file (csv or xlsx/xls) into normalized rows. Isolated per-file so one
+  // corrupt/unreadable file in a multi-file batch can be skipped without losing the rest.
+  const parseSingleFile = (file: File): Promise<any[]> => {
     const isCsv = file.name.endsWith('.csv');
-
-    // Yield control to the browser event loop so React can render the loading state before synchronous parsing
-    setTimeout(() => {
-      if (isCsv) {
+    if (isCsv) {
+      return new Promise((resolve, reject) => {
         Papa.parse(file, {
           header: true,
           dynamicTyping: true,
           skipEmptyLines: true,
           complete: (results) => {
             try {
-              const rows = normalizeParsedData(results.data);
-              // 2. Batch Row Count Cap
-              if (rows.length > MAX_BATCH_ROWS) {
-                toast.warning(
-                  `File contains ${rows.length} records. The maximum recommended batch size is ${MAX_BATCH_ROWS} rows. Please split your file into smaller batches for optimal performance.`,
-                  'Batch Limit Exceeded'
-                );
-                setIsParsing(false);
-                return;
-              }
-              setParsedRows(rows);
-              validateData(selectedDataset, rows);
-            } finally {
-              setIsParsing(false);
+              resolve(normalizeParsedData(results.data));
+            } catch (err) {
+              reject(err);
             }
           },
-          error: (err) => {
-            setIsParsing(false);
-            toast.error(`CSV Parse Error: ${err.message}`, 'Parsing Failed');
-          },
+          error: (err) => reject(err),
         });
-      } else {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const data = new Uint8Array(e.target?.result as ArrayBuffer);
-            const workbook = XLSX.read(data, { type: 'array' });
+      });
+    }
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          if (selectedDataset === 'kras') {
+            resolve(parseCustomOrStandardKraWorkbook(workbook));
+          } else {
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-            const rows = normalizeParsedData(json);
-            // 2. Batch Row Count Cap
-            if (rows.length > MAX_BATCH_ROWS) {
-              toast.warning(
-                `File contains ${rows.length} records. The maximum recommended batch size is ${MAX_BATCH_ROWS} rows. Please split your file into smaller batches for optimal performance.`,
-                'Batch Limit Exceeded'
-              );
-              setIsParsing(false);
-              return;
-            }
-            setParsedRows(rows);
-            validateData(selectedDataset, rows);
-          } catch (err: any) {
-            toast.error(`Excel Read Error: ${err.message}`, 'Parsing Failed');
-          } finally {
-            setIsParsing(false);
+            resolve(normalizeParsedData(json));
           }
-        };
-        reader.onerror = () => {
-          setIsParsing(false);
-          toast.error('Failed to read file from disk.', 'File Read Error');
-        };
-        reader.readAsArrayBuffer(file);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file from disk.'));
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  // Handles one or many files in a single batch. Real-world KRA scorecards commonly arrive
+  // as one workbook per employee (e.g. "Harsh Tyagi.xlsx"), so HR needs to select/drop up to
+  // MAX_FILES of them at once and have every employee's rows merged into one validation pass —
+  // not upload them one at a time.
+  const handleFilesUpload = (files: File[]) => {
+    if (!files || files.length === 0) return;
+
+    if (files.length > MAX_FILES) {
+      toast.error(
+        `You selected ${files.length} files. A maximum of ${MAX_FILES} files can be uploaded in a single batch. Please split them into smaller groups.`,
+        'Too Many Files'
+      );
+      return;
+    }
+
+    // 1. File Size Guardrail (Pre-Read Check) — oversized files are skipped, not fatal to the batch
+    const validFiles: File[] = [];
+    const rejected: { name: string; reason: string }[] = [];
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        rejected.push({
+          name: file.name,
+          reason: `Exceeds ${MAX_FILE_SIZE_BYTES / (1024 * 1024)} MB size limit`,
+        });
+      } else {
+        validFiles.push(file);
       }
+    }
+
+    if (validFiles.length === 0) {
+      toast.error('All selected files were too large to process.', 'File Too Large');
+      setSkippedFiles(rejected);
+      return;
+    }
+
+    setFileNames(validFiles.map((f) => f.name));
+    setFileName(validFiles.length === 1 ? validFiles[0].name : `${validFiles.length} files selected`);
+    setImportResult(null);
+    setIsParsing(true);
+    setPreviewPage(1);
+    setSkippedFiles(rejected);
+
+    // Yield control to the browser event loop so React can render the loading state before parsing
+    setTimeout(async () => {
+      const allRows: any[] = [];
+      const parseFailures: { name: string; reason: string }[] = [...rejected];
+
+      const parsedPerFile = await Promise.allSettled(validFiles.map((f) => parseSingleFile(f)));
+      parsedPerFile.forEach((result, idx) => {
+        const file = validFiles[idx];
+        if (result.status === 'fulfilled') {
+          allRows.push(...result.value);
+        } else {
+          parseFailures.push({ name: file.name, reason: result.reason?.message || 'Could not be parsed' });
+        }
+      });
+
+      setIsParsing(false);
+      setSkippedFiles(parseFailures);
+
+      const successfullyParsedCount = files.length - parseFailures.length;
+      if (parseFailures.length > 0) {
+        toast.warning(
+          `${parseFailures.length} of ${files.length} file(s) could not be read and were skipped. The remaining ${successfullyParsedCount} file(s) were parsed successfully.`,
+          'Some Files Skipped'
+        );
+      }
+
+      if (allRows.length === 0) {
+        toast.error('No valid rows could be parsed from the selected file(s).', 'Parsing Failed');
+        return;
+      }
+
+      // Batch Row Count Cap across the combined set of files
+      if (allRows.length > MAX_BATCH_ROWS) {
+        toast.warning(
+          `The selected files contain ${allRows.length} records combined. The maximum recommended batch size is ${MAX_BATCH_ROWS} rows. Please upload fewer files at a time.`,
+          'Batch Limit Exceeded'
+        );
+        return;
+      }
+
+      setParsedRows(allRows);
+      validateData(selectedDataset, allRows);
     }, 60);
+  };
+
+  // Canonical column aliases for human-friendly Excel headers
+  const HEADER_ALIASES: Record<string, string> = {
+    empcode: 'employeeCode',
+    employeecode: 'employeeCode',
+    empid: 'employeeCode',
+    fullname: 'fullName',
+    name: 'fullName',
+    employeename: 'fullName',
+    officialemail: 'email',
+    corporateemail: 'email',
+    workemail: 'email',
+    emailaddress: 'email',
+    joiningdate: 'joiningDate',
+    dateofjoining: 'joiningDate',
+    doj: 'joiningDate',
+    confirmationdate: 'confirmationDate',
+    dateofconfirmation: 'confirmationDate',
+    doc: 'confirmationDate',
+    status: 'status',
+    gender: 'gender',
+    employmenttype: 'employmentType',
+    probationperiodindays: 'probationPeriodDays',
+    probationperioddays: 'probationPeriodDays',
+    probationperiod: 'probationPeriodDays',
+    company: 'companyName',
+    companyname: 'companyName',
+    location: 'location',
+    department: 'department',
+    designation: 'designation',
+    reportingmanager: 'managerCode',
+    reportingmanagerempcode: 'managerCode',
+    managercode: 'managerCode',
+    manager: 'managerCode',
+    hod: 'hodCode',
+    hodcode: 'hodCode',
+    headofdepartment: 'hodCode',
+    ctctotal: 'baseSalary',
+    ctc: 'baseSalary',
+    annualctc: 'baseSalary',
+    baseannualctc: 'baseSalary',
+    basesalary: 'baseSalary',
+    salary: 'baseSalary',
+    cyclecode: 'cycleCode',
+    reviewcyclecode: 'cycleCode',
+    cycle: 'cycleCode',
+    systemrole: 'role',
+    role: 'role',
+    systemrolecode: 'role',
+    accessrole: 'role',
+    userrole: 'role',
+    employmentstatus: 'status',
+    // KRA Aliases
+    keyresultarea: 'kraTitle',
+    keyresultareas: 'kraTitle',
+    kratitle: 'kraTitle',
+    kra: 'kraTitle',
+    kras: 'kraTitle',
+    weightage: 'weightage',
+    weight: 'weightage',
+    weightpercent: 'weightage',
+    weightagepercent: 'weightage',
+    target: 'targetDescription',
+    targetdescription: 'targetDescription',
+    targetmeasures: 'targetDescription',
+    targetsmeasures: 'targetDescription',
+    objective: 'targetDescription',
+    measurementunit: 'measurementUnit',
+    unit: 'measurementUnit',
+    targetvalue: 'targetValue',
+    templatetitle: 'templateTitle',
+    templatename: 'templateTitle',
+    scoringrubric: 'measurementCriteria',
+    measurementcriteria: 'measurementCriteria',
+    criteria: 'measurementCriteria',
+  };
+
+  const formatExcelCellValue = (canonicalKey: string, val: any): any => {
+    if (val === undefined || val === null) return '';
+    // Convert serial numbers for date fields
+    if (['joiningDate', 'confirmationDate', 'relievingDate'].includes(canonicalKey)) {
+      if (typeof val === 'number') {
+        if (val > 25000 && val < 75000) {
+          const date = new Date(Math.round((val - 25569) * 86400 * 1000));
+          if (!isNaN(date.getTime())) {
+            return date.toISOString().split('T')[0];
+          }
+        }
+      } else if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (/^\d{5}$/.test(trimmed)) {
+          const num = Number(trimmed);
+          const date = new Date(Math.round((num - 25569) * 86400 * 1000));
+          if (!isNaN(date.getTime())) {
+            return date.toISOString().split('T')[0];
+          }
+        }
+        return trimmed;
+      }
+    }
+    return typeof val === 'string' ? val.trim() : val;
   };
 
   // Map header names (human friendly or key) to canonical schema keys
@@ -233,20 +384,125 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
       const normalized: Record<string, any> = {};
       Object.entries(row).forEach(([rawKey, val]) => {
         const cleanKey = rawKey.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-        // Match against template columns
-        const colMatch = templateColumns.find(
-          (c) =>
-            c.key.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanKey ||
-            c.label.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanKey
-        );
-        if (colMatch) {
-          normalized[colMatch.key] = val;
+        let targetKey = rawKey;
+
+        // 1. Check known aliases
+        if (HEADER_ALIASES[cleanKey]) {
+          targetKey = HEADER_ALIASES[cleanKey];
         } else {
-          normalized[rawKey] = val;
+          // 2. Match against template columns
+          const colMatch = templateColumns.find(
+            (c) =>
+              c.key.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanKey ||
+              c.label.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanKey
+          );
+          if (colMatch) {
+            targetKey = colMatch.key;
+          }
         }
+
+        normalized[targetKey] = formatExcelCellValue(targetKey, val);
       });
+
+      // Clean manager / HOD codes if formatted as "CODE - Name"
+      if (normalized.managerCode && typeof normalized.managerCode === 'string' && normalized.managerCode.includes(' - ')) {
+        const parts = normalized.managerCode.split(' - ');
+        normalized.managerCode = parts[0].trim();
+        if (!normalized.managerName && parts[1]) {
+          normalized.managerName = parts.slice(1).join(' - ').trim();
+        }
+      }
+      if (normalized.hodCode && typeof normalized.hodCode === 'string' && normalized.hodCode.includes(' - ')) {
+        const parts = normalized.hodCode.split(' - ');
+        normalized.hodCode = parts[0].trim();
+        if (!normalized.hodName && parts[1]) {
+          normalized.hodName = parts.slice(1).join(' - ').trim();
+        }
+      }
+
       return normalized;
     });
+  };
+
+  const parseCustomOrStandardKraWorkbook = (workbook: XLSX.WorkBook) => {
+    const allParsedRows: any[] = [];
+
+    for (const sheetName of workbook.SheetNames) {
+      const worksheet = workbook.Sheets[sheetName];
+      const rawRows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      if (!rawRows || rawRows.length === 0) continue;
+
+      let empCode = '';
+      let empName = '';
+      let designation = '';
+      let department = '';
+      let headerRowIdx = -1;
+      let kraColIdx = -1;
+      let weightColIdx = -1;
+
+      for (let r = 0; r < Math.min(rawRows.length, 15); r++) {
+        const row = rawRows[r];
+        if (!row || !Array.isArray(row)) continue;
+
+        for (let c = 0; c < row.length; c++) {
+          const cell = String(row[c] || '').trim().toLowerCase();
+          if (cell === 'emp id' || cell === 'emp code' || cell === 'employee id' || cell === 'employee code') {
+            const nextVal = row.slice(c + 1).find((v) => v !== undefined && String(v).trim() !== '');
+            if (nextVal) empCode = String(nextVal).trim();
+          } else if (cell === 'name' || cell === 'employee name') {
+            const nextVal = row.slice(c + 1).find((v) => v !== undefined && String(v).trim() !== '');
+            if (nextVal) empName = String(nextVal).trim();
+          } else if (cell === 'designation') {
+            const nextVal = row.slice(c + 1).find((v) => v !== undefined && String(v).trim() !== '');
+            if (nextVal) designation = String(nextVal).trim();
+          } else if (cell === 'department') {
+            const nextVal = row.slice(c + 1).find((v) => v !== undefined && String(v).trim() !== '');
+            if (nextVal) department = String(nextVal).trim();
+          }
+
+          if (cell.includes('key result area') || cell === 'kra') {
+            kraColIdx = c;
+            headerRowIdx = r;
+          }
+          if ((cell.includes('weightage') || cell === 'weight') && headerRowIdx === r) {
+            if (weightColIdx === -1) weightColIdx = c;
+          }
+        }
+        if (headerRowIdx !== -1 && kraColIdx !== -1 && weightColIdx !== -1) break;
+      }
+
+      if (headerRowIdx !== -1 && kraColIdx !== -1 && weightColIdx !== -1) {
+        for (let r = headerRowIdx + 1; r < rawRows.length; r++) {
+          const row = rawRows[r];
+          if (!row) continue;
+          const kraTitle = String(row[kraColIdx] || '').trim();
+          const weightVal = Number(row[weightColIdx]);
+          if (kraTitle && !isNaN(weightVal) && weightVal > 0) {
+            allParsedRows.push({
+              employeeCode: empCode,
+              employeeName: empName || sheetName,
+              designation,
+              department,
+              templateTitle: (empName || sheetName) ? `${empName || sheetName} - Scorecard` : 'Employee Scorecard',
+              kraTitle,
+              weightage: weightVal,
+              targetDescription: `Target for ${kraTitle}`,
+              measurementUnit: 'PERCENTAGE',
+              targetValue: '100',
+            });
+          }
+        }
+      }
+    }
+
+    if (allParsedRows.length > 0) {
+      return allParsedRows;
+    }
+
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+    return normalizeParsedData(json);
   };
 
   const validateData = async (type: BulkDatasetType, rows: any[]) => {
@@ -407,22 +663,6 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
       icon: Target,
       color: 'teal',
       badge: 'Scoring Weights',
-    },
-    {
-      id: 'quarterly-scores',
-      title: 'Quarterly Scoring Sheets',
-      description: 'Batch upload offline Q1-Q4 manager evaluation ratings, remarks, and quarterly score rollups.',
-      icon: BarChart3,
-      color: 'amber',
-      badge: 'Q1-Q4 Reviews',
-    },
-    {
-      id: 'increment-matrix',
-      title: 'Annual Increment & Rating Matrix',
-      description: 'Calibrated performance ratings, proposed salary hike %, performance bonuses, and promotions.',
-      icon: TrendingUp,
-      color: 'emerald',
-      badge: 'Appraisal & CTC',
     },
   ];
 
@@ -590,8 +830,8 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                 onDrop={(e) => {
                   e.preventDefault();
                   setDragActive(false);
-                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                    handleFileUpload(e.dataTransfer.files[0]);
+                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleFilesUpload(Array.from(e.dataTransfer.files));
                   }
                 }}
                 onClick={() => fileInputRef.current?.click()}
@@ -607,11 +847,14 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                   ref={fileInputRef}
                   type="file"
                   accept=".xlsx,.xls,.csv"
+                  multiple
                   className="hidden"
                   onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      handleFileUpload(e.target.files[0]);
+                    if (e.target.files && e.target.files.length > 0) {
+                      handleFilesUpload(Array.from(e.target.files));
                     }
+                    // Allow re-selecting the same file(s) after a change of dataset/reset
+                    e.target.value = '';
                   }}
                 />
 
@@ -630,20 +873,34 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                 ) : fileName ? (
                   <div>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 mb-2">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> File Loaded
+                      <CheckCircle2 className="w-3.5 h-3.5" /> {fileNames.length > 1 ? `${fileNames.length} Files Loaded` : 'File Loaded'}
                     </span>
                     <p className="font-bold text-slate-900 dark:text-white text-base">{fileName}</p>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      {parsedRows.length} rows detected • Click to choose a different file
+                      {parsedRows.length} rows detected across {fileNames.length || 1} file{fileNames.length !== 1 ? 's' : ''} • Click to choose different file(s)
                     </p>
+                    {fileNames.length > 1 && (
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 truncate max-w-md mx-auto" title={fileNames.join(', ')}>
+                        {fileNames.slice(0, 4).join(', ')}
+                        {fileNames.length > 4 ? ` +${fileNames.length - 4} more` : ''}
+                      </p>
+                    )}
+                    {skippedFiles.length > 0 && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5">
+                        {skippedFiles.length} file{skippedFiles.length !== 1 ? 's' : ''} skipped: {skippedFiles.map((f) => f.name).join(', ')}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div>
                     <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                      Drag & Drop your Excel or CSV file here, or <span className="text-indigo-600 dark:text-indigo-400 underline">Browse Files</span>
+                      Drag & Drop Excel or CSV file(s) here, or <span className="text-indigo-600 dark:text-indigo-400 underline">Browse Files</span>
                     </p>
                     <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
-                      Maximum file size: 10 MB • Recommended up to 3,000 rows per batch
+                      {selectedDataset === 'kras'
+                        ? `Select up to ${MAX_FILES} files at once (e.g. one workbook per employee) • Max 10 MB each`
+                        : `Up to ${MAX_FILES} files at once`}
+                      {' '}• Recommended up to {MAX_BATCH_ROWS.toLocaleString()} rows per batch
                     </p>
                   </div>
                 )}
@@ -767,15 +1024,15 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                   <div className="flex items-center gap-1.5">
                     <span className="inline-flex items-center gap-1 text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-md">
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      {validationReport.validCount} Valid
+                      {validationReport.validCount || 0} Valid
                     </span>
-                    {validationReport.warningCount > 0 && (
+                    {(validationReport.warningCount || 0) > 0 && (
                       <span className="inline-flex items-center gap-1 text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-2.5 py-1 rounded-md">
                         <AlertTriangle className="w-3.5 h-3.5" />
                         {validationReport.warningCount} Warnings
                       </span>
                     )}
-                    {validationReport.errorCount > 0 && (
+                    {(validationReport.errorCount || 0) > 0 && (
                       <span className="inline-flex items-center gap-1 text-xs font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 px-2.5 py-1 rounded-md">
                         <XCircle className="w-3.5 h-3.5" />
                         {validationReport.errorCount} Errors
@@ -802,9 +1059,9 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
                         statusFilter === 'VALID' ? 'bg-emerald-600 text-white' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
-                      Valid ({validationReport.validCount})
+                      Valid ({validationReport.validCount || 0})
                     </button>
-                    {validationReport.errorCount > 0 && (
+                    {(validationReport.errorCount || 0) > 0 && (
                       <button
                         onClick={() => setStatusFilter('ERROR')}
                         className={`px-2.5 py-1 rounded-md cursor-pointer ${
@@ -958,32 +1215,76 @@ export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = (
           )}
 
           {/* Import Result Feedback Banner */}
-          {importResult && (
-            <div className="p-5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 shadow-sm">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-emerald-900 dark:text-emerald-200 text-base">Bulk Ingestion Successfully Committed!</h4>
-                    <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-0.5">{importResult.message}</p>
-                    <div className="flex items-center gap-4 mt-2 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
-                      <span>✓ {importResult.insertedCount} Records Inserted</span>
-                      <span>• {importResult.updatedCount} Records Updated</span>
-                      <span>• Batch ID: <code className="font-mono">{importResult.batchId}</code></span>
+          {importResult && (() => {
+            const failedCount = importResult.failedCount || 0;
+            const skippedCount = importResult.skippedCount || 0;
+            const hasFailures = failedCount > 0;
+            return (
+              <div
+                className={`p-5 rounded-2xl border shadow-sm ${
+                  hasFailures
+                    ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'
+                    : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-10 h-10 rounded-xl text-white flex items-center justify-center shrink-0 ${
+                        hasFailures ? 'bg-amber-600' : 'bg-emerald-600'
+                      }`}
+                    >
+                      {hasFailures ? <AlertCircle className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
+                    </div>
+                    <div>
+                      <h4
+                        className={`font-bold text-base ${
+                          hasFailures ? 'text-amber-900 dark:text-amber-200' : 'text-emerald-900 dark:text-emerald-200'
+                        }`}
+                      >
+                        {hasFailures ? 'Bulk Ingestion Completed With Errors' : 'Bulk Ingestion Successfully Committed!'}
+                      </h4>
+                      <p
+                        className={`text-xs mt-0.5 ${
+                          hasFailures ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'
+                        }`}
+                      >
+                        {importResult.message}
+                      </p>
+                      <div
+                        className={`flex items-center gap-4 mt-2 text-xs font-semibold flex-wrap ${
+                          hasFailures ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-800 dark:text-emerald-300'
+                        }`}
+                      >
+                        <span>✓ {importResult.insertedCount} Records Inserted</span>
+                        <span>• {importResult.updatedCount} Records Updated</span>
+                        {skippedCount > 0 && <span>• {skippedCount} Skipped</span>}
+                        {hasFailures && <span>• {failedCount} Failed</span>}
+                        <span>• Batch ID: <code className="font-mono">{importResult.batchId}</code></span>
+                      </div>
+                      {importResult.errors && importResult.errors.length > 0 && (
+                        <ul className="mt-2.5 space-y-1 text-[11px] text-amber-800 dark:text-amber-300 list-disc list-inside">
+                          {importResult.errors.map((e, idx) => (
+                            <li key={idx}>Row {e.row}: {e.reason}</li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                   </div>
+                  <button
+                    onClick={() => setImportResult(null)}
+                    className={`text-xs font-bold bg-white dark:bg-slate-800 border px-3 py-1.5 rounded-lg cursor-pointer ${
+                      hasFailures
+                        ? 'text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 border-amber-200 dark:border-amber-700'
+                        : 'text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100 border-emerald-200 dark:border-emerald-700'
+                    }`}
+                  >
+                    Dismiss
+                  </button>
                 </div>
-                <button
-                  onClick={() => setImportResult(null)}
-                  className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 px-3 py-1.5 rounded-lg cursor-pointer"
-                >
-                  Dismiss
-                </button>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
 

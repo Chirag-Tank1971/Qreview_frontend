@@ -42,6 +42,8 @@ import {
   Phone,
   MapPin,
   CalendarDays,
+  Upload,
+  Users,
 } from 'lucide-react';
 
 const formatDate = (dateStr?: string) => {
@@ -178,11 +180,18 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
         setEmployees(emps);
         if (employeeProfile?.id) {
           setSelectedEmployeeId(employeeProfile.id);
-        } else if (!selectedEmployeeId && emps.length > 0) {
-          setSelectedEmployeeId(emps[0].id);
+        } else if (emps.length > 0) {
+          if (!selectedEmployeeId || !emps.some((e) => e.id === selectedEmployeeId)) {
+            setSelectedEmployeeId(emps[0].id);
+          }
+        } else {
+          setIsLoading(false);
+          setSelectedEmployeeId('');
+          setEssData(null);
         }
       } catch (err) {
         console.error('Failed to load employee list for ESS:', err);
+        setIsLoading(false);
       }
     }
     loadEmployees();
@@ -190,7 +199,10 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
 
   // Fetch ESS data whenever selectedEmployeeId changes
   useEffect(() => {
-    if (!selectedEmployeeId) return;
+    if (!selectedEmployeeId) {
+      setIsLoading(false);
+      return;
+    }
     loadEssOverview(selectedEmployeeId);
   }, [selectedEmployeeId]);
 
@@ -248,8 +260,54 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
   const isStage2Done = Boolean(activeAppraisal && ['HOD_CALIBRATED', 'HR_APPROVED', 'COMPLETED', 'LOCKED', 'APPROVED'].includes(activeAppraisal.status));
   const isStage3Done = Boolean(activeAppraisal && ['HR_APPROVED', 'COMPLETED', 'LOCKED', 'APPROVED'].includes(activeAppraisal.status));
 
-  if (isLoading && !essData) {
+  if (isLoading && !essData && (selectedEmployeeId || (propEmployees && propEmployees.length > 0))) {
     return <PageSkeletonLoader variant="portal" />;
+  }
+
+  // Freshly Reset / Empty State (0 employees currently in database)
+  if (!isLoading && (!currentEmp || employees.length === 0)) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+          <div>
+            <h1 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
+              My Workspace
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Personal appraisals, quarterly reviews, compensation letters, and KRA goals.
+            </p>
+          </div>
+        </div>
+
+        <div className="p-10 sm:p-14 text-center bg-white dark:bg-slate-900 rounded-[12px] border border-slate-200 dark:border-slate-800 max-w-lg mx-auto my-12 shadow-sm">
+          <div className="w-14 h-14 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-200 dark:border-indigo-800">
+            <Users className="w-7 h-7" />
+          </div>
+          <h2 className="text-base font-bold text-slate-900 dark:text-white">
+            No Employee Profiles in Database
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto leading-relaxed">
+            The database was cleanly reset. To populate workspaces and the organization directory, please import your employee sheet via <strong>Bulk Data Tools</strong>.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={() => { window.location.hash = '#bulk'; }}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors cursor-pointer shadow-sm"
+            >
+              <Upload className="w-4 h-4" />
+              Go to Bulk Data Tools
+            </button>
+            <button
+              onClick={() => { window.location.hash = '#employees'; }}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
+            >
+              <UserCheck className="w-4 h-4" />
+              Employee Directory
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

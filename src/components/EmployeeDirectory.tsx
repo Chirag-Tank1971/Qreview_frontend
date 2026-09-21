@@ -33,6 +33,7 @@ import {
   Crown,
   Briefcase,
   UserCheck,
+  Upload,
 } from 'lucide-react';
 import { User } from '../types';
 import { CycleBadge } from './ui/CycleBadge';
@@ -71,17 +72,19 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
   const [kraTemplates, setKraTemplates] = useState<KraTemplate[]>(initialKraTemplates || []);
   const [reviewPeriods, setReviewPeriods] = useState<ReviewPeriod[]>([]);
   const [loading, setLoading] = useState(
-    !(initialEmployees && initialEmployees.length > 0 && initialDepartments && initialDepartments.length > 0)
+    initialEmployees === undefined
   );
 
   // Sync with incoming master data props
   useEffect(() => {
-    if (initialEmployees && initialEmployees.length > 0) setEmployees(initialEmployees);
-    if (initialDepartments && initialDepartments.length > 0) setDepartments(initialDepartments);
-    if (initialDesignations && initialDesignations.length > 0) setDesignations(initialDesignations);
-    if (initialCycles && initialCycles.length > 0) setCycles(initialCycles);
-    if (initialKraTemplates && initialKraTemplates.length > 0) setKraTemplates(initialKraTemplates);
-    if (initialEmployees && initialEmployees.length > 0) setLoading(false);
+    if (initialEmployees !== undefined) {
+      setEmployees(initialEmployees);
+      setLoading(false);
+    }
+    if (initialDepartments) setDepartments(initialDepartments);
+    if (initialDesignations) setDesignations(initialDesignations);
+    if (initialCycles) setCycles(initialCycles);
+    if (initialKraTemplates) setKraTemplates(initialKraTemplates);
   }, [initialEmployees, initialDepartments, initialDesignations, initialCycles, initialKraTemplates]);
 
   // Delete Employee Modal State
@@ -138,16 +141,17 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
 
   useEffect(() => {
     // Only trigger remote fetch if props were not provided
-    if (!initialEmployees || initialEmployees.length === 0) {
+    if (initialEmployees === undefined) {
       loadData();
     } else {
       // Review periods are never passed in as a prop, so they must always be
       // fetched here even when employees/departments/etc. already arrived
       // from the parent — otherwise the "Starting Review Period" selector
       // stays empty until an unrelated re-fetch (e.g. a page refresh) happens.
+      setLoading(false);
       api.getReviewPeriods().then(setReviewPeriods).catch(() => setReviewPeriods([]));
     }
-  }, []);
+  }, [initialEmployees]);
 
   const handleConfirmDeleteEmployee = async () => {
     if (!employeeToDelete) return;
@@ -256,7 +260,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
     }
   };
 
-  if (!employees || employees.length === 0) {
+  if (loading) {
     return <PageSkeletonLoader variant="table" rowCount={7} />;
   }
 
@@ -592,9 +596,22 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                         </div>
 
                         <div className="space-y-1 text-xs">
-                          <div className="text-slate-800 dark:text-slate-200 font-medium flex items-center gap-1.5">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100 text-xs">
+                            {emp.designationName || 'Designation'}
+                          </div>
+                          {(emp.systemRole || emp.hasLoginAccount) && (
+                            <div>
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                              >
+                                <Key className="w-2.5 h-2.5 text-indigo-500 dark:text-indigo-400" />
+                                {emp.systemRole || 'Portal Active'}
+                              </span>
+                            </div>
+                          )}
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
                             <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span className="truncate">{emp.designationName || 'Role'} • {emp.departmentName || 'Dept'}</span>
+                            <span className="truncate">{emp.departmentName || 'Department'}</span>
                           </div>
                           {cycleInfo && (
                             <div className="flex items-center gap-1.5">
@@ -744,23 +761,25 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                               </div>
                             </td>
 
-                            {/* Dept & Role */}
+                            {/* Designation, Role & Dept */}
                             <td className="px-4 py-3.5">
-                              <div className="text-slate-900 dark:text-slate-200 font-medium flex items-center gap-1.5 flex-wrap">
-                                <span>{emp.designationName || 'Designation'}</span>
-                                {emp.hasLoginAccount && (
+                              <div className="text-slate-900 dark:text-slate-200 font-semibold text-xs leading-snug">
+                                {emp.designationName || 'Designation'}
+                              </div>
+                              {(emp.systemRole || emp.hasLoginAccount) && (
+                                <div className="mt-1">
                                   <span
-                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
                                     title={`Portal Sign-In Active (${emp.systemRole || 'User'})`}
                                   >
                                     <Key className="w-2.5 h-2.5 text-indigo-500 dark:text-indigo-400" />
                                     {emp.systemRole || 'Portal Active'}
                                   </span>
-                                )}
-                              </div>
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                                <Building2 className="w-3 h-3 text-slate-400 dark:text-slate-500" />
-                                {emp.departmentName || 'Department'}
+                                </div>
+                              )}
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1">
+                                <Building2 className="w-3 h-3 text-slate-400 dark:text-slate-500 shrink-0" />
+                                <span>{emp.departmentName || 'Department'}</span>
                               </div>
                             </td>
 
