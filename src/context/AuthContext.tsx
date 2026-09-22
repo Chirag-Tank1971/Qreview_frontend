@@ -130,6 +130,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     try {
       const data = await api.login(email, password);
+      // Clear any GET responses cached under the previous identity — the cache key is
+      // URL-only, so without this a stale, differently-scoped response (e.g. another
+      // user's employee list) can be served for up to its TTL after switching accounts.
+      api.clearCache();
       localStorage.setItem('review_app_token', data.token);
       setToken(data.token);
       setUser(data.user);
@@ -149,6 +153,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     try {
       const data = await api.switchRole(role, userId);
+      api.clearCache();
       localStorage.setItem('review_app_token', data.token);
       setToken(data.token);
       setUser(data.user);
@@ -169,6 +174,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     try {
       await api.logout().catch(() => {});
+      api.clearCache();
       localStorage.removeItem('review_app_token');
       setUser(null);
       setEmployeeProfile(null);
