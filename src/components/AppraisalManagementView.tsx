@@ -46,6 +46,7 @@ import { BellCurveBudgetAnalytics } from './BellCurveBudgetAnalytics';
 import { CycleBadge } from './ui/CycleBadge';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 import { downloadAppraisalPdf, downloadPayrollCsv } from '../utils/letterExport';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 export interface AppraisalViewConfig {
   activeSection?: 'appraisals' | 'bellCurveAnalytics';
@@ -79,6 +80,10 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
 }) => {
   const [activeSection, setActiveSection] = useState<'appraisals' | 'bellCurveAnalytics'>('appraisals');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
+  const isMobile = useIsMobile();
+  // A wide data table is unusable on a phone regardless of the desktop-oriented toggle
+  // above — force cards on small screens while still respecting the user's choice on desktop.
+  const effectiveViewMode = isMobile ? 'cards' : viewMode;
   const [appraisals, setAppraisals] = useState<Appraisal[]>([]);
   const [stats, setStats] = useState<AppraisalSummaryStats | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -603,8 +608,8 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
               <Users className="w-3.5 h-3.5" />
               <span>Hide Inactive</span>
             </button>
-            {/* View Mode Switcher (Cards vs Table) */}
-            <div className="flex items-center gap-1 bg-slate-200/70 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+            {/* View Mode Switcher (Cards vs Table) — hidden on mobile since cards are forced there */}
+            <div className="hidden sm:flex items-center gap-1 bg-slate-200/70 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
               <button
                 type="button"
                 onClick={() => setViewMode('cards')}
@@ -657,7 +662,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
               </button>
             )}
           </div>
-        ) : viewMode === 'cards' ? (
+        ) : effectiveViewMode === 'cards' ? (
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/50 dark:bg-slate-900/50">
             {displayedAppraisals.map((appr) => {
               const incPct = appr.approvedIncrementPercentage ?? appr.proposedIncrementPercentage ?? appr.recommendedIncrementPercentage ?? 0;

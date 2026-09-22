@@ -402,8 +402,8 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
       >
         <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col ${cardClass}`}>
           {/* Header */}
-          <div className="px-6 py-4 bg-slate-900 dark:bg-slate-950 text-white flex items-center justify-between shrink-0 border-b border-slate-800">
-            <div className="flex items-center gap-3">
+          <div className="px-4 sm:px-6 py-4 bg-slate-900 dark:bg-slate-950 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 border-b border-slate-800">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-400/30">
                 <Award className="w-5 h-5" />
               </div>
@@ -432,15 +432,16 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {(appraisal.status === 'HR_APPROVED' || appraisal.status === 'LOCKED' || appraisal.isLocked) && (
                 <button
                   type="button"
                   onClick={() => setShowLetterModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-xs cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-xs cursor-pointer whitespace-nowrap"
                 >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>View Appraisal Letter</span>
+                  <FileText className="w-3.5 h-3.5 shrink-0" />
+                  <span className="hidden sm:inline">View Appraisal Letter</span>
+                  <span className="sm:hidden">Letter</span>
                 </button>
               )}
               <button
@@ -486,52 +487,52 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
           )}
 
           {/* Tab Navigation */}
-          <div className="px-6 bg-slate-50 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
-            <div className="flex gap-2">
+          <div className="px-3 sm:px-6 bg-slate-50 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 shrink-0">
+            <div className="flex gap-1 sm:gap-2 overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
               <button
                 type="button"
                 onClick={() => setActiveTab('calibrate')}
-                className={`flex items-center gap-2 py-3 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 sm:gap-2 py-3 px-2.5 sm:px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   activeTab === 'calibrate'
                     ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-white dark:bg-slate-800 shadow-2xs'
                     : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
-                <Sliders className="w-3.5 h-3.5" />
+                <Sliders className="w-3.5 h-3.5 shrink-0" />
                 <span>Salary Calibration & Recommendation</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab('breakdown')}
-                className={`flex items-center gap-2 py-3 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 sm:gap-2 py-3 px-2.5 sm:px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   activeTab === 'breakdown'
                     ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-white dark:bg-slate-800 shadow-2xs'
                     : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
-                <Calendar className="w-3.5 h-3.5" />
+                <Calendar className="w-3.5 h-3.5 shrink-0" />
                 <span>4-Quarter Review Performance History ({appraisal.quarterlyHistory?.length || 0})</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab('audit')}
-                className={`flex items-center gap-2 py-3 px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 sm:gap-2 py-3 px-2.5 sm:px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   activeTab === 'audit'
                     ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-white dark:bg-slate-800 shadow-2xs'
                     : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
-                <ShieldCheck className="w-3.5 h-3.5" />
+                <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
                 <span>Multi-Stage Sign-Off Audit Trail</span>
               </button>
             </div>
 
             {/* Status Pill */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pb-2 sm:pb-0">
               <span
-                className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
+                className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border whitespace-nowrap ${
                   appraisal.status === 'LOCKED'
                     ? 'bg-slate-900 dark:bg-slate-800 text-white border-slate-800 dark:border-slate-700'
                     : appraisal.status === 'HR_APPROVED'

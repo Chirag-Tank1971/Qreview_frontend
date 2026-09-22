@@ -18,6 +18,7 @@ import { CycleBadge } from './ui/CycleBadge';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 import { toast } from '../context/ToastContext';
 import { useModalAnimation } from '../hooks/useModalAnimation';
+import { useIsMobile } from '../hooks/useIsMobile';
 import {
   Sparkles,
   Search,
@@ -89,6 +90,10 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   const [myReportsOnly, setMyReportsOnly] = useState<boolean>(false);
   const [hideInactive, setHideInactive] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
+  const isMobile = useIsMobile();
+  // A wide data table is unusable on a phone regardless of the desktop-oriented toggle
+  // above — force cards on small screens while still respecting the user's choice on desktop.
+  const effectiveViewMode = isMobile ? 'cards' : viewMode;
 
   // Modals
   const [activeReviewForScoring, setActiveReviewForScoring] = useState<EmployeeReview | null>(null);
@@ -898,8 +903,8 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
             )}
           </div>
 
-          {/* View Mode Switcher */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
+          {/* View Mode Switcher — hidden on mobile since cards are forced there */}
+          <div className="hidden sm:flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
             <button
               onClick={() => setViewMode('cards')}
               className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
@@ -967,7 +972,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               </button>
             )}
           </div>
-        ) : viewMode === 'cards' ? (
+        ) : effectiveViewMode === 'cards' ? (
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/50 dark:bg-slate-950/40">
             {displayedReviews.map((r) => {
               const isPendingMyAction =

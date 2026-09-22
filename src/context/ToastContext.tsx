@@ -147,13 +147,13 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       {/* Floating Toast Notification Container */}
       <div
         aria-live="assertive"
-        className="fixed top-5 right-5 z-[99999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0"
+        className="fixed top-3 inset-x-3 sm:top-5 sm:right-5 sm:left-auto sm:inset-x-auto z-[99999] flex flex-col gap-2 sm:gap-2.5 sm:max-w-sm sm:w-full pointer-events-none"
       >
         {toasts.map((t) => (
           <div
             key={t.id}
             role="alert"
-            className={`pointer-events-auto border rounded-2xl shadow-2xl p-4 flex items-start gap-3 backdrop-blur-md ${
+            className={`pointer-events-auto border rounded-xl sm:rounded-2xl shadow-2xl p-3 sm:p-4 flex items-start gap-2.5 sm:gap-3 backdrop-blur-md ${
               leavingIds.has(t.id) ? 'animate-toast-out' : 'animate-toast-in'
             } ${getBorderColor(t.type)}`}
           >

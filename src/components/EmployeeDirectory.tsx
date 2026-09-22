@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Employee, Department, Designation, Cycle, KraTemplate, ReviewPeriod } from '../types';
 import { api } from '../services/api';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { useAuth } from '../context/AuthContext';
 import { toast } from '../context/ToastContext';
 import { useModalAnimation } from '../hooks/useModalAnimation';
@@ -113,6 +114,10 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
   const [selectedCycle, setSelectedCycle] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
+  const isMobile = useIsMobile();
+  // A wide data table is unusable on a phone regardless of the desktop-oriented toggle
+  // above — force cards on small screens while still respecting the user's choice on desktop.
+  const effectiveViewMode = isMobile ? 'cards' : viewMode;
 
   // Pagination State (20 employees per page)
   const [currentPage, setCurrentPage] = useState(1);
@@ -550,8 +555,8 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                 <RotateCw className="w-3.5 h-3.5" />
               </button>
 
-              {/* Cards / Table View Toggle */}
-              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
+              {/* Cards / Table View Toggle — hidden on mobile since cards are forced there */}
+              <div className="hidden sm:flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
                 <button
                   onClick={() => setViewMode('cards')}
                   className={`h-7 px-2.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${viewMode === 'cards'
@@ -579,7 +584,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
           </div>
 
           {/* Employees Display: Cards or Table */}
-          {viewMode === 'cards' ? (
+          {effectiveViewMode === 'cards' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
               {loading ? (
                 <div className="col-span-full p-12 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
