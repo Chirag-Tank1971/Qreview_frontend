@@ -208,8 +208,8 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
 
   // Lightweight "on PIP" flag for the record currently being viewed — just enough to red-flag
   // the dashboard and link to the Performance Plans page; full plan detail lives there now, not
-  // duplicated on this page. Same viewing rule as the record selector: HR/Admin can browse any
-  // employee, everyone else can only ever be looking at their own record.
+  // duplicated on this page. Same viewing rule as the record selector: HR/Admin/Management can
+  // browse any employee, everyone else can only ever be looking at their own record.
   const [activePipFlag, setActivePipFlag] = useState<{ id: string; endDate: string } | null>(null);
   // Set only when there is no currently active plan but the most recent one resolved as
   // FAILED — flags that the employee's last improvement plan was unsuccessful so HR/the
@@ -220,7 +220,7 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
     decidedAt: string;
     notes?: string;
   } | null>(null);
-  const canViewSelectedPipStatus = user?.role === 'SUPER_ADMIN' || user?.role === 'HR' || selectedEmployeeId === employeeProfile?.id;
+  const canViewSelectedPipStatus = user?.role === 'SUPER_ADMIN' || user?.role === 'HR' || user?.role === 'MANAGEMENT' || selectedEmployeeId === employeeProfile?.id;
 
   useEffect(() => {
     if (!selectedEmployeeId || !canViewSelectedPipStatus) {
@@ -391,8 +391,8 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
           </p>
         </div>
 
-        {/* Administrative Employee Record Selector (Only for Admins/HR) */}
-        {(user?.role === 'SUPER_ADMIN' || user?.role === 'HR') && (
+        {/* Administrative Employee Record Selector (Admins/HR/Management — read-only for Management) */}
+        {(user?.role === 'SUPER_ADMIN' || user?.role === 'HR' || user?.role === 'MANAGEMENT') && (
           <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 p-1.5 rounded-[6px] border border-slate-200 dark:border-slate-700 w-full sm:w-auto min-w-0">
             <label className="text-xs font-medium text-slate-600 dark:text-slate-400 shrink-0 flex items-center gap-1.5 pl-1">
               <UserCheck className="w-3.5 h-3.5 text-slate-400" />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Users,
   Building2,
@@ -29,6 +30,7 @@ import {
   AlertCircle,
   ArrowUpRight,
   ArrowDownRight,
+  ShieldAlert,
 } from 'lucide-react';
 import {
   ManagementDashboardData,
@@ -38,6 +40,7 @@ import {
   ManagementAttentionItem,
   ManagementAppraisalSummaryData,
   ManagementEmployeeDossier,
+  ManagementWorkforceRiskData,
   Department,
   ReviewPeriod,
   User,
@@ -54,7 +57,7 @@ interface ManagementDashboardViewProps {
   onNavigateToAppraisals?: (opts?: any) => void;
 }
 
-type TabType = 'departments' | 'trends' | 'talent' | 'appraisals';
+type TabType = 'departments' | 'trends' | 'talent' | 'appraisals' | 'workforceRisk';
 
 const safeNum = (val: any, decimals: number = 2, fallback: string = '0.00'): string => {
   if (val === null || val === undefined || isNaN(Number(val))) return fallback;
@@ -99,6 +102,9 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
 
   const [loadingAppraisals, setLoadingAppraisals] = useState<boolean>(false);
   const [appraisalsData, setAppraisalsData] = useState<ManagementAppraisalSummaryData | null>(null);
+
+  const [loadingWorkforceRisk, setLoadingWorkforceRisk] = useState<boolean>(false);
+  const [workforceRiskData, setWorkforceRiskData] = useState<ManagementWorkforceRiskData | null>(null);
 
   // State: Modals
   const [selectedEmployeeDossierId, setSelectedEmployeeDossierId] = useState<string | null>(null);
@@ -200,6 +206,19 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
     }
   };
 
+  // Fetch Workforce Risk (Active PIPs, stale check-ins, outcomes, live overdue alert)
+  const fetchWorkforceRisk = async () => {
+    setLoadingWorkforceRisk(true);
+    try {
+      const data = await api.getManagementWorkforceRisk({ year: selectedYear });
+      setWorkforceRiskData(data);
+    } catch (err) {
+      console.error('Failed to fetch workforce risk snapshot:', err);
+    } finally {
+      setLoadingWorkforceRisk(false);
+    }
+  };
+
   // Fetch Appraisal Summary
   const fetchAppraisalSummary = async () => {
     setLoadingAppraisals(true);
@@ -231,6 +250,8 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
       fetchTalentPool();
     } else if (activeTab === 'appraisals') {
       fetchAppraisalSummary();
+    } else if (activeTab === 'workforceRisk') {
+      fetchWorkforceRisk();
     }
   }, [activeTab, selectedPeriodId, selectedYear, deptSortBy, deptSortOrder, searchDeptQuery, talentSubTab]);
 
@@ -538,6 +559,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
               if (activeTab === 'trends') fetchPerformanceTrends();
               if (activeTab === 'talent') fetchTalentPool();
               if (activeTab === 'appraisals') fetchAppraisalSummary();
+              if (activeTab === 'workforceRisk') fetchWorkforceRisk();
             }}
             className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors cursor-pointer"
             title="Refresh All Metrics"
@@ -913,6 +935,18 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
             >
               <DollarSign className="w-4 h-4" />
               <span>Appraisal & Budget Rollups</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('workforceRisk')}
+              className={`flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors cursor-pointer ${
+                activeTab === 'workforceRisk'
+                  ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <ShieldAlert className="w-4 h-4" />
+              <span>Workforce Risk & Alerts</span>
             </button>
           </div>
 
@@ -1570,6 +1604,221 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
             )}
           </div>
         )}
+
+        {/* Tab 5: Workforce Risk & Alerts (Active PIPs, stale check-ins, outcomes, live escalations) */}
+        {activeTab === 'workforceRisk' && (
+          <div className="p-4 sm:p-6 space-y-6">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Workforce Risk & Live Alerts</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Active Performance Improvement Plans, stale check-ins, plans past their end date, and this year's outcomes.
+              </p>
+            </div>
+
+            {loadingWorkforceRisk ? (
+              <div className="py-12 text-center text-slate-400">
+                <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
+                Loading workforce risk snapshot...
+              </div>
+            ) : (
+              <>
+                {/* Live Alerts Banner */}
+                {workforceRiskData?.alerts.reviewDeadlinePassed && workforceRiskData.alerts.overdueReviewsCount > 0 ? (
+                  <div className="p-3.5 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 flex items-center gap-3 text-xs sm:text-sm">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                    <span className="text-rose-800 dark:text-rose-300">
+                      <strong>{workforceRiskData.alerts.overdueReviewsCount} reviews</strong> remain unsubmitted past the {workforceRiskData.alerts.activePeriodName} deadline
+                      {workforceRiskData.alerts.activePeriodDueDate ? ` (${new Date(workforceRiskData.alerts.activePeriodDueDate).toLocaleDateString()})` : ''}.
+                    </span>
+                  </div>
+                ) : (
+                  <div className="p-3.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 flex items-center gap-3 text-xs sm:text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span className="text-emerald-800 dark:text-emerald-300">
+                      No overdue reviews past the current deadline for {workforceRiskData?.alerts.activePeriodName || 'the active period'}.
+                    </span>
+                  </div>
+                )}
+
+                {/* PIP Summary Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+                  <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
+                    <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">Active PIPs</span>
+                    <div className="text-2xl font-bold text-amber-900 dark:text-amber-100 mt-1">
+                      {workforceRiskData?.summary.activePipCount ?? 0}
+                    </div>
+                    <span className="text-[11px] text-amber-600 dark:text-amber-400">
+                      {workforceRiskData?.summary.extendedPipCount ?? 0} extended
+                    </span>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
+                    <span className="text-xs font-semibold text-rose-700 dark:text-rose-300">Stale Check-Ins</span>
+                    <div className="text-2xl font-bold text-rose-900 dark:text-rose-100 mt-1">
+                      {workforceRiskData?.summary.overdueCheckInCount ?? 0}
+                    </div>
+                    <span className="text-[11px] text-rose-600 dark:text-rose-400">No update in 7+ days</span>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
+                    <span className="text-xs font-semibold text-rose-700 dark:text-rose-300">Past End Date</span>
+                    <div className="text-2xl font-bold text-rose-900 dark:text-rose-100 mt-1">
+                      {workforceRiskData?.summary.pastEndDateNoOutcomeCount ?? 0}
+                    </div>
+                    <span className="text-[11px] text-rose-600 dark:text-rose-400">No outcome recorded</span>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+                    <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Succeeded ({selectedYear})</span>
+                    <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100 mt-1">
+                      {workforceRiskData?.summary.succeeded ?? 0}
+                    </div>
+                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                      {workforceRiskData?.summary.failed ?? 0} failed · {workforceRiskData?.summary.extended ?? 0} extended
+                    </span>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Year</span>
+                    <div className="mt-2">
+                      <select
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(Number(e.target.value))}
+                        className="text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1.5 text-slate-800 dark:text-slate-200 font-semibold w-full"
+                      >
+                        <option value={new Date().getFullYear()}>{new Date().getFullYear()}</option>
+                        <option value={new Date().getFullYear() - 1}>{new Date().getFullYear() - 1}</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* At-Risk Employees Table */}
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
+                    Employees on Active Performance Improvement Plans
+                  </h4>
+                  <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
+                    <table className="w-full text-left text-xs sm:text-sm">
+                      <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-800">
+                        <tr>
+                          <th className="py-2.5 px-4">Employee</th>
+                          <th className="py-2.5 px-3">Department</th>
+                          <th className="py-2.5 px-3">Manager / HOD</th>
+                          <th className="py-2.5 px-3 text-center">Status</th>
+                          <th className="py-2.5 px-3 text-center">End Date</th>
+                          <th className="py-2.5 px-4 text-center">Check-In Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
+                        {!workforceRiskData || workforceRiskData.atRiskEmployees.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="py-6 text-center text-slate-400">
+                              No employees are currently on an active Performance Improvement Plan.
+                            </td>
+                          </tr>
+                        ) : (
+                          workforceRiskData.atRiskEmployees.map((p) => (
+                            <tr key={p.pipId} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                              <td className="py-2.5 px-4">
+                                <div className="font-semibold text-slate-900 dark:text-white">{p.employeeName}</div>
+                                <div className="text-[11px] text-slate-400">{p.employeeCode}</div>
+                              </td>
+                              <td className="py-2.5 px-3 font-medium">{p.departmentName || '—'}</td>
+                              <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300">
+                                {p.managerName || p.hodName || '—'}
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${
+                                  p.status === 'EXTENDED'
+                                    ? 'bg-violet-100 text-violet-800 dark:bg-violet-950/80 dark:text-violet-300'
+                                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300'
+                                }`}>
+                                  {p.status}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                {p.isPastEndDate ? (
+                                  <span className="text-rose-600 dark:text-rose-400 font-bold">
+                                    {new Date(p.endDate).toLocaleDateString()} (overdue)
+                                  </span>
+                                ) : (
+                                  new Date(p.endDate).toLocaleDateString()
+                                )}
+                              </td>
+                              <td className="py-2.5 px-4 text-center">
+                                {p.isOverdueCheckIn ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300">
+                                    {p.daysSinceLastCheckIn}d since last check-in
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                                    {p.daysSinceLastCheckIn}d ago
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Recent Outcomes */}
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
+                    Recent PIP Outcomes ({selectedYear})
+                  </h4>
+                  <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
+                    <table className="w-full text-left text-xs sm:text-sm">
+                      <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-800">
+                        <tr>
+                          <th className="py-2.5 px-4">Employee</th>
+                          <th className="py-2.5 px-3">Department</th>
+                          <th className="py-2.5 px-3 text-center">Decision</th>
+                          <th className="py-2.5 px-3">Decided By</th>
+                          <th className="py-2.5 px-4 text-right">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
+                        {!workforceRiskData || workforceRiskData.recentOutcomes.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="py-6 text-center text-slate-400">
+                              No PIP outcomes recorded for {selectedYear}.
+                            </td>
+                          </tr>
+                        ) : (
+                          workforceRiskData.recentOutcomes.map((o) => (
+                            <tr key={o.pipId} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                              <td className="py-2.5 px-4 font-semibold">{o.employeeName}</td>
+                              <td className="py-2.5 px-3 font-medium">{o.departmentName || '—'}</td>
+                              <td className="py-2.5 px-3 text-center">
+                                <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${
+                                  o.decision === 'SUCCEEDED'
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300'
+                                    : o.decision === 'FAILED'
+                                    ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300'
+                                    : 'bg-violet-100 text-violet-800 dark:bg-violet-950/80 dark:text-violet-300'
+                                }`}>
+                                  {o.decision}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300">{o.decidedByName}</td>
+                              <td className="py-2.5 px-4 text-right text-slate-500 dark:text-slate-400">
+                                {new Date(o.decidedAt).toLocaleDateString()}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 5. Employee Performance Dossier Modal (360 Historical View) */}
@@ -1621,13 +1870,13 @@ const EmployeeDossierModal: React.FC<EmployeeDossierModalProps> = ({
 
   if (!isMounted) return null;
 
-  return (
+  return createPortal(
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${backdropClass}`}
+      className={`fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto ${backdropClass}`}
       onClick={handleBackdropClick}
     >
       <div
-        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden ${cardClass}`}
+        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto ${cardClass}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -1820,7 +2069,8 @@ const EmployeeDossierModal: React.FC<EmployeeDossierModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
@@ -1852,13 +2102,13 @@ const DepartmentInspectionModal: React.FC<DepartmentInspectionModalProps> = ({
 
   if (!isMounted || !dept) return null;
 
-  return (
+  return createPortal(
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${backdropClass}`}
+      className={`fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto ${backdropClass}`}
       onClick={handleBackdropClick}
     >
       <div
-        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden ${cardClass}`}
+        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden my-auto ${cardClass}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -1949,6 +2199,7 @@ const DepartmentInspectionModal: React.FC<DepartmentInspectionModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

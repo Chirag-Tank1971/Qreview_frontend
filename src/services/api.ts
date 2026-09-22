@@ -29,6 +29,7 @@ import {
   ManagementAttentionItem,
   ManagementAppraisalSummaryData,
   ManagementEmployeeDossier,
+  ManagementWorkforceRiskData,
   PerformanceImprovementPlan,
 } from '../types'
 
@@ -1655,6 +1656,17 @@ export const api = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to fetch employee performance dossier'));
+    return res.json();
+  },
+
+  async getManagementWorkforceRisk(params?: { year?: number }): Promise<ManagementWorkforceRiskData> {
+    const query = new URLSearchParams();
+    if (params?.year) query.set('year', String(params.year));
+    const qs = query.toString();
+    const res = await fetchWithAutoRefresh(`${API_BASE}/management/workforce-risk${qs ? `?${qs}` : ''}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to fetch workforce risk snapshot'));
     return res.json();
   },
 

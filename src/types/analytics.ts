@@ -272,3 +272,50 @@ export interface ManagementEmployeeDossier {
     effectiveDate?: string;
   }>;
 }
+
+export interface ManagementAtRiskEmployee {
+  pipId: string;
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  departmentName?: string;
+  designationName?: string;
+  managerName?: string;
+  hodName?: string;
+  status: 'ACTIVE' | 'EXTENDED';
+  startDate: string;
+  endDate: string;
+  daysSinceLastCheckIn: number;
+  isOverdueCheckIn: boolean;
+  isPastEndDate: boolean;
+}
+
+export interface ManagementPipOutcome {
+  pipId: string;
+  employeeName: string;
+  departmentName?: string;
+  decision: 'SUCCEEDED' | 'FAILED' | 'EXTENDED';
+  decidedAt: string;
+  decidedByName: string;
+}
+
+export interface ManagementWorkforceRiskData {
+  year: number;
+  summary: {
+    activePipCount: number;
+    extendedPipCount: number;
+    overdueCheckInCount: number;
+    pastEndDateNoOutcomeCount: number;
+    succeeded: number;
+    failed: number;
+    extended: number;
+  };
+  atRiskEmployees: ManagementAtRiskEmployee[];
+  recentOutcomes: ManagementPipOutcome[];
+  alerts: {
+    overdueReviewsCount: number;
+    reviewDeadlinePassed: boolean;
+    activePeriodName: string | null;
+    activePeriodDueDate: string | null;
+  };
+}
