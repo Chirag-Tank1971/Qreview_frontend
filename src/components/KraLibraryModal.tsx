@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Kra, Department } from '../types';
 import { toast } from '../context/ToastContext';
-import { Target, Plus, Search, Filter, CheckCircle2, ShieldCheck, HelpCircle, Edit2, Layers, Tag, Loader2 } from 'lucide-react';
+import { useModalAnimation } from '../hooks/useModalAnimation';
+import { Target, Plus, Search, Filter, CheckCircle2, ShieldCheck, HelpCircle, Edit2, Layers, Tag, Loader2, X } from 'lucide-react';
 
 interface KraLibraryModalProps {
   kras: Kra[];
@@ -35,12 +36,16 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+    useModalAnimation({ onClose });
+
   useEffect(() => {
+    if (!isMounted) return;
     const origOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -48,7 +53,9 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
       document.body.style.overflow = origOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onClose]);
+  }, [isMounted, handleClose]);
+
+  if (!isMounted) return null;
 
   const categories = Array.from(new Set(kras.map((k) => k.category).filter(Boolean)));
 
@@ -60,7 +67,7 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
       return (
         k.title.toLowerCase().includes(q) ||
         k.description.toLowerCase().includes(q) ||
-        k.category.toLowerCase().includes(q) ||
+        (k.category && k.category.toLowerCase().includes(q)) ||
         (k.departmentName && k.departmentName.toLowerCase().includes(q))
       );
     }
@@ -83,7 +90,7 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
     setEditingKra(kra);
     setFormTitle(kra.title);
     setFormDesc(kra.description);
-    setFormCategory(kra.category);
+    setFormCategory(kra.category || 'Delivery & Execution');
     setFormMetricType(kra.metricType);
     setFormTargetUnit(kra.targetUnit || '');
     setFormDeptId(kra.departmentId || '');
@@ -124,12 +131,10 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/40 dark:bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-150"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      className={`fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/40 dark:bg-black/70 backdrop-blur-xs p-4 ${backdropClass}`}
+      onClick={handleBackdropClick}
     >
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden ${cardClass}`}>
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/60">
           <div className="flex items-center gap-3">
@@ -160,7 +165,7 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
               </button>
             )}
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             >
               ✕
@@ -424,7 +429,7 @@ export const KraLibraryModal: React.FC<KraLibraryModalProps> = ({
             <span>Standard KRAs enforce organizational measurement alignment</span>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors shadow-2xs cursor-pointer"
           >
             Close

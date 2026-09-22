@@ -20,6 +20,7 @@ import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
 import { StatusBadge } from './ui/StatusBadge';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
+import { EmptyState } from './ui/EmptyState';
 import { CreatePipModal } from './CreatePipModal';
 import { PipDetailModal } from './PipDetailModal';
 
@@ -228,23 +229,19 @@ export const PerformanceImprovementPlansView: React.FC<PerformanceImprovementPla
       </div>
 
       {filtered.length === 0 ? (
-        <div className="p-10 sm:p-14 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-lg mx-auto my-12 shadow-sm">
-          <div className="w-14 h-14 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-200 dark:border-indigo-800">
-            <ClipboardList className="w-7 h-7" />
-          </div>
-          <h2 className="text-base font-bold text-slate-900 dark:text-white">
-            {plans.length === 0 ? 'No Performance Improvement Plans' : 'No plans match your filters'}
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto leading-relaxed">
-            {plans.length === 0
+        <EmptyState
+          icon={ClipboardList}
+          title={plans.length === 0 ? 'No Performance Improvement Plans' : 'No plans match your filters'}
+          description={
+            plans.length === 0
               ? isHrOrAdmin
                 ? 'Start a plan for an underperforming employee to track corrective goals and check-ins.'
                 : currentUser?.role === 'EMPLOYEE'
                 ? 'You have no performance improvement plans on record.'
                 : 'No plans have been assigned to your reportees yet.'
-              : 'Try a different search term or status filter.'}
-          </p>
-        </div>
+              : 'Try a different search term or status filter.'
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((plan) => {

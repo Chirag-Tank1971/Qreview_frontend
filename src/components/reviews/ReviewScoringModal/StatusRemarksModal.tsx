@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Lock, UserCheck, RotateCcw, Loader2 } from 'lucide-react';
 import { EmployeeReview, ReviewStatus } from '../../../types';
+import { useModalAnimation } from '../../../hooks/useModalAnimation';
 
 interface StatusRemarksModalProps {
   isOpen: boolean;
@@ -33,16 +34,28 @@ export const StatusRemarksModal: React.FC<StatusRemarksModalProps> = ({
   setReturnTarget,
   hodAvailable = true,
 }) => {
-  if (!isOpen || !status) return null;
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+    useModalAnimation({ isOpen, onClose });
+
+  useEffect(() => {
+    if (!isMounted) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !saving) handleClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMounted, saving, handleClose]);
+
+  if (!isMounted || !status) return null;
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4"
+      className={`fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 ${backdropClass}`}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (!saving) handleBackdropClick(e);
       }}
     >
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-5 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-5 space-y-4 ${cardClass}`}>
         <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center space-x-2">
           {status === 'CLOSED' ? (
             <Lock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />

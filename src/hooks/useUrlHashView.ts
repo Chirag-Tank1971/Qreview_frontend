@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useTransition } from 'react';
+import type { UserRole } from '../types';
 
 export type AppView =
   | 'portal'
@@ -15,31 +16,25 @@ export type AppView =
   | 'notifications'
   | 'pip';
 
-const VALID_VIEWS: AppView[] = [
-  'portal',
-  'management',
-  'ai_performance',
-  'appraisals',
-  'reviews',
-  'kras',
-  'employees',
-  'hierarchy',
-  'reports',
-  'bulk',
-  'audit',
-  'notifications',
-  'pip',
-];
+// NAV_ITEMS (frontend/src/config/navigation.ts) is the single source of truth for which
+// roles can reach which view — VALID_VIEWS and ROLE_ALLOWED_VIEWS are both derived from it
+// so a nav item can never exist in the Sidebar/MobileNavDrawer without also being
+// permission-gated here (that exact drift — an item visible in the nav but missing from
+// this file's role list — was a real bug earlier in this app's life).
+//
+// Imported lazily (require-style via a getter) would be overkill; a plain top-level import
+// is safe here because navigation.ts only imports AppView/UserRole as `import type`, which
+// is erased at compile time, so there's no real circular runtime dependency.
+import { NAV_ITEMS } from '../config/navigation';
 
-export const ROLE_ALLOWED_VIEWS: Record<string, AppView[]> = {
-  SUPER_ADMIN: ['portal', 'reviews', 'appraisals', 'ai_performance', 'reports', 'employees', 'hierarchy', 'kras', 'bulk', 'audit', 'notifications', 'pip'],
-  MANAGEMENT: ['management', 'reports', 'hierarchy', 'notifications', 'portal'],
-  HR: ['portal', 'reviews', 'appraisals', 'reports', 'employees', 'hierarchy', 'kras', 'bulk', 'audit', 'notifications', 'pip'],
-  HOD: ['portal', 'reviews', 'appraisals', 'reports', 'hierarchy', 'notifications', 'pip'],
-  REPORTING_MANAGER: ['portal', 'reviews', 'appraisals', 'notifications', 'pip'],
-  MANAGER: ['portal', 'reviews', 'appraisals', 'notifications', 'pip'],
-  EMPLOYEE: ['portal', 'reviews', 'notifications', 'pip'],
-};
+const VALID_VIEWS: AppView[] = NAV_ITEMS.map((item) => item.id);
+
+const ALL_ROLES: UserRole[] = ['SUPER_ADMIN', 'HR', 'REPORTING_MANAGER', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'];
+
+export const ROLE_ALLOWED_VIEWS: Record<string, AppView[]> = ALL_ROLES.reduce((acc, role) => {
+  acc[role] = NAV_ITEMS.filter((item) => item.roles.includes(role)).map((item) => item.id);
+  return acc;
+}, {} as Record<string, AppView[]>);
 
 export function isViewPermitted(view: AppView, role?: string): boolean {
   if (!role) return true;

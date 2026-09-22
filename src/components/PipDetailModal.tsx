@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X,
@@ -27,6 +27,7 @@ import {
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
 import { StatusBadge } from './ui/StatusBadge';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 
 interface PipDetailModalProps {
   plan: PerformanceImprovementPlan;
@@ -56,6 +57,25 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
   const [failureAction, setFailureAction] = useState<PipFailureResolutionAction | ''>('');
   const [failureNotes, setFailureNotes] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+    useModalAnimation({ onClose });
+
+  useEffect(() => {
+    if (!isMounted) return;
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !busy) handleClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = origOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMounted, busy, handleClose]);
+
+  if (!isMounted) return null;
 
   const role = currentUser?.role;
   const myEmployeeId = currentUser?.employeeId;
@@ -204,12 +224,12 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9995] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+      className={`fixed inset-0 z-[9995] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 ${backdropClass}`}
       onClick={(e) => {
-        if (e.target === e.currentTarget && !busy) onClose();
+        if (!busy) handleBackdropClick(e);
       }}
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col ${cardClass}`}>
         <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center shrink-0">
@@ -224,7 +244,7 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
             <StatusBadge status={plan.status} tone={STATUS_TONE[plan.status]} />
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={!!busy}
               className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer disabled:opacity-50"
             >

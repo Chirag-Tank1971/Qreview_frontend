@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ClipboardList, Search, Plus, Trash2, Loader2, Send, Save } from 'lucide-react';
 import { Employee, PerformanceImprovementPlan } from '../types';
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 
 interface CreatePipModalProps {
   isOpen: boolean;
@@ -45,7 +46,24 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
   const [goals, setGoals] = useState<GoalRow[]>([blankGoal(), blankGoal()]);
   const [isSubmitting, setIsSubmitting] = useState<'draft' | 'publish' | null>(null);
 
-  if (!isOpen) return null;
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+    useModalAnimation({ isOpen, onClose });
+
+  useEffect(() => {
+    if (!isMounted) return;
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isSubmitting) handleClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = origOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMounted, isSubmitting, handleClose]);
+
+  if (!isMounted) return null;
 
   const employeesOnActivePip = useMemo(
     () => new Set(existingPlans.filter((p) => ACTIVE_STATUSES.includes(p.status)).map((p) => p.employeeId)),
@@ -108,11 +126,10 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
         publish,
       });
       toast.success(
-        publish
-          ? `Performance improvement plan published for ${selectedEmployee!.name}.`
-          : `Draft plan saved for ${selectedEmployee!.name}.`,
-        publish ? 'Plan Published' : 'Draft Saved'
+        publish ? 'Performance improvement plan published and employee notified.' : 'Plan saved as draft.',
+        publish ? 'PIP Published' : 'Draft Saved'
       );
+      handleClose();
       onCreated();
     } catch (err: any) {
       toast.error(err.message || 'Failed to create performance improvement plan.', 'Creation Failed');
@@ -123,12 +140,12 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9994] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+      className={`fixed inset-0 z-[9994] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 ${backdropClass}`}
       onClick={(e) => {
-        if (e.target === e.currentTarget && !isSubmitting) onClose();
+        if (!isSubmitting) handleBackdropClick(e);
       }}
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col ${cardClass}`}>
         <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center">
@@ -143,7 +160,7 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={!!isSubmitting}
             className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer disabled:opacity-50"
           >
@@ -314,7 +331,7 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
         <div className="flex items-center justify-end gap-2.5 p-4 border-t border-slate-100 dark:border-slate-800 shrink-0">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={!!isSubmitting}
             className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors cursor-pointer disabled:opacity-50"
           >

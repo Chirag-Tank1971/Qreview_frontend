@@ -20,11 +20,11 @@
   --text-muted: #64748b;
   --text-faint: #94a3b8;
 
-  /* Brand Accent (Restrained Indigo/Blue) */
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-subtle: #eff6ff;
-  --accent-border: #bfdbfe;
+  /* Brand Accent (Single restrained accent — indigo, used strictly for primary actions & active state) */
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-subtle: #eef2ff;
+  --accent-border: #c7d2fe;
   --accent-text: #ffffff;
 
   /* Semantic Colors - Strictly reserved for meaningful indicators */
@@ -72,10 +72,10 @@
   --text-faint: #64748b;
 
   /* Brand Accent */
-  --accent: #3b82f6;
-  --accent-hover: #60a5fa;
-  --accent-subtle: #1e293b;
-  --accent-border: #2563eb;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --accent-subtle: #1e1b4b;
+  --accent-border: #4338ca;
   --accent-text: #ffffff;
 
   /* Semantic Colors */
@@ -264,7 +264,7 @@
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -324,7 +324,8 @@
 
 .animate-entrance,
 .animate-entrance-scale,
-.animate-badge-in {
+.animate-badge-in,
+.animate-fadeIn {
   animation: fadeIn 150ms ease-out both;
 }
 
@@ -368,6 +369,261 @@
     rgba(255, 255, 255, 0.04) 50%,
     rgba(255, 255, 255, 0) 100%
   );
+}
+
+/* ==========================================================================
+   Login Page: ambient background motion & staggered entrance choreography.
+   Scoped to .login-* classes so it never leaks into the rest of the app,
+   which intentionally stays flat/static per REDESIGN_NOTES.md.
+   ========================================================================== */
+
+@keyframes loginBlobFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(4%, -5%) scale(1.08); }
+  66% { transform: translate(-4%, 4%) scale(0.95); }
+}
+
+.login-blob {
+  animation: loginBlobFloat 16s ease-in-out infinite;
+}
+
+.login-blob-delay {
+  animation-delay: -8s;
+}
+
+@keyframes loginFadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-fade-up {
+  animation: loginFadeUp 650ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.login-delay-1 { animation-delay: 80ms; }
+.login-delay-2 { animation-delay: 160ms; }
+.login-delay-3 { animation-delay: 240ms; }
+.login-delay-4 { animation-delay: 320ms; }
+.login-delay-5 { animation-delay: 400ms; }
+.login-delay-6 { animation-delay: 480ms; }
+
+@keyframes loginLogoGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.35); }
+  50% { box-shadow: 0 0 0 9px rgba(79, 70, 229, 0); }
+}
+
+.login-logo-glow {
+  animation: loginLogoGlow 2.8s ease-out infinite;
+}
+
+/* Sign-in button sheen sweep on hover */
+.login-btn-sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.login-btn-sheen::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: skewX(-20deg);
+  transition: left 550ms ease;
+  pointer-events: none;
+}
+
+.login-btn-sheen:hover::after {
+  left: 130%;
+}
+
+/* Cycle-progress bar: fills from 0 to its target width on mount, then a soft */
+/* highlight sweeps across it once, like a "line filling" load-in. */
+@keyframes loginProgressFill {
+  0% { width: 0%; }
+  100% { width: var(--login-progress-target, 85%); }
+}
+
+.login-progress-fill {
+  animation: loginProgressFill 1.3s cubic-bezier(0.16, 1, 0.3, 1) 900ms both;
+}
+
+@keyframes loginProgressSheen {
+  0%, 60% { transform: translateX(-100%); opacity: 0; }
+  70% { opacity: 1; }
+  100% { transform: translateX(220%); opacity: 0; }
+}
+
+.login-progress-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  animation: loginProgressSheen 1.3s ease-out 900ms both;
+}
+
+/* Faint dotted grid backdrop */
+.login-grid-backdrop {
+  background-image: radial-gradient(circle, rgba(100, 116, 139, 0.18) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.dark .login-grid-backdrop {
+  background-image: radial-gradient(circle, rgba(148, 163, 184, 0.14) 1px, transparent 1px);
+}
+
+/* ==========================================================================
+   MODAL & OVERLAY ANIMATIONS (SMOOTH HARDWARE-ACCELERATED)
+   ========================================================================== */
+
+@keyframes modalBackdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalBackdropFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modalCardScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modalCardScaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+}
+
+@keyframes drawerSlideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes drawerSlideOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+@keyframes drawerSlideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes drawerSlideOutLeft {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+}
+
+.modal-backdrop-enter {
+  animation: modalBackdropFadeIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity;
+}
+
+.modal-backdrop-exit {
+  animation: modalBackdropFadeOut 180ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  will-change: opacity;
+  pointer-events: none;
+}
+
+.modal-card-enter {
+  animation: modalCardScaleIn 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.modal-card-exit {
+  animation: modalCardScaleOut 180ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+.drawer-right-enter {
+  animation: drawerSlideInRight 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.drawer-right-exit {
+  animation: drawerSlideOutRight 180ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+.drawer-left-enter {
+  animation: drawerSlideInLeft 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.drawer-left-exit {
+  animation: drawerSlideOutLeft 180ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+/* Backwards compatibility / alias for any standard Tailwind utility animation in existing templates */
+.animate-in.fade-in {
+  animation: modalBackdropFadeIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-in.fade-in.zoom-in-95,
+.animate-in.zoom-in-95 {
+  animation: modalCardScaleIn 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in {
+  animation: modalBackdropFadeIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Accessibility: Honour prefers-reduced-motion by strictly disabling transforms & animations */

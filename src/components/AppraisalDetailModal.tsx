@@ -25,6 +25,7 @@ import { Appraisal, Designation, User as AuthUser, EmployeeStatus } from '../typ
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
 import { AppraisalLetterModal } from './AppraisalLetterModal';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 
 interface AppraisalDetailModalProps {
   appraisal: Appraisal;
@@ -41,6 +42,11 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
   onClose,
   onRefresh,
 }) => {
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+    isOpen: true,
+    onClose,
+  });
+
   const [activeTab, setActiveTab] = useState<'breakdown' | 'calibrate' | 'audit'>('calibrate');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +91,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
         if (confirmActionType) {
           setConfirmActionType(null);
         } else if (!showLetterModal) {
-          onClose();
+          handleClose();
         }
       }
     };
@@ -94,7 +100,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
       document.body.style.overflow = origOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [confirmActionType, showLetterModal, onClose]);
+  }, [confirmActionType, showLetterModal, handleClose]);
 
   const currencySymbol = appraisal.currency || '₹';
   const currentCtc = appraisal.currentCtc || 1800000;
@@ -302,7 +308,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
     try {
       await api.submitHrApproval(appraisal.id, {
         finalIncrementPercent: incrementPercent,
-        finalRating: appraisal.finalRating || appraisal.recommendedRating,
+        finalRating: appraisal.finalRating || appraisal.recommendedRating || 'MEETS_EXPECTATIONS',
         revisedCtc: calculatedRevisedCtc,
         effectiveDate,
         notes: hrNotes,
@@ -386,15 +392,15 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
     }
   };
 
+  if (!isMounted) return null;
+
   return createPortal(
     <>
       <div
-        className="fixed inset-0 z-[9990] overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose();
-        }}
+        className={`fixed inset-0 z-[9990] overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 ${backdropClass}`}
+        onClick={handleBackdropClick}
       >
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col">
+        <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col ${cardClass}`}>
           {/* Header */}
           <div className="px-6 py-4 bg-slate-900 dark:bg-slate-950 text-white flex items-center justify-between shrink-0 border-b border-slate-800">
             <div className="flex items-center gap-3">
@@ -438,7 +444,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                 </button>
               )}
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -607,7 +613,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                       Rating & Increment Matrix
                     </span>
                     <div className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
-                      {appraisal.recommendedRating.replace(/_/g, ' ')}
+                      {(appraisal.recommendedRating || 'N/A').replace(/_/g, ' ')}
                     </div>
                     <p className="text-[11px] text-emerald-800 dark:text-emerald-300">
                       Standard Guideline Band:{' '}
@@ -1193,12 +1199,12 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
       {confirmActionType &&
         createPortal(
           <div
-            className="fixed inset-0 z-[10000] overflow-y-auto bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4"
+            className="fixed inset-0 z-[10000] overflow-y-auto bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4 modal-backdrop-enter"
             onClick={(e) => {
               if (e.target === e.currentTarget) setConfirmActionType(null);
             }}
           >
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800 modal-card-enter">
               {confirmActionType === 'HOD_RETURN' ? (
                 <div className="p-6 space-y-4">
                   <div className="flex items-center gap-3">

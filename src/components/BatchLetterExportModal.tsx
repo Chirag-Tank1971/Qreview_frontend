@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Appraisal, Cycle, Department } from '../types';
 import { toast } from '../context/ToastContext';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 import {
   DEFAULT_LETTER_SETTINGS,
   LetterSettings,
@@ -40,22 +41,18 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
   cycles,
   onClose,
 }) => {
-  // Filter / selection state
-  const [filterStatus, setFilterStatus] = useState<string>('LOCKED_OR_APPROVED');
+  // Filter state
   const [filterDept, setFilterDept] = useState<string>('ALL');
   const [filterCycle, setFilterCycle] = useState<string>('ALL');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
-    // Default select all eligible appraisals
-    return new Set(
-      appraisals
-        .filter((a) => a.status === 'LOCKED' || a.status === 'HR_APPROVED' || a.isLocked)
-        .map((a) => a.id)
-    );
-  });
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'LOCKED_ONLY' | 'HR_APPROVED_ONLY' | 'LOCKED_OR_APPROVED'>('LOCKED_OR_APPROVED');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Settings state
-  const [showSettings, setShowSettings] = useState<boolean>(false);
+  // Selected appraisals for batch export
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Template branding settings
   const [settings, setSettings] = useState<LetterSettings>(DEFAULT_LETTER_SETTINGS);
+  const [showSettingsDrawer, setShowSettingsDrawer] = useState<boolean>(false);
 
   // Progress state
   const [isExportingZip, setIsExportingZip] = useState<boolean>(false);
@@ -63,12 +60,16 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+    useModalAnimation({ onClose });
+
   useEffect(() => {
+    if (!isMounted) return;
     const origOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !isExportingZip) {
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -76,7 +77,9 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
       document.body.style.overflow = origOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isExportingZip, onClose]);
+  }, [isMounted, isExportingZip, handleClose]);
+
+  if (!isMounted) return null;
 
   // Filter appraisals based on controls
   const filteredAppraisals = appraisals.filter((a) => {
@@ -280,14 +283,14 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9990] overflow-y-auto bg-slate-950/70 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-4"
+      className={`fixed inset-0 z-[9990] overflow-y-auto bg-slate-950/70 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 ${backdropClass}`}
       onClick={(e) => {
-        if (e.target === e.currentTarget && !isExportingZip) {
-          onClose();
+        if (!isExportingZip) {
+          handleBackdropClick(e);
         }
       }}
     >
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 my-auto animate-in fade-in zoom-in-95 duration-150">
+      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 my-auto ${cardClass}`}>
         {/* Header */}
         <div className="px-6 py-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between border-b border-slate-800">
           <div className="flex items-center gap-2.5">
@@ -310,8 +313,8 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
           <button
             type="button"
             disabled={isExportingZip}
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            onClick={handleClose}
+            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -397,7 +400,7 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
                   </label>
                   <select
                     value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
+                    onChange={(e) => setFilterStatus(e.target.value as any)}
                     className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500"
                   >
                     <option value="LOCKED_OR_APPROVED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Locked & HR Approved (Ready for Letters)</option>
@@ -449,9 +452,9 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
               {/* Template Customizer Toggle Button */}
               <button
                 type="button"
-                onClick={() => setShowSettings(!showSettings)}
+                onClick={() => setShowSettingsDrawer(!showSettingsDrawer)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors self-end cursor-pointer ${
-                  showSettings
+                  showSettingsDrawer
                     ? 'bg-indigo-600 text-white border-indigo-600'
                     : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750'
                 }`}
@@ -462,7 +465,7 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
             </div>
 
             {/* Template Settings Form (Collapsible) */}
-            {showSettings && (
+            {showSettingsDrawer && (
               <div className="p-4 bg-white dark:bg-slate-850 rounded-xl border border-indigo-200 dark:border-indigo-800 space-y-3 mt-3 animate-in fade-in duration-150">
                 <div className="font-bold text-xs text-indigo-950 dark:text-indigo-300 flex items-center gap-1.5">
                   <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />

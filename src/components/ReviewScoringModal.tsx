@@ -38,6 +38,7 @@ import {
   AuditTrailDrawer,
 } from './reviews/ReviewScoringModal';
 import { ReviewLetterModal } from './ReviewLetterModal';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 
 export interface ReviewScoringModalProps {
   review: EmployeeReview | null;
@@ -74,6 +75,11 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [showUnsavedAlert, setShowUnsavedAlert] = useState(false);
+
+  const { isMounted, handleClose, backdropClass, cardClass } = useModalAnimation({
+    isOpen,
+    onClose,
+  });
 
   // Forward declaration ref for handleAttemptClose
   const handleAttemptCloseRef = React.useRef<() => void>(() => {});
@@ -193,7 +199,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
     return snapshots.filter((s) => !s.hodRating || s.hodRating === 0).length;
   }, [snapshots]);
 
-  if (!isOpen || !review) return null;
+  if (!isMounted || !review) return null;
 
   // Permissions: Only assigned Reporting Manager or HR / Super Admin can score and edit KRA ratings.
   // HOD never edits Manager ratings — HOD instead reviews the submitted assessment and
@@ -240,7 +246,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
     if (hasUnsavedChanges) {
       setShowUnsavedAlert(true);
     } else {
-      onClose();
+      handleClose();
     }
   };
 
@@ -547,12 +553,12 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-xs p-4 overflow-y-auto"
+      className={`fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-xs p-4 overflow-y-auto ${backdropClass}`}
       onClick={(e) => {
         if (e.target === e.currentTarget) handleAttemptClose();
       }}
     >
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl my-6 flex flex-col max-h-[92vh] overflow-hidden text-slate-900 dark:text-white">
+      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl my-6 flex flex-col max-h-[92vh] overflow-hidden text-slate-900 dark:text-white ${cardClass}`}>
         
         {/* MODAL HEADER */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-850">
@@ -683,9 +689,13 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               </span>
               <span>Employee Input</span>
               {review.selfSubmittedAt ? (
-                <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" title="Self-Review Completed" />
+                <span title="Self-Review Completed">
+                  <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                </span>
               ) : (
-                <Clock className="w-3 h-3 text-amber-500 dark:text-amber-400" title="Self-Review Pending" />
+                <span title="Self-Review Pending">
+                  <Clock className="w-3 h-3 text-amber-500 dark:text-amber-400" />
+                </span>
               )}
             </button>
 
@@ -1056,12 +1066,12 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
         {/* UNSAVED CHANGES CONFIRMATION ALERT */}
         {showUnsavedAlert && (
           <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 modal-backdrop-enter"
             onClick={(e) => {
               if (e.target === e.currentTarget) setShowUnsavedAlert(false);
             }}
           >
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 text-slate-900 dark:text-white transform scale-100 transition-all">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 text-slate-900 dark:text-white modal-card-enter">
               <div className="flex items-start space-x-4">
                 <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-2xl border border-amber-500/20 shrink-0">
                   <AlertTriangle className="w-6 h-6" />
@@ -1088,7 +1098,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                   type="button"
                   onClick={() => {
                     setShowUnsavedAlert(false);
-                    onClose();
+                    handleClose();
                   }}
                   className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-900/60 rounded-xl transition-colors cursor-pointer"
                 >

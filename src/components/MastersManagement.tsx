@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Department, Designation, Employee, Cycle } from '../types';
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 import {
   Plus,
   Building2,
@@ -30,6 +32,8 @@ interface MastersManagementProps {
   cycles: Cycle[];
   onRefresh: () => void;
 }
+
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export const MastersManagement: React.FC<MastersManagementProps> = ({
   departments,
@@ -697,7 +701,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                           <button
                             onClick={() => {
                               setEditingCycleId(cycle.id);
-                              setEditCycleData({ name: cycle.name, appraisalMonth: cycle.appraisalMonth, description: cycle.description });
+                              setEditCycleData({ name: cycle.name, appraisalMonth: cycle.appraisalMonth, description: cycle.description || '' });
                             }}
                             className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-750 rounded-lg transition-colors cursor-pointer"
                             title="Edit Cycle"
@@ -747,296 +751,389 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
       </div>
 
       {/* Custom Delete Confirmation Modal */}
-      {deleteTarget && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-xl border shrink-0 ${
-                  deleteTarget.assignedEmployees.length > 0
-                    ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
-                    : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
-                }`}>
-                  {deleteTarget.assignedEmployees.length > 0 ? (
-                    <ShieldAlert className="w-5 h-5" />
-                  ) : (
-                    <Trash2 className="w-5 h-5" />
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    {deleteTarget.assignedEmployees.length > 0
-                      ? `Cannot Delete ${deleteTarget.type === 'department' ? 'Department' : 'Designation'}`
-                      : `Delete ${deleteTarget.type === 'department' ? 'Department' : 'Designation'}`}
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {deleteTarget.assignedEmployees.length > 0
-                      ? 'Referential integrity protection active'
-                      : 'Permanent database removal'}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => !deleteLoading && setDeleteTarget(null)}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                title="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-5 space-y-4">
-              {/* Target Details Card */}
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 block">
-                    {deleteTarget.type === 'department' ? 'Target Department' : 'Target Designation'}
-                  </span>
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">
-                    {deleteTarget.name}
-                  </span>
-                </div>
-                {deleteTarget.code && (
-                  <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
-                    {deleteTarget.code}
-                  </span>
-                )}
-                {deleteTarget.level !== undefined && (
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                    Role Level {deleteTarget.level}
-                  </span>
-                )}
-              </div>
-
-              {deleteTarget.assignedEmployees.length > 0 ? (
-                /* Blocked State */
-                <div className="space-y-3">
-                  <div className="p-3 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                      <span>{deleteTarget.assignedEmployees.length} Active Employee(s) Assigned</span>
-                    </div>
-                    <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
-                      To prevent orphaned employee profiles, broken review cycles, and missing manager linkages, this {deleteTarget.type} cannot be deleted while employees are actively assigned.
-                    </p>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400 block">
-                      Assigned Personnel:
-                    </span>
-                    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1">
-                      {deleteTarget.assignedEmployees.slice(0, 8).map((emp) => (
-                        <span
-                          key={emp.id}
-                          className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1"
-                        >
-                          <span className="font-semibold">{emp.name}</span>
-                          <span className="text-[10px] text-slate-400">({emp.employeeCode})</span>
-                        </span>
-                      ))}
-                      {deleteTarget.assignedEmployees.length > 8 && (
-                        <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 font-medium">
-                          +{deleteTarget.assignedEmployees.length - 8} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 italic">
-                    Tip: Reassign or deactivate these employees in the <strong>Employees</strong> tab before deleting this {deleteTarget.type}.
-                  </p>
-                </div>
-              ) : (
-                /* Allowed to Delete State */
-                <div className="space-y-3">
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Are you sure you want to permanently delete <strong>&quot;{deleteTarget.name}&quot;</strong> from the database?
-                  </p>
-
-                  <div className="p-3 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl text-xs text-rose-800 dark:text-rose-300 space-y-1">
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
-                      <span>Permanent Action</span>
-                    </div>
-                    <p className="text-[11px] leading-relaxed text-rose-700 dark:text-rose-400">
-                      {deleteTarget.type === 'department'
-                        ? 'All associated designations and department settings will be permanently removed. This action is recorded in the master audit log.'
-                        : 'This designation role will be permanently removed from the master registry.'}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2.5">
-              {deleteTarget.assignedEmployees.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => setDeleteTarget(null)}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-                >
-                  Understood
-                </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    disabled={deleteLoading}
-                    onClick={() => setDeleteTarget(null)}
-                    className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={deleteLoading}
-                    onClick={handleConfirmDelete}
-                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
-                  >
-                    {deleteLoading ? (
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <Trash2 className="w-3.5 h-3.5" />
-                    )}
-                    <span>{deleteLoading ? 'Deleting...' : 'Permanently Delete'}</span>
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <MasterDeleteModal
+        deleteTarget={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleConfirmDelete}
+        loading={deleteLoading}
+      />
 
       {/* Enrolled Employees in Cycle Modal */}
-      {selectedCycleForView && (() => {
-        const enrolled = (employees || []).filter(
-          (e) => e.cycleId === selectedCycleForView.id || e.cycleCode === selectedCycleForView.code
-        );
-        const filteredEnrolled = enrolled.filter((emp) => {
-          if (!cycleModalSearch) return true;
-          const q = cycleModalSearch.toLowerCase();
-          return (
-            emp.name.toLowerCase().includes(q) ||
-            emp.employeeCode.toLowerCase().includes(q) ||
-            (emp.departmentName && emp.departmentName.toLowerCase().includes(q)) ||
-            (emp.designationName && emp.designationName.toLowerCase().includes(q))
-          );
-        });
+      <CycleEnrolledModal
+        cycle={selectedCycleForView}
+        employees={employees}
+        search={cycleModalSearch}
+        onSearchChange={setCycleModalSearch}
+        onClose={() => setSelectedCycleForView(null)}
+      />
+    </div>
+  );
+};
 
-        return (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
-              {/* Modal Header */}
-              <div className="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3 shrink-0">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border"
-                    style={{
-                      backgroundColor: `${selectedCycleForView.colorHex}15`,
-                      borderColor: `${selectedCycleForView.colorHex}40`,
-                    }}
-                  >
-                    <Calendar className="w-5 h-5" style={{ color: selectedCycleForView.colorHex }} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                        {selectedCycleForView.name} — Enrolled Employees
-                      </h3>
-                      <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                        {enrolled.length} Enrolled
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      Annual appraisal month: <strong>{monthNames[selectedCycleForView.appraisalMonth - 1]}</strong> • {selectedCycleForView.description}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedCycleForView(null)}
-                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                  title="Close"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+interface MasterDeleteModalProps {
+  deleteTarget: {
+    type: 'department' | 'designation';
+    id: string;
+    name: string;
+    code?: string;
+    level?: number;
+    associatedDeptName?: string;
+    assignedEmployees: Employee[];
+  } | null;
+  onClose: () => void;
+  onConfirm: () => void;
+  loading: boolean;
+}
 
-              {/* Search Bar */}
-              <div className="p-3 bg-slate-50 dark:bg-slate-850 border-b border-slate-100 dark:border-slate-800 shrink-0">
-                <div className="relative">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={cycleModalSearch}
-                    onChange={(e) => setCycleModalSearch(e.target.value)}
-                    placeholder="Search enrolled employees by name, code, department, or role..."
-                    className="w-full h-8 pl-9 pr-3 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
+const MasterDeleteModal: React.FC<MasterDeleteModalProps> = ({
+  deleteTarget,
+  onClose,
+  onConfirm,
+  loading,
+}) => {
+  const cachedTargetRef = React.useRef(deleteTarget);
+  if (deleteTarget) {
+    cachedTargetRef.current = deleteTarget;
+  }
+  const target = deleteTarget || cachedTargetRef.current;
 
-              {/* Employees List */}
-              <div className="flex-1 overflow-y-auto p-4 divide-y divide-slate-100 dark:divide-slate-800">
-                {filteredEnrolled.length === 0 ? (
-                  <div className="text-center py-10 text-xs text-slate-400 dark:text-slate-500">
-                    {enrolled.length === 0
-                      ? 'No employees are currently assigned to this cycle cohort.'
-                      : 'No employees matched your search.'}
-                  </div>
-                ) : (
-                  filteredEnrolled.map((emp) => (
-                    <div key={emp.id} className="py-2.5 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center shrink-0">
-                          {emp.name.charAt(0)}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-semibold text-slate-900 dark:text-white truncate">
-                            {emp.name}
-                          </div>
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                            {emp.designationName || 'Role'} • {emp.departmentName || 'Department'}
-                          </div>
-                        </div>
-                      </div>
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+    isOpen: !!deleteTarget,
+    onClose,
+  });
 
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                          {emp.employeeCode}
-                        </span>
-                        {emp.status === 'INACTIVE' || emp.isPastEmployee ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
-                            <UserMinus className="w-2.5 h-2.5 text-slate-400" /> Past Employee
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" /> Active
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+  if (!isMounted || !target) return null;
+  if (typeof document === 'undefined') return null;
 
-              {/* Footer */}
-              <div className="p-3 bg-slate-50 dark:bg-slate-850 border-t border-slate-100 dark:border-slate-800 flex justify-end shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setSelectedCycleForView(null)}
-                  className="px-4 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
-                >
-                  Close
-                </button>
-              </div>
+  return createPortal(
+    <div
+      className={`fixed inset-0 z-[9990] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto ${backdropClass}`}
+      onClick={handleBackdropClick}
+    >
+      <div
+        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-md w-full my-auto overflow-hidden ${cardClass}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div className="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div
+              className={`p-2 rounded-xl ${
+                target.assignedEmployees.length > 0
+                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+              }`}
+            >
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                {target.assignedEmployees.length > 0
+                  ? `Cannot Delete ${target.type === 'department' ? 'Department' : 'Designation'}`
+                  : `Delete ${target.type === 'department' ? 'Department' : 'Designation'}`}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {target.assignedEmployees.length > 0
+                  ? 'Active employee dependencies detected'
+                  : 'Confirm master registry removal'}
+              </p>
             </div>
           </div>
-        );
-      })()}
-    </div>
+          <button
+            onClick={handleClose}
+            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-5 space-y-4">
+          {/* Target Details Card */}
+          <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 block">
+                {target.type === 'department' ? 'Target Department' : 'Target Designation'}
+              </span>
+              <span className="text-xs font-bold text-slate-900 dark:text-white">
+                {target.name}
+              </span>
+            </div>
+            {target.code && (
+              <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                {target.code}
+              </span>
+            )}
+            {target.level !== undefined && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                Role Level {target.level}
+              </span>
+            )}
+          </div>
+
+          {target.assignedEmployees.length > 0 ? (
+            /* Blocked State */
+            <div className="space-y-3">
+              <div className="p-3 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>{target.assignedEmployees.length} Active Employee(s) Assigned</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
+                  To prevent orphaned employee profiles, broken review cycles, and missing manager linkages, this {target.type} cannot be deleted while employees are actively assigned.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400 block">
+                  Assigned Personnel:
+                </span>
+                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1">
+                  {target.assignedEmployees.slice(0, 8).map((emp) => (
+                    <span
+                      key={emp.id}
+                      className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1"
+                    >
+                      <span className="font-semibold">{emp.name}</span>
+                      <span className="text-[10px] text-slate-400">({emp.employeeCode})</span>
+                    </span>
+                  ))}
+                  {target.assignedEmployees.length > 8 && (
+                    <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 font-medium">
+                      +{target.assignedEmployees.length - 8} more
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 italic">
+                Tip: Reassign or deactivate these employees in the <strong>Employees</strong> tab before deleting this {target.type}.
+              </p>
+            </div>
+          ) : (
+            /* Allowed to Delete State */
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Are you sure you want to permanently delete <strong>&quot;{target.name}&quot;</strong> from the database?
+              </p>
+
+              <div className="p-3 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl text-xs text-rose-800 dark:text-rose-300 space-y-1">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+                  <span>Permanent Action</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-rose-700 dark:text-rose-400">
+                  {target.type === 'department'
+                    ? 'All associated designations and department settings will be permanently removed. This action is recorded in the master audit log.'
+                    : 'This designation role will be permanently removed from the master registry.'}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2.5">
+          {target.assignedEmployees.length > 0 ? (
+            <button
+              type="button"
+              onClick={handleClose}
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+            >
+              Understood
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleClose}
+                className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={onConfirm}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {loading ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>{loading ? 'Deleting...' : 'Permanently Delete'}</span>
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+interface CycleEnrolledModalProps {
+  cycle: Cycle | null;
+  employees: Employee[];
+  search: string;
+  onSearchChange: (val: string) => void;
+  onClose: () => void;
+}
+
+const CycleEnrolledModal: React.FC<CycleEnrolledModalProps> = ({
+  cycle,
+  employees,
+  search,
+  onSearchChange,
+  onClose,
+}) => {
+  const cachedCycleRef = React.useRef(cycle);
+  if (cycle) {
+    cachedCycleRef.current = cycle;
+  }
+  const activeCycle = cycle || cachedCycleRef.current;
+
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+    isOpen: !!cycle,
+    onClose,
+  });
+
+  if (!isMounted || !activeCycle) return null;
+  if (typeof document === 'undefined') return null;
+
+  const enrolled = (employees || []).filter(
+    (e) => e.cycleId === activeCycle.id || e.cycleCode === activeCycle.code
+  );
+  const filteredEnrolled = enrolled.filter((emp) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      emp.name.toLowerCase().includes(q) ||
+      emp.employeeCode.toLowerCase().includes(q) ||
+      (emp.departmentName && emp.departmentName.toLowerCase().includes(q)) ||
+      (emp.designationName && emp.designationName.toLowerCase().includes(q))
+    );
+  });
+
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  return createPortal(
+    <div
+      className={`fixed inset-0 z-[9990] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto ${backdropClass}`}
+      onClick={handleBackdropClick}
+    >
+      <div
+        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] my-auto flex flex-col overflow-hidden ${cardClass}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div className="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border"
+              style={{
+                backgroundColor: `${activeCycle.colorHex}15`,
+                borderColor: `${activeCycle.colorHex}40`,
+              }}
+            >
+              <Calendar className="w-5 h-5" style={{ color: activeCycle.colorHex }} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  {activeCycle.name} — Enrolled Employees
+                </h3>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                  {enrolled.length} Enrolled
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Annual appraisal month: <strong>{monthNames[activeCycle.appraisalMonth - 1]}</strong> • {activeCycle.description}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleClose}
+            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Search Bar */}
+        <div className="p-3 bg-slate-50 dark:bg-slate-850 border-b border-slate-100 dark:border-slate-800 shrink-0">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search enrolled employees by name, code, department, or role..."
+              className="w-full h-8 pl-9 pr-3 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Employees List */}
+        <div className="flex-1 overflow-y-auto p-4 divide-y divide-slate-100 dark:divide-slate-800">
+          {filteredEnrolled.length === 0 ? (
+            <div className="text-center py-10 text-xs text-slate-400 dark:text-slate-500">
+              {enrolled.length === 0
+                ? 'No employees are currently assigned to this cycle cohort.'
+                : 'No employees matched your search.'}
+            </div>
+          ) : (
+            filteredEnrolled.map((emp) => (
+              <div key={emp.id} className="py-2.5 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center shrink-0">
+                    {emp.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                      {emp.name}
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      {emp.designationName || 'Role'} • {emp.departmentName || 'Department'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                    {emp.employeeCode}
+                  </span>
+                  {emp.status === 'INACTIVE' || emp.isPastEmployee ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
+                      <UserMinus className="w-2.5 h-2.5 text-slate-400" /> Past Employee
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" /> Active
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-3 bg-slate-50 dark:bg-slate-850 border-t border-slate-100 dark:border-slate-800 flex justify-end shrink-0">
+          <button
+            type="button"
+            onClick={handleClose}
+            className="px-4 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 };

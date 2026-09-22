@@ -30,6 +30,7 @@ import {
   Settings,
   Grid,
 } from 'lucide-react';
+import { NAV_ITEMS, getNavLabel } from '../config/navigation';
 
 interface HeaderProps {
   currentView?: string;
@@ -130,22 +131,17 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const viewTitles: Record<string, { group: string; label: string }> = {
-    portal: { group: 'Work', label: 'My Workspace' },
-    management: { group: 'Work', label: 'Executive Analytics' },
-    reviews: { group: 'Work', label: user?.role === 'EMPLOYEE' ? 'My Reviews' : 'Quarterly Reviews' },
-    appraisals: { group: 'Work', label: 'Annual Appraisals' },
-    reports: { group: 'Work', label: 'Reports Center' },
-    employees: { group: 'People', label: 'Employee Directory' },
-    hierarchy: { group: 'People', label: 'Department & Hierarchy' },
-    kras: { group: 'Configuration', label: 'Goal Templates (KRAs)' },
-    bulk: { group: 'Configuration', label: 'Bulk Data Manager' },
-    ai_performance: { group: 'Configuration', label: 'AI Copilot & 360' },
-    audit: { group: 'System', label: user?.role === 'HR' ? 'Appraisal Lifecycle' : 'Compliance & Audit Trail' },
-    notifications: { group: 'System', label: 'Notifications Hub' },
-  };
+  // Derived from the shared NAV_ITEMS registry (frontend/src/config/navigation.ts) instead
+  // of a hand-maintained copy — that copy had drifted from Sidebar/MobileNavDrawer (e.g.
+  // 'bulk' filed under a different group here than in the Sidebar) and was missing 'pip'
+  // entirely, so the Performance Plans page silently showed no breadcrumb.
+  const viewTitles: Record<string, { group: string; label: string }> = Object.fromEntries(
+    NAV_ITEMS.map((item) => [item.id, { group: item.group, label: getNavLabel(item, user?.role) }])
+  );
 
-  const isCurrentViewAdmin = ['employees', 'hierarchy', 'kras', 'bulk', 'audit'].includes(currentView || '');
+  // Same "admin/setup" set as MobileNavDrawer's mobileSection === 'admin' items — this was
+  // a separately hand-maintained list here and had drifted to omit 'pip'.
+  const isCurrentViewAdmin = NAV_ITEMS.some((item) => item.mobileSection === 'admin' && item.id === currentView);
 
   return (
     <>
@@ -169,7 +165,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => handleSelectTab('portal')}
                 className="flex items-center gap-2.5 shrink-0 cursor-pointer text-left group"
               >
-                <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold shrink-0 shadow-xs group-hover:bg-blue-500 transition-colors">
+                <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold shrink-0 shadow-xs group-hover:bg-indigo-500 transition-colors">
                   <Layers className="w-4 h-4" />
                 </div>
                 <span className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight">
@@ -231,7 +227,7 @@ export const Header: React.FC<HeaderProps> = ({
                                       <div className="text-[10px] text-slate-400">{p.title}</div>
                                     </div>
                                   </div>
-                                  {isCurrent && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
+                                  {isCurrent && <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />}
                                 </button>
                               );
                             })}
@@ -449,7 +445,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={() => handleSelectTab('portal')}
               className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-colors cursor-pointer ${currentView === 'portal'
-                  ? 'text-blue-600 dark:text-blue-400 font-semibold'
+                  ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
                   : 'text-slate-500 dark:text-slate-400'
                 }`}
             >
@@ -461,7 +457,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={() => handleSelectTab('reviews')}
               className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-colors cursor-pointer ${currentView === 'reviews'
-                  ? 'text-blue-600 dark:text-blue-400 font-semibold'
+                  ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
                   : 'text-slate-500 dark:text-slate-400'
                 }`}
             >
@@ -474,7 +470,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 onClick={() => handleSelectTab('appraisals')}
                 className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-colors cursor-pointer ${currentView === 'appraisals'
-                    ? 'text-blue-600 dark:text-blue-400 font-semibold'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
                     : 'text-slate-500 dark:text-slate-400'
                   }`}
               >
@@ -485,7 +481,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 onClick={() => handleSelectTab('reports')}
                 className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-colors cursor-pointer ${currentView === 'reports'
-                    ? 'text-blue-600 dark:text-blue-400 font-semibold'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
                     : 'text-slate-500 dark:text-slate-400'
                   }`}
               >
@@ -499,7 +495,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 onClick={() => handleSelectTab('reports')}
                 className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-colors cursor-pointer ${currentView === 'reports'
-                    ? 'text-blue-600 dark:text-blue-400 font-semibold'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
                     : 'text-slate-500 dark:text-slate-400'
                   }`}
               >
@@ -512,14 +508,14 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onOpenMobileMenu}
               className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-colors cursor-pointer relative ${isCurrentViewAdmin
-                  ? 'text-blue-600 dark:text-blue-400 font-semibold'
+                  ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
                   : 'text-slate-500 dark:text-slate-400'
                 }`}
             >
               <Grid className="w-4 h-4" />
               <span className="text-[10px]">Menu</span>
               {isCurrentViewAdmin && (
-                <span className="absolute top-1 right-2.5 w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
+                <span className="absolute top-1 right-2.5 w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
               )}
             </button>
           </div>

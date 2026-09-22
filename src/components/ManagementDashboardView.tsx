@@ -43,6 +43,7 @@ import {
   User,
 } from '../types';
 import { api } from '../services/api';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 import { PieChart, PieChartItem } from './ui/PieChart';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 
@@ -1572,324 +1573,382 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
       </div>
 
       {/* 5. Employee Performance Dossier Modal (360 Historical View) */}
-      {selectedEmployeeDossierId && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 font-bold flex items-center justify-center text-base">
-                  {dossierData?.employee.name.charAt(0) || 'E'}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                      {dossierData?.employee.name || 'Employee Dossier'}
-                    </h2>
-                    <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">
-                      {dossierData?.employee.employeeCode}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500">
-                    {dossierData?.employee.designation} • {dossierData?.employee.departmentName}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  setSelectedEmployeeDossierId(null);
-                  setDossierData(null);
-                }}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-4 sm:p-6 overflow-y-auto space-y-6">
-              {dossierLoading ? (
-                <div className="py-12 text-center text-slate-400">
-                  <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-500" />
-                  Loading comprehensive employee performance record...
-                </div>
-              ) : dossierData ? (
-                <>
-                  {/* Executive Read-Only Notice */}
-                  <div className="p-3 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-900/60 flex items-center gap-2 text-xs text-indigo-800 dark:text-indigo-300 font-medium">
-                    <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
-                    <span>Executive Read-Only Mode: Historical performance, KRA scores, and manager feedback are displayed for decision-support.</span>
-                  </div>
-
-                  {/* Profile Summary Box */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs">
-                    <div>
-                      <span className="text-slate-400">Email:</span>
-                      <div className="font-semibold text-slate-800 dark:text-slate-200 truncate">{dossierData.employee.email}</div>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Reporting Manager:</span>
-                      <div className="font-semibold text-slate-800 dark:text-slate-200">{dossierData.employee.reportingManagerName || 'N/A'}</div>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Status:</span>
-                      <div className="font-semibold text-slate-800 dark:text-slate-200">{dossierData.employee.status}</div>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Joining Date:</span>
-                      <div className="font-semibold text-slate-800 dark:text-slate-200">{dossierData.employee.dateOfJoining || 'N/A'}</div>
-                    </div>
-                  </div>
-
-                  {/* Historical Quarterly Reviews */}
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4" />
-                      Quarterly Review History
-                    </h3>
-
-                    {dossierData.historicalReviews.length === 0 ? (
-                      <div className="text-xs text-slate-400 py-4 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
-                        No quarterly reviews recorded yet for this employee.
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {dossierData.historicalReviews.map((rev) => (
-                          <div
-                            key={rev.id}
-                            className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/30 space-y-3"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-sm text-slate-900 dark:text-white">
-                                  {rev.periodName} (Q{rev.quarter} {rev.year})
-                                </span>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                  rev.status === 'CLOSED' || rev.isClosed
-                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300'
-                                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300'
-                                }`}>
-                                  {rev.status}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center gap-1">
-                                <span className="text-xs text-slate-400">Score:</span>
-                                <span className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">
-                                  {Number(rev.finalScore) > 0 ? `${safeNum(rev.finalScore, 2)} / 5.0` : 'Pending'}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Manager & HR Feedback */}
-                            {(rev.managerFeedback || rev.hrFeedback) && (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
-                                {rev.managerFeedback && (
-                                  <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-800/60">
-                                    <span className="font-semibold text-slate-700 dark:text-slate-300">Manager Evaluation:</span>
-                                    <p className="text-slate-600 dark:text-slate-400 mt-0.5 italic">"{rev.managerFeedback}"</p>
-                                  </div>
-                                )}
-                                {rev.hrFeedback && (
-                                  <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-800/60">
-                                    <span className="font-semibold text-slate-700 dark:text-slate-300">HR / Calibration Notes:</span>
-                                    <p className="text-slate-600 dark:text-slate-400 mt-0.5 italic">"{rev.hrFeedback}"</p>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {/* KRAs Breakdown */}
-                            {rev.kras && rev.kras.length > 0 && (
-                              <div className="pt-2">
-                                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                                  Goal / KRA Breakdown
-                                </span>
-                                <div className="mt-1.5 space-y-1.5">
-                                  {rev.kras.map((k: any, kidx: number) => (
-                                    <div
-                                      key={kidx}
-                                      className="flex items-center justify-between text-xs p-1.5 rounded bg-slate-50/50 dark:bg-slate-800/40"
-                                    >
-                                      <span className="text-slate-800 dark:text-slate-200 truncate pr-2 font-medium">
-                                        {k.title || k.kraTitle || `Goal #${kidx + 1}`}
-                                      </span>
-                                      <div className="flex items-center gap-3 shrink-0 text-slate-500">
-                                        <span>Weight: {k.weight}%</span>
-                                        <span className="font-bold text-slate-900 dark:text-white">
-                                          Rating: {k.managerRating || k.rating || '—'} / 5
-                                        </span>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Appraisal History */}
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-1.5">
-                      <DollarSign className="w-4 h-4" />
-                      Appraisal & Increment History
-                    </h3>
-
-                    {dossierData.appraisalHistory.length === 0 ? (
-                      <div className="text-xs text-slate-400 py-3 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
-                        No historical appraisal events recorded.
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
-                        <table className="w-full text-left text-xs">
-                          <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold">
-                            <tr>
-                              <th className="py-2 px-3">Year</th>
-                              <th className="py-2 px-3">Status</th>
-                              <th className="py-2 px-3 text-center">Proposed %</th>
-                              <th className="py-2 px-3 text-center">Approved %</th>
-                              <th className="py-2 px-3 text-center">Final Rating</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                            {dossierData.appraisalHistory.map((app) => (
-                              <tr key={app.id}>
-                                <td className="py-2 px-3 font-semibold">{app.appraisalYear}</td>
-                                <td className="py-2 px-3">
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800">
-                                    {app.status}
-                                  </span>
-                                </td>
-                                <td className="py-2 px-3 text-center">{app.proposedIncrementPercentage || 0}%</td>
-                                <td className="py-2 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
-                                  {app.approvedIncrementPercentage || 0}%
-                                </td>
-                                <td className="py-2 px-3 text-center font-bold">{app.finalRating || '—'}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : null}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex justify-end">
-              <button
-                onClick={() => {
-                  setSelectedEmployeeDossierId(null);
-                  setDossierData(null);
-                }}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors cursor-pointer"
-              >
-                Close Dossier
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <EmployeeDossierModal
+        isOpen={!!selectedEmployeeDossierId}
+        onClose={() => {
+          setSelectedEmployeeDossierId(null);
+          setDossierData(null);
+        }}
+        dossierLoading={dossierLoading}
+        dossierData={dossierData}
+      />
 
       {/* 6. Department Team Inspection Modal */}
-      {inspectDepartment && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <div>
-                <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-indigo-500" />
-                  {inspectDepartment.departmentName} — Team Performance Roster
+      <DepartmentInspectionModal
+        inspectDepartment={inspectDepartment}
+        onClose={() => setInspectDepartment(null)}
+        loadingDeptReviews={loadingDeptReviews}
+        inspectDeptReviews={inspectDeptReviews}
+        onOpenDossier={(empId) => handleOpenDossier(empId)}
+      />
+    </div>
+  );
+};
+
+interface EmployeeDossierModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  dossierLoading: boolean;
+  dossierData: ManagementEmployeeDossier | null;
+}
+
+const EmployeeDossierModal: React.FC<EmployeeDossierModalProps> = ({
+  isOpen,
+  onClose,
+  dossierLoading,
+  dossierData,
+}) => {
+  const cachedDossierRef = React.useRef(dossierData);
+  if (dossierData) {
+    cachedDossierRef.current = dossierData;
+  }
+  const data = dossierData || cachedDossierRef.current;
+
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+    isOpen,
+    onClose,
+  });
+
+  if (!isMounted) return null;
+
+  return (
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${backdropClass}`}
+      onClick={handleBackdropClick}
+    >
+      <div
+        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden ${cardClass}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 font-bold flex items-center justify-center text-base">
+              {data?.employee.name.charAt(0) || 'E'}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                  {data?.employee.name || 'Employee Dossier'}
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Headcount: {inspectDepartment.headcount} • Avg Rating: {Number(inspectDepartment.averageScore) > 0 ? safeNum(inspectDepartment.averageScore, 2) : 'N/A'} • Completion: {inspectDepartment.completionRate}%
-                </p>
+                <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">
+                  {data?.employee.employeeCode}
+                </span>
               </div>
-
-              <button
-                onClick={() => setInspectDepartment(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-4 sm:p-6 overflow-y-auto">
-              {loadingDeptReviews ? (
-                <div className="py-8 text-center text-slate-400">
-                  <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
-                  Loading department employee reviews...
-                </div>
-              ) : inspectDeptReviews.length === 0 ? (
-                <div className="py-8 text-center text-slate-400 text-xs">
-                  No review records found for this department in the selected period.
-                </div>
-              ) : (
-                <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
-                  <table className="w-full text-left text-xs sm:text-sm">
-                    <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-800">
-                      <tr>
-                        <th className="py-2.5 px-3">Employee</th>
-                        <th className="py-2.5 px-3">Manager</th>
-                        <th className="py-2.5 px-3 text-center">Status</th>
-                        <th className="py-2.5 px-3 text-right">Score</th>
-                        <th className="py-2.5 px-3 text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {inspectDeptReviews.map((rev) => (
-                        <tr key={rev.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                          <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-white">
-                            {rev.employeeName || 'Employee'}
-                          </td>
-                          <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">
-                            {rev.managerName || '—'}
-                          </td>
-                          <td className="py-2.5 px-3 text-center">
-                            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                              {rev.status}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-extrabold text-indigo-600 dark:text-indigo-400">
-                            {Number(rev.finalScore) > 0 ? safeNum(rev.finalScore, 2) : '—'}
-                          </td>
-                          <td className="py-2.5 px-3 text-center">
-                            <button
-                              onClick={() => {
-                                handleOpenDossier(rev.employeeId);
-                              }}
-                              className="px-2 py-1 rounded text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 cursor-pointer"
-                            >
-                              Dossier
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex justify-end">
-              <button
-                onClick={() => setInspectDepartment(null)}
-                className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600 cursor-pointer"
-              >
-                Close
-              </button>
+              <p className="text-xs text-slate-500">
+                {(data?.employee as any)?.designation || data?.employee?.designationName || 'Role'} • {data?.employee.departmentName}
+              </p>
             </div>
           </div>
+
+          <button
+            onClick={handleClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-      )}
+
+        {/* Modal Content */}
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-6">
+          {dossierLoading ? (
+            <div className="py-12 text-center text-slate-400">
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-500" />
+              Loading comprehensive employee performance record...
+            </div>
+          ) : data ? (
+            <>
+              {/* Executive Read-Only Notice */}
+              <div className="p-3 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-900/60 flex items-center gap-2 text-xs text-indigo-800 dark:text-indigo-300 font-medium">
+                <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
+                <span>Executive Read-Only Mode: Historical performance, KRA scores, and manager feedback are displayed for decision-support.</span>
+              </div>
+
+              {/* Profile Summary Box */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs">
+                <div>
+                  <span className="text-slate-400">Email:</span>
+                  <div className="font-semibold text-slate-800 dark:text-slate-200 truncate">{data.employee.email}</div>
+                </div>
+                <div>
+                  <span className="text-slate-400">Reporting Manager:</span>
+                  <div className="font-semibold text-slate-800 dark:text-slate-200">{(data.employee as any).reportingManagerName || data.employee.managerName || 'N/A'}</div>
+                </div>
+                <div>
+                  <span className="text-slate-400">Status:</span>
+                  <div className="font-semibold text-slate-800 dark:text-slate-200">{data.employee.status}</div>
+                </div>
+                <div>
+                  <span className="text-slate-400">Joining Date:</span>
+                  <div className="font-semibold text-slate-800 dark:text-slate-200">{(data.employee as any).dateOfJoining || data.employee.joiningDate || 'N/A'}</div>
+                </div>
+              </div>
+
+              {/* Historical Quarterly Reviews */}
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4" />
+                  Quarterly Review History
+                </h3>
+
+                {data.historicalReviews.length === 0 ? (
+                  <div className="text-xs text-slate-400 py-4 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
+                    No quarterly reviews recorded yet for this employee.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {data.historicalReviews.map((rev) => (
+                      <div
+                        key={rev.id}
+                        className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850 space-y-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">
+                              {rev.periodName}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-150 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                              {rev.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <span className="text-[10px] text-slate-400 block">Overall Score</span>
+                              <span className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">
+                                {Number(rev.finalScore) > 0 ? safeNum(rev.finalScore, 2) : '—'} / 5.00
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Breakdown of KRA Scores */}
+                        {rev.kras && rev.kras.length > 0 && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
+                            {rev.kras.map((ks: any, idx: number) => (
+                              <div
+                                key={idx}
+                                className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 text-xs"
+                              >
+                                <span className="text-slate-700 dark:text-slate-300 truncate max-w-[200px]">
+                                  {ks.kraTitle || ks.title || 'KRA'}
+                                </span>
+                                <span className="font-bold text-slate-900 dark:text-white shrink-0">
+                                  {ks.score || ks.rating || '—'} / 5
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Manager Feedback */}
+                        {rev.managerFeedback && (
+                          <div className="p-2.5 rounded-lg bg-white dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 italic">
+                            &quot;{rev.managerFeedback}&quot;
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Annual Appraisal Decisions */}
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-1.5">
+                  <Award className="w-4 h-4" />
+                  Annual Appraisal History
+                </h3>
+
+                {data.appraisalHistory.length === 0 ? (
+                  <div className="text-xs text-slate-400 py-3 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
+                    No historical appraisal events recorded.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold">
+                        <tr>
+                          <th className="py-2 px-3">Year</th>
+                          <th className="py-2 px-3">Status</th>
+                          <th className="py-2 px-3 text-center">Proposed %</th>
+                          <th className="py-2 px-3 text-center">Approved %</th>
+                          <th className="py-2 px-3 text-center">Final Rating</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {data.appraisalHistory.map((app) => (
+                          <tr key={app.id}>
+                            <td className="py-2 px-3 font-semibold">{app.appraisalYear}</td>
+                            <td className="py-2 px-3">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800">
+                                {app.status}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-center">{app.proposedIncrementPercentage || 0}%</td>
+                            <td className="py-2 px-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
+                              {app.approvedIncrementPercentage || 0}%
+                            </td>
+                            <td className="py-2 px-3 text-center font-bold">{app.finalRating || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : null}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex justify-end">
+          <button
+            onClick={handleClose}
+            className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+          >
+            Close Dossier
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface DepartmentInspectionModalProps {
+  inspectDepartment: ManagementDepartmentPerformanceItem | null;
+  onClose: () => void;
+  loadingDeptReviews: boolean;
+  inspectDeptReviews: any[];
+  onOpenDossier: (empId: string) => void;
+}
+
+const DepartmentInspectionModal: React.FC<DepartmentInspectionModalProps> = ({
+  inspectDepartment,
+  onClose,
+  loadingDeptReviews,
+  inspectDeptReviews,
+  onOpenDossier,
+}) => {
+  const cachedDeptRef = React.useRef(inspectDepartment);
+  if (inspectDepartment) {
+    cachedDeptRef.current = inspectDepartment;
+  }
+  const dept = inspectDepartment || cachedDeptRef.current;
+
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+    isOpen: !!inspectDepartment,
+    onClose,
+  });
+
+  if (!isMounted || !dept) return null;
+
+  return (
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${backdropClass}`}
+      onClick={handleBackdropClick}
+    >
+      <div
+        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden ${cardClass}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-indigo-500" />
+              {dept.departmentName} — Team Performance Roster
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Headcount: {dept.headcount} • Avg Rating: {Number(dept.averageScore) > 0 ? safeNum(dept.averageScore, 2) : 'N/A'} • Completion: {dept.completionRate}%
+            </p>
+          </div>
+
+          <button
+            onClick={handleClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-4 sm:p-6 overflow-y-auto">
+          {loadingDeptReviews ? (
+            <div className="py-8 text-center text-slate-400">
+              <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />
+              Loading department employee reviews...
+            </div>
+          ) : inspectDeptReviews.length === 0 ? (
+            <div className="py-8 text-center text-slate-400 text-xs">
+              No review records found for this department in the selected period.
+            </div>
+          ) : (
+            <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-800">
+                  <tr>
+                    <th className="py-2.5 px-3">Employee</th>
+                    <th className="py-2.5 px-3">Manager</th>
+                    <th className="py-2.5 px-3 text-center">Status</th>
+                    <th className="py-2.5 px-3 text-right">Score</th>
+                    <th className="py-2.5 px-3 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {inspectDeptReviews.map((rev) => (
+                    <tr key={rev.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                      <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-white">
+                        {rev.employeeName || 'Employee'}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">
+                        {rev.managerName || '—'}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                          {rev.status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-extrabold text-indigo-600 dark:text-indigo-400">
+                        {Number(rev.finalScore) > 0 ? safeNum(rev.finalScore, 2) : '—'}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <button
+                          onClick={() => {
+                            onOpenDossier(rev.employeeId);
+                          }}
+                          className="px-2 py-1 rounded text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 cursor-pointer"
+                        >
+                          Dossier
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex justify-end">
+          <button
+            onClick={handleClose}
+            className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600 cursor-pointer"
+          >
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

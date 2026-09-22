@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ReviewPeriod, Employee } from '../types';
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 import {
   X,
   UserCheck,
@@ -89,32 +90,35 @@ export const InitiateReviewModal: React.FC<InitiateReviewModalProps> = ({
   employees,
   initialPeriodId,
 }) => {
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>(initialPeriodId || '');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   const [searchEmployeeQuery, setSearchEmployeeQuery] = useState<string>('');
   const [overrideReason, setOverrideReason] = useState<string>('');
 
-  const [checkingEligibility, setCheckingEligibility] = useState<boolean>(false);
   const [eligibilityData, setEligibilityData] = useState<EligibilityData | null>(null);
+  const [checkingEligibility, setCheckingEligibility] = useState<boolean>(false);
   const [eligibilityError, setEligibilityError] = useState<string>('');
 
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string>('');
 
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+    useModalAnimation({ isOpen, onClose });
+
   // Lock body scroll and handle Escape key
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isMounted) return;
     const origOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') handleClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       document.body.style.overflow = origOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isMounted, handleClose]);
 
   // Set default period
   useEffect(() => {
@@ -136,20 +140,20 @@ export const InitiateReviewModal: React.FC<InitiateReviewModalProps> = ({
       return;
     }
 
-    let isMounted = true;
+    let active = true;
     setCheckingEligibility(true);
     setEligibilityError('');
 
     api
       .checkReviewEligibility(selectedEmployeeId, selectedPeriodId)
       .then((data) => {
-        if (isMounted) {
+        if (active) {
           setEligibilityData(data);
           setCheckingEligibility(false);
         }
       })
       .catch((err) => {
-        if (isMounted) {
+        if (active) {
           setEligibilityError(err.message || 'Failed to verify eligibility');
           setEligibilityData(null);
           setCheckingEligibility(false);
@@ -157,7 +161,7 @@ export const InitiateReviewModal: React.FC<InitiateReviewModalProps> = ({
       });
 
     return () => {
-      isMounted = false;
+      active = false;
     };
   }, [isOpen, selectedEmployeeId, selectedPeriodId]);
 
@@ -209,7 +213,7 @@ export const InitiateReviewModal: React.FC<InitiateReviewModalProps> = ({
 
       toast.success(res.message || 'Quarterly review initiated successfully!', 'Review Initiated');
       onGenerated();
-      onClose();
+      handleClose();
     } catch (err: any) {
       setSubmitError(err.message || 'Failed to initiate review.');
     } finally {
@@ -217,11 +221,14 @@ export const InitiateReviewModal: React.FC<InitiateReviewModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isMounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs ${backdropClass}`}
+      onClick={handleBackdropClick}
+    >
+      <div className={`relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col ${cardClass}`}>
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
@@ -238,7 +245,8 @@ export const InitiateReviewModal: React.FC<InitiateReviewModalProps> = ({
             </div>
           </div>
           <button
-            onClick={onClose}
+            type="button"
+            onClick={handleClose}
             className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -436,7 +444,7 @@ export const InitiateReviewModal: React.FC<InitiateReviewModalProps> = ({
         <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-end space-x-2">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={submitting}
             className="px-3.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg transition-colors cursor-pointer"
           >

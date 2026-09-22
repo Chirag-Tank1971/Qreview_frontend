@@ -4,6 +4,7 @@ import { Employee, Department, Designation, Cycle, KraTemplate, ReviewPeriod, Us
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
 import { CustomKraScorecardModal, CustomKraRow } from './CustomKraScorecardModal';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 
 function defaultCustomKraRows(): CustomKraRow[] {
   return [
@@ -92,6 +93,11 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   allEmployees,
   kraTemplates = [],
 }) => {
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+    isOpen,
+    onClose,
+  });
+
   const [rehireTarget, setRehireTarget] = useState<Employee | null>(null);
   const isEditing = Boolean(employeeToEdit) || Boolean(rehireTarget);
 
@@ -614,7 +620,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !createdResponse) {
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -622,9 +628,9 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
       document.body.style.overflow = origOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose, createdResponse]);
+  }, [isOpen, handleClose, createdResponse]);
 
-  if (!isOpen) return null;
+  if (!isMounted) return null;
 
   // Handle password auto-generation
   const generateRandomPassword = () => {
@@ -797,7 +803,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         }
 
         onSaved();
-        onClose();
+        handleClose();
       } else {
         const res = await api.createEmployee({
           employeeCode: employeeCode.trim().toUpperCase(),
@@ -837,7 +843,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
           onSaved();
         } else {
           onSaved();
-          onClose();
+          handleClose();
         }
       }
     } catch (err: any) {
@@ -851,14 +857,14 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9990] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+      className={`fixed inset-0 z-[9990] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto ${backdropClass}`}
       onClick={(e) => {
-        if (e.target === e.currentTarget && !createdResponse) onClose();
+        if (!createdResponse) handleBackdropClick(e);
       }}
     >
       {/* 1. ONBOARDING CREDENTIALS SUCCESS CARD */}
       {createdResponse && createdResponse.provisionedUser ? (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 p-6 sm:p-8 text-slate-800 dark:text-slate-200">
+        <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden p-6 sm:p-8 text-slate-800 dark:text-slate-200 ${cardClass}`}>
           <div className="text-center">
             <div className="w-14 h-14 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
               <CheckCircle2 className="w-7 h-7" />
@@ -917,7 +923,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
               )}
             </button>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="py-2.5 px-6 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
             >
               Done
@@ -926,7 +932,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         </div>
       ) : (
         /* 2. SIMPLE ONE-PAGE EMPLOYEE FORM MODAL */
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-slate-800 dark:text-slate-200 flex flex-col max-h-[92vh]">
+        <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden text-slate-800 dark:text-slate-200 flex flex-col max-h-[92vh] ${cardClass}`}>
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/80 shrink-0">
             <div className="flex items-center gap-3">
@@ -944,7 +950,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
             </div>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
@@ -1887,7 +1893,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
               <div className="flex items-center gap-2.5">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors shadow-2xs cursor-pointer"
                 >
                   Cancel

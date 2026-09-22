@@ -1,24 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { AppView, isViewPermitted } from '../../hooks/useUrlHashView';
-import {
-  Layers,
-  BarChart3,
-  FileCheck,
-  Award,
-  Download,
-  Users,
-  Target,
-  Sparkles,
-  Upload,
-  Shield,
-  ClipboardList,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-} from 'lucide-react';
+import { AppView } from '../../hooks/useUrlHashView';
+import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './Tooltip';
 import { cn } from '../../utils/cn';
+import { NAV_ITEMS, getNavLabel, isNavItemVisible, NavItemConfig } from '../../config/navigation';
 
 interface SidebarProps {
   currentView: AppView;
@@ -26,16 +12,9 @@ interface SidebarProps {
   className?: string;
 }
 
-interface NavItem {
-  id: AppView;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: number | string;
-}
-
 interface NavGroup {
   title: string;
-  items: NavItem[];
+  items: NavItemConfig[];
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -64,42 +43,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
-  const navGroups: NavGroup[] = [
-    {
-      title: 'Work',
-      items: [
-        { id: 'portal', label: 'My Workspace', icon: Layers },
-        { id: 'management', label: 'Executive Analytics', icon: BarChart3 },
-        { id: 'reviews', label: 'Quarterly Reviews', icon: FileCheck },
-        { id: 'appraisals', label: 'Appraisal Cycles', icon: Award },
-        { id: 'reports', label: 'Reports Center', icon: Download },
-      ],
-    },
-    {
-      title: 'People',
-      items: [
-        { id: 'employees', label: 'Employee Directory', icon: Users },
-        { id: 'hierarchy', label: 'Department & Hierarchy', icon: Layers },
-        { id: 'pip', label: 'Performance Plans', icon: ClipboardList },
-      ],
-    },
-    {
-      title: 'Configuration',
-      items: [
-        { id: 'kras', label: 'KRA Templates', icon: Target },
-        { id: 'ai_performance', label: 'AI Talent & Review', icon: Sparkles },
-      ],
-    },
-    {
-      title: 'System',
-      items: [
-        { id: 'bulk', label: 'Bulk Data Tools', icon: Upload },
-        { id: 'audit', label: 'Compliance & Audit', icon: Shield },
-      ],
-    },
-  ];
-
   const role = user?.role;
+
+  const GROUP_ORDER: NavItemConfig['group'][] = ['Work', 'People', 'Configuration', 'System'];
+  const navGroups: NavGroup[] = GROUP_ORDER.map((title) => ({
+    title,
+    items: NAV_ITEMS.filter(
+      (item) => item.group === title && item.inSidebar !== false && isNavItemVisible(item, role)
+    ),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -139,10 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Navigation Group Items */}
         <div className="flex-1 overflow-y-auto py-2.5 px-2 space-y-4">
           {navGroups.map((group) => {
-            const visibleItems = group.items.filter((item) =>
-              isViewPermitted(item.id, role)
-            );
-            if (visibleItems.length === 0) return null;
+            const visibleItems = group.items;
 
             return (
               <div key={group.title} className="space-y-0.5">
@@ -165,7 +114,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           ? 'justify-center rounded-[6px]'
                           : 'rounded-[4px]',
                         isActive
-                          ? 'border-l-2 border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-medium'
+                          ? 'border-l-2 border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-medium'
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
                       )}
                     >
@@ -173,23 +122,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         className={cn(
                           'w-4 h-4 shrink-0',
                           isActive
-                            ? 'text-blue-600 dark:text-blue-400'
+                            ? 'text-indigo-600 dark:text-indigo-400'
                             : 'text-slate-400 dark:text-slate-500'
                         )}
                       />
                       {!isCollapsed && (
                         <span className="truncate flex-1 text-left">
-                          {item.label}
-                        </span>
-                      )}
-                      {item.badge !== undefined && (
-                        <span
-                          className={cn(
-                            'inline-flex items-center justify-center px-1.5 py-0.2 text-[10px] font-medium rounded-[4px] bg-blue-600 text-white shrink-0 tabular-nums',
-                            isCollapsed && 'absolute top-1 right-1'
-                          )}
-                        >
-                          {item.badge}
+                          {getNavLabel(item, role)}
                         </span>
                       )}
                     </button>
@@ -200,7 +139,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <Tooltip key={item.id}>
                         <TooltipTrigger asChild>{button}</TooltipTrigger>
                         <TooltipContent side="right">
-                          <span>{item.label}</span>
+                          <span>{getNavLabel(item, role)}</span>
                         </TooltipContent>
                       </Tooltip>
                     );

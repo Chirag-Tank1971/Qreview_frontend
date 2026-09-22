@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Employee, Department, Designation, Cycle, KraTemplate, ReviewPeriod } from '../types';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from '../context/ToastContext';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 import { EmployeeModal } from './EmployeeModal';
 import { MastersManagement } from './MastersManagement';
 import {
@@ -1034,139 +1036,187 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
       />
 
       {/* Delete Employee Confirmation Modal */}
-      {employeeToDelete && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl border bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800 shrink-0">
-                  <UserMinus className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    Delete Employee & Archive as Past Employee
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Purge performance data while keeping directory record
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => !deleteLoading && setEmployeeToDelete(null)}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                title="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      <EmployeeDeleteModal
+        employee={employeeToDelete}
+        employees={employees}
+        departments={departments}
+        loading={deleteLoading}
+        onClose={() => setEmployeeToDelete(null)}
+        onConfirm={handleConfirmDeleteEmployee}
+        getStatusBadge={getStatusBadge}
+      />
+    </div>
+  );
+};
+
+interface EmployeeDeleteModalProps {
+  employee: Employee | null;
+  employees: Employee[];
+  departments: Department[];
+  loading: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  getStatusBadge: (status: string, isPastEmployee?: boolean) => React.ReactNode;
+}
+
+const EmployeeDeleteModal: React.FC<EmployeeDeleteModalProps> = ({
+  employee,
+  employees,
+  departments,
+  loading,
+  onClose,
+  onConfirm,
+  getStatusBadge,
+}) => {
+  const cachedEmployeeRef = React.useRef(employee);
+  if (employee) {
+    cachedEmployeeRef.current = employee;
+  }
+  const emp = employee || cachedEmployeeRef.current;
+
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+    isOpen: !!employee,
+    onClose,
+  });
+
+  if (!isMounted || !emp) return null;
+  if (typeof document === 'undefined') return null;
+
+  const managedReports = employees.filter((e) => e.managerId === emp.id && e.status !== 'INACTIVE');
+  const ledDepartments = departments.filter((d) => d.hodId === emp.id);
+
+  return createPortal(
+    <div
+      className={`fixed inset-0 z-[9990] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto ${backdropClass}`}
+      onClick={handleBackdropClick}
+    >
+      <div
+        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full my-auto overflow-hidden ${cardClass}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div className="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl border bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800 shrink-0">
+              <UserMinus className="w-5 h-5" />
             </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                Delete Employee & Archive as Past Employee
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Purge performance data while keeping directory record
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => !loading && handleClose()}
+            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
-            {/* Modal Body */}
-            <div className="p-5 space-y-4">
-              {/* Employee Summary Card */}
-              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 font-bold text-sm text-slate-800 dark:text-slate-200 flex items-center justify-center shrink-0">
-                    {employeeToDelete.name.charAt(0)}
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                      {employeeToDelete.name}
-                    </h4>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                      {employeeToDelete.designationName || 'Designation'} • {employeeToDelete.departmentName || 'Department'}
-                    </p>
-                    <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 block truncate">
-                      {employeeToDelete.employeeCode} • {employeeToDelete.email}
-                    </span>
-                  </div>
-                </div>
-                <div className="shrink-0 text-right">
-                  {getStatusBadge(employeeToDelete.status, employeeToDelete.isPastEmployee)}
-                </div>
+        {/* Modal Body */}
+        <div className="p-5 space-y-4">
+          {/* Employee Summary Card */}
+          <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700 font-bold text-sm text-slate-800 dark:text-slate-200 flex items-center justify-center shrink-0">
+                {emp.name.charAt(0)}
               </div>
-
-              {/* Leadership Impact Notice (If HOD or Manager) */}
-              {(() => {
-                const managedReports = employees.filter((e) => e.managerId === employeeToDelete.id && e.status !== 'INACTIVE');
-                const ledDepartments = departments.filter((d) => d.hodId === employeeToDelete.id);
-                if (managedReports.length === 0 && ledDepartments.length === 0) return null;
-
-                return (
-                  <div className="p-3 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-xl text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                      <span>Leadership Assignment Impact:</span>
-                    </div>
-                    {managedReports.length > 0 && (
-                      <p className="text-[11px] text-amber-700 dark:text-amber-300/90 leading-relaxed">
-                        Reporting Manager for <strong>{managedReports.length} active employee(s)</strong> ({managedReports.slice(0, 3).map((e) => e.name).join(', ')}{managedReports.length > 3 ? ` +${managedReports.length - 3} more` : ''}). Their manager will automatically be set to <strong>&quot;Unassigned&quot;</strong>.
-                      </p>
-                    )}
-                    {ledDepartments.length > 0 && (
-                      <p className="text-[11px] text-amber-700 dark:text-amber-300/90 leading-relaxed">
-                        Designated HOD for <strong>{ledDepartments.map((d) => d.name).join(', ')}</strong>. The department HOD will be reset to <strong>&quot;Unassigned&quot;</strong>.
-                      </p>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Data Purge Breakdown Notice */}
-              <div className="space-y-2.5">
-                <div className="p-3 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl text-xs text-rose-800 dark:text-rose-300 space-y-2">
-                  <div className="flex items-center gap-1.5 font-bold">
-                    <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
-                    <span>The following data will be PERMANENTLY deleted:</span>
-                  </div>
-                  <ul className="text-[11px] space-y-1 text-rose-700 dark:text-rose-300/90 pl-4 list-disc">
-                    <li>All 4-quarter reviews, ratings, and self-evaluation submissions</li>
-                    <li>All annual appraisal decision records and compensation letters</li>
-                    <li>All 360-degree peer feedback requests and responses</li>
-                    <li>User portal login account & credentials (portal sign-in revoked)</li>
-                    <li>Unassigned as manager or HOD for any direct reports</li>
-                  </ul>
-                </div>
-
-                <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-xl text-xs text-emerald-800 dark:text-emerald-300 space-y-1">
-                  <div className="flex items-center gap-1.5 font-bold">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span>What will be preserved:</span>
-                  </div>
-                  <p className="text-[11px] text-emerald-700 dark:text-emerald-300/90 leading-relaxed">
-                    Identity details (Name, Employee Code, Department, Designation, and Joining Date) will remain preserved in the directory with status <strong>Past Employee</strong> for corporate compliance and historical service reference.
-                  </p>
-                </div>
+              <div className="min-w-0">
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                  {emp.name}
+                </h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                  {emp.designationName || 'Designation'} • {emp.departmentName || 'Department'}
+                </p>
+                <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 block truncate">
+                  {emp.employeeCode} • {emp.email}
+                </span>
               </div>
             </div>
+            <div className="shrink-0 text-right">
+              {getStatusBadge(emp.status, emp.isPastEmployee)}
+            </div>
+          </div>
 
-            {/* Modal Footer */}
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2.5">
-              <button
-                type="button"
-                disabled={deleteLoading}
-                onClick={() => setEmployeeToDelete(null)}
-                className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={deleteLoading}
-                onClick={handleConfirmDeleteEmployee}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
-              >
-                {deleteLoading ? (
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Trash2 className="w-3.5 h-3.5" />
-                )}
-                <span>{deleteLoading ? 'Purging & Archiving...' : 'Confirm Deletion & Archive'}</span>
-              </button>
+          {/* Leadership Impact Notice (If HOD or Manager) */}
+          {(managedReports.length > 0 || ledDepartments.length > 0) && (
+            <div className="p-3 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-xl text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
+              <div className="flex items-center gap-1.5 font-bold">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>Leadership Assignment Impact:</span>
+              </div>
+              {managedReports.length > 0 && (
+                <p className="text-[11px] text-amber-700 dark:text-amber-300/90 leading-relaxed">
+                  Reporting Manager for <strong>{managedReports.length} active employee(s)</strong> ({managedReports.slice(0, 3).map((e) => e.name).join(', ')}{managedReports.length > 3 ? ` +${managedReports.length - 3} more` : ''}). Their manager will automatically be set to <strong>&quot;Unassigned&quot;</strong>.
+                </p>
+              )}
+              {ledDepartments.length > 0 && (
+                <p className="text-[11px] text-amber-700 dark:text-amber-300/90 leading-relaxed">
+                  Designated HOD for <strong>{ledDepartments.map((d) => d.name).join(', ')}</strong>. The department HOD will be reset to <strong>&quot;Unassigned&quot;</strong>.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Data Purge Breakdown Notice */}
+          <div className="space-y-2.5">
+            <div className="p-3 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl text-xs text-rose-800 dark:text-rose-300 space-y-2">
+              <div className="flex items-center gap-1.5 font-bold">
+                <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+                <span>The following data will be PERMANENTLY deleted:</span>
+              </div>
+              <ul className="text-[11px] space-y-1 text-rose-700 dark:text-rose-300/90 pl-4 list-disc">
+                <li>All 4-quarter reviews, ratings, and self-evaluation submissions</li>
+                <li>All annual appraisal decision records and compensation letters</li>
+                <li>All 360-degree peer feedback requests and responses</li>
+                <li>User portal login account & credentials (portal sign-in revoked)</li>
+                <li>Unassigned as manager or HOD for any direct reports</li>
+              </ul>
+            </div>
+
+            <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-xl text-xs text-emerald-800 dark:text-emerald-300 space-y-1">
+              <div className="flex items-center gap-1.5 font-bold">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>What will be preserved:</span>
+              </div>
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-300/90 leading-relaxed">
+                Identity details (Name, Employee Code, Department, Designation, and Joining Date) will remain preserved in the directory with status <strong>Past Employee</strong> for corporate compliance and historical service reference.
+              </p>
             </div>
           </div>
         </div>
-      )}
-    </div>
+
+        {/* Modal Footer */}
+        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2.5">
+          <button
+            type="button"
+            disabled={loading}
+            onClick={handleClose}
+            className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={onConfirm}
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+          >
+            {loading ? (
+              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Trash2 className="w-3.5 h-3.5" />
+            )}
+            <span>{loading ? 'Purging & Archiving...' : 'Confirm Deletion & Archive'}</span>
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 };

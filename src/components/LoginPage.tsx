@@ -48,7 +48,7 @@ const QUICK_ROLES: QuickRole[] = [
     name: 'System Admin',
     department: 'IT & Platform Ops',
     badge: 'Full Access',
-    accent: 'from-violet-600 to-indigo-600',
+    accent: 'bg-violet-600',
     badgeColor: 'bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800',
     icon: Shield,
   },
@@ -60,7 +60,7 @@ const QUICK_ROLES: QuickRole[] = [
     name: 'Frank HR',
     department: 'People Operations',
     badge: 'Calibration & Letters',
-    accent: 'from-emerald-600 to-teal-600',
+    accent: 'bg-emerald-600',
     badgeColor: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
     icon: UserCheck,
   },
@@ -72,7 +72,7 @@ const QUICK_ROLES: QuickRole[] = [
     name: 'Dave Eng Manager',
     department: 'Engineering Team',
     badge: 'Team Reviews',
-    accent: 'from-blue-600 to-cyan-600',
+    accent: 'bg-blue-600',
     badgeColor: 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
     icon: Briefcase,
   },
@@ -84,7 +84,7 @@ const QUICK_ROLES: QuickRole[] = [
     name: 'Nikhilesh Srivastava',
     department: 'Operations & Management',
     badge: 'Org-wide Approvals',
-    accent: 'from-amber-600 to-orange-600',
+    accent: 'bg-amber-600',
     badgeColor: 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
     icon: Building2,
   },
@@ -96,7 +96,7 @@ const QUICK_ROLES: QuickRole[] = [
     name: 'Executive Management',
     department: 'Executive Board',
     badge: 'Executive Intelligence',
-    accent: 'from-fuchsia-600 to-pink-600',
+    accent: 'bg-fuchsia-600',
     badgeColor: 'bg-fuchsia-100 dark:bg-fuchsia-950/60 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-200 dark:border-fuchsia-800',
     icon: Sparkles,
   },
@@ -108,7 +108,7 @@ const QUICK_ROLES: QuickRole[] = [
     name: 'Grace Engineer',
     department: 'Software Engineering',
     badge: 'Self-Service Reviews',
-    accent: 'from-sky-600 to-blue-600',
+    accent: 'bg-sky-600',
     badgeColor: 'bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800',
     icon: UserIcon,
   },
@@ -170,15 +170,15 @@ export const LoginPage: React.FC = () => {
   const isActionLocked = isLoading || isSubmitting;
 
   return (
-    <div className="h-screen max-h-screen overflow-y-auto lg:overflow-hidden bg-slate-50 dark:bg-slate-950 bg-radial-glow bg-grid-pattern relative flex flex-col justify-between text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-blue-500 selection:text-white">
-      {/* Decorative Floating Ambient Glow Orbs */}
-      <div className="absolute top-6 left-1/4 w-72 h-72 bg-blue-500/10 dark:bg-blue-500/15 rounded-full blur-3xl pointer-events-none -z-10 animate-pulse" />
-      <div className="absolute bottom-6 right-1/4 w-72 h-72 bg-indigo-500/10 dark:bg-indigo-500/15 rounded-full blur-3xl pointer-events-none -z-10" />
+    <div className="h-screen max-h-screen overflow-y-auto lg:overflow-hidden bg-slate-50 dark:bg-slate-950 login-grid-backdrop relative flex flex-col justify-between text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-indigo-600 selection:text-white">
+      {/* Ambient floating gradient blobs */}
+      <div className="login-blob absolute top-10 left-[8%] w-80 h-80 bg-indigo-400/20 dark:bg-indigo-500/15 rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="login-blob login-blob-delay absolute bottom-10 right-[10%] w-96 h-96 bg-violet-400/15 dark:bg-violet-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
       {/* Top Navigation Bar - Compact 44px */}
-      <header className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-2.5 sm:py-3 flex items-center justify-between shrink-0">
+      <header className="login-fade-up w-full max-w-7xl mx-auto px-4 sm:px-8 py-2.5 sm:py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 text-white flex items-center justify-center font-bold shadow-md shadow-blue-500/20 ring-1 ring-white/20">
+          <div className="login-logo-glow w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold shrink-0">
             <Layers className="w-4 h-4 text-white" />
           </div>
           <div>
@@ -186,7 +186,7 @@ export const LoginPage: React.FC = () => {
               <span className="font-bold tracking-tight text-base text-slate-900 dark:text-white">
                 MintReview System
               </span>
-              <span className="hidden sm:inline-flex items-center px-2 py-0.2 rounded-full text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60">
+              <span className="hidden sm:inline-flex items-center px-2 py-0.2 rounded-full text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
                 Enterprise v2.4
               </span>
             </div>
@@ -205,24 +205,19 @@ export const LoginPage: React.FC = () => {
             type="button"
             onClick={toggleTheme}
             id="login-theme-toggle-btn"
-            className="relative p-1.5 rounded-xl text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-white/80 dark:hover:bg-slate-800/80 border border-slate-200/80 dark:border-slate-800/80 backdrop-blur-md transition-all active:scale-90 cursor-pointer overflow-hidden group shadow-xs"
+            className="relative p-1.5 rounded-lg text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 transition-all active:scale-90 cursor-pointer overflow-hidden"
             title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           >
-            <span className="absolute inset-0 rounded-xl bg-amber-400/10 dark:bg-indigo-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
             <div className="relative w-4 h-4 flex items-center justify-center pointer-events-none">
               <Sun
-                className={`w-4 h-4 text-amber-500 transition-all duration-500 ease-out absolute inset-0 ${
-                  isDark
-                    ? 'rotate-0 scale-100 opacity-100 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]'
-                    : 'rotate-90 scale-0 opacity-0'
+                className={`w-4 h-4 text-amber-500 transition-all duration-400 ease-out absolute inset-0 ${
+                  isDark ? 'rotate-0 scale-100 opacity-100' : 'rotate-90 scale-0 opacity-0'
                 }`}
               />
               <Moon
-                className={`w-4 h-4 text-slate-700 dark:text-slate-300 transition-all duration-500 ease-out absolute inset-0 ${
-                  isDark
-                    ? '-rotate-90 scale-0 opacity-0'
-                    : 'rotate-0 scale-100 opacity-100 drop-shadow-[0_0_6px_rgba(99,102,241,0.3)]'
+                className={`w-4 h-4 text-slate-600 dark:text-slate-300 transition-all duration-400 ease-out absolute inset-0 ${
+                  isDark ? '-rotate-90 scale-0 opacity-0' : 'rotate-0 scale-100 opacity-100'
                 }`}
               />
             </div>
@@ -237,16 +232,16 @@ export const LoginPage: React.FC = () => {
           {/* Left Column: Brand Showcase (Compact & Balanced) */}
           <div className="lg:col-span-6 space-y-4 text-left hidden lg:block">
             {/* Pill Tag */}
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50/80 dark:bg-blue-950/60 border border-blue-200/80 dark:border-blue-800/80 text-blue-700 dark:text-blue-300 text-[11px] font-semibold shadow-xs">
-              <Sparkles className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+            <div className="login-fade-up login-delay-1 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/80 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold">
+              <Sparkles className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
               <span>Next-Gen Performance Calibration Platform</span>
             </div>
 
             {/* Main Headline */}
-            <div className="space-y-1.5">
+            <div className="login-fade-up login-delay-2 space-y-1.5">
               <h1 className="text-2xl sm:text-3xl lg:text-[34px] font-black text-slate-900 dark:text-white tracking-tight leading-snug">
                 Empower your workforce.{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 dark:from-blue-400 dark:via-indigo-300 dark:to-violet-400">
+                <span className="text-indigo-600 dark:text-indigo-400">
                   Calibrate with confidence.
                 </span>
               </h1>
@@ -255,11 +250,11 @@ export const LoginPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Live Metric Glass Card */}
-            <div className="p-4 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 backdrop-blur-xl shadow-lg shadow-slate-200/30 dark:shadow-slate-950/30 space-y-3">
+            {/* Live Metric Card */}
+            <div className="login-fade-up login-delay-3 p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 transition-shadow hover:shadow-lg hover:shadow-indigo-500/5">
               <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800/80">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                     <TrendingUp className="w-3.5 h-3.5" />
                   </div>
                   <div>
@@ -286,7 +281,7 @@ export const LoginPage: React.FC = () => {
                 <div className="p-2 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 text-left">
                   <div className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Avg Score</div>
                   <div className="text-sm font-extrabold text-slate-900 dark:text-white mt-0.5">4.24<span className="text-[10px] text-slate-400 font-normal">/5</span></div>
-                  <div className="text-[9px] text-blue-600 dark:text-blue-400 font-medium">Exceptional</div>
+                  <div className="text-[9px] text-indigo-600 dark:text-indigo-400 font-medium">Exceptional</div>
                 </div>
                 <div className="p-2 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 text-left">
                   <div className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Audited</div>
@@ -302,22 +297,25 @@ export const LoginPage: React.FC = () => {
                   <span className="font-semibold text-slate-700 dark:text-slate-300">Phase 3 of 4 (HR Sign-off)</span>
                 </div>
                 <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 rounded-full w-[85%]" />
+                  <div
+                    className="login-progress-fill relative h-full bg-indigo-600 rounded-full"
+                    style={{ '--login-progress-target': '85%' } as React.CSSProperties}
+                  />
                 </div>
               </div>
             </div>
 
             {/* Compact Feature Badges Ribbon */}
-            <div className="flex items-center gap-2 pt-1">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/50 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800/60 text-[11px] font-medium text-slate-700 dark:text-slate-300">
-                <Award className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <div className="login-fade-up login-delay-4 flex items-center gap-2 pt-1">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-medium text-slate-700 dark:text-slate-300 transition-transform hover:-translate-y-0.5">
+                <Award className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                 <span>Objective KRA Grading</span>
               </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/50 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800/60 text-[11px] font-medium text-slate-700 dark:text-slate-300">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-medium text-slate-700 dark:text-slate-300 transition-transform hover:-translate-y-0.5">
                 <Zap className="w-3.5 h-3.5 text-amber-500" />
                 <span>Instant Letter Generation</span>
               </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/50 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800/60 text-[11px] font-medium text-slate-700 dark:text-slate-300">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-medium text-slate-700 dark:text-slate-300 transition-transform hover:-translate-y-0.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Role-Based ACL</span>
               </div>
@@ -325,9 +323,9 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {/* Right Column: Sleek Compact Sign-In Card */}
-          <div className="lg:col-span-6 w-full max-w-md mx-auto">
-            <div className="bg-white/95 dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800/90 rounded-2xl shadow-xl shadow-blue-500/5 dark:shadow-black/50 p-5 sm:p-6 backdrop-blur-xl relative">
-              
+          <div className="lg:col-span-6 w-full max-w-md mx-auto login-fade-up login-delay-2">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 sm:p-6 relative shadow-xl shadow-slate-200/40 dark:shadow-black/30">
+
               {/* Card Header Title */}
               <div className="space-y-0.5 mb-3.5 text-left">
                 <div className="flex items-center justify-between">
@@ -335,7 +333,7 @@ export const LoginPage: React.FC = () => {
                     Sign In
                   </h2>
                   <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                    <Shield className="w-3 h-3 text-blue-500" />
+                    <Shield className="w-3 h-3 text-indigo-500" />
                     TLS 1.3 Encrypted
                   </span>
                 </div>
@@ -371,14 +369,14 @@ export const LoginPage: React.FC = () => {
                             key={qr.role}
                             type="button"
                             onClick={() => handleSelectPersona(qr)}
-                            className={`p-1.5 rounded-lg border flex flex-col items-center justify-center gap-0.5 text-center transition-all cursor-pointer ${
+                            className={`p-1.5 rounded-lg border flex flex-col items-center justify-center gap-0.5 text-center transition-all duration-150 cursor-pointer hover:-translate-y-0.5 active:scale-95 ${
                               isSelected
-                                ? 'bg-white dark:bg-slate-700 border-blue-500 dark:border-blue-400 shadow-xs ring-1 ring-blue-500/20'
+                                ? 'bg-white dark:bg-slate-700 border-indigo-500 dark:border-indigo-400 ring-2 ring-indigo-500/20 scale-105'
                                 : 'bg-white/70 dark:bg-slate-800/50 border-slate-200/70 dark:border-slate-700/60 hover:bg-white dark:hover:bg-slate-700/80 hover:border-slate-300'
                             }`}
                             title={`Test as ${qr.title}`}
                           >
-                            <div className={`w-5 h-5 rounded bg-gradient-to-tr ${qr.accent} text-white flex items-center justify-center shadow-2xs`}>
+                            <div className={`w-5 h-5 rounded ${qr.accent} text-white flex items-center justify-center transition-transform ${isSelected ? 'scale-110' : ''}`}>
                               <Icon className="w-2.5 h-2.5 text-white" />
                             </div>
                             <span className="text-[9px] font-bold text-slate-800 dark:text-slate-200 truncate w-full">
@@ -410,7 +408,7 @@ export const LoginPage: React.FC = () => {
                           type="button"
                           onClick={() => handleQuickLogin(selectedPersona)}
                           disabled={isActionLocked}
-                          className="px-2.5 py-1 rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-95 text-white text-[11px] font-bold shadow-2xs transition-all flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-50"
+                          className="login-btn-sheen px-2.5 py-1 rounded-md bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[11px] font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-50"
                         >
                           {isActionLocked ? <Loader2 className="w-3 h-3 animate-spin" /> : <span>Sign In</span>}
                           <ArrowRight className="w-3 h-3" />
@@ -455,7 +453,7 @@ export const LoginPage: React.FC = () => {
                     Employee ID or Work Email
                   </label>
                   <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-600 transition-colors">
                       <Mail className="w-3.5 h-3.5" />
                     </div>
                     <input
@@ -467,7 +465,7 @@ export const LoginPage: React.FC = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="e.g. name@company.com or MS0001"
                       disabled={isActionLocked}
-                      className="w-full bg-slate-50/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg pl-8 pr-3 py-1.5 sm:py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all disabled:opacity-60"
+                      className="w-full bg-slate-50/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg pl-8 pr-3 py-1.5 sm:py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all disabled:opacity-60"
                     />
                   </div>
                 </div>
@@ -481,7 +479,7 @@ export const LoginPage: React.FC = () => {
                     Password
                   </label>
                   <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-blue-600 transition-colors">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-600 transition-colors">
                       <Lock className="w-3.5 h-3.5" />
                     </div>
                     <input
@@ -493,7 +491,7 @@ export const LoginPage: React.FC = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••••••"
                       disabled={isActionLocked}
-                      className="w-full bg-slate-50/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg pl-8 pr-9 py-1.5 sm:py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all disabled:opacity-60"
+                      className="w-full bg-slate-50/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg pl-8 pr-9 py-1.5 sm:py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all disabled:opacity-60"
                     />
                     <button
                       type="button"
@@ -512,7 +510,7 @@ export const LoginPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowForgotInfo(!showForgotInfo)}
-                    className="font-semibold text-[11px] text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline cursor-pointer"
+                    className="font-semibold text-[11px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline cursor-pointer"
                   >
                     Forgot password?
                   </button>
@@ -520,9 +518,9 @@ export const LoginPage: React.FC = () => {
 
                 {/* Forgot Password Policy Callout */}
                 {showForgotInfo && (
-                  <div className="p-2.5 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/80 rounded-lg text-xs text-slate-700 dark:text-slate-300 space-y-1 animate-fadeIn text-left">
-                    <div className="flex items-center gap-1.5 font-bold text-blue-900 dark:text-blue-200 text-[11px]">
-                      <Info className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 rounded-lg text-xs text-slate-700 dark:text-slate-300 space-y-1 animate-fadeIn text-left">
+                    <div className="flex items-center gap-1.5 font-bold text-indigo-900 dark:text-indigo-200 text-[11px]">
+                      <Info className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                       <span>Password Reset Policy</span>
                     </div>
                     <p className="text-[10px] text-slate-600 dark:text-slate-400 leading-snug">
@@ -535,7 +533,7 @@ export const LoginPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isActionLocked}
-                  className="w-full mt-1.5 py-2 sm:py-2.5 px-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-600 active:scale-[0.99] text-white font-bold rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group"
+                  className="login-btn-sheen w-full mt-1.5 py-2 sm:py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold rounded-lg text-xs sm:text-sm transition-all shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed group"
                 >
                   {isActionLocked ? (
                     <>
@@ -565,7 +563,7 @@ export const LoginPage: React.FC = () => {
       </main>
 
       {/* Global Enterprise Footer - Compact 32px */}
-      <footer className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-2 sm:py-2.5 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-400 dark:text-slate-600 shrink-0 border-t border-slate-200/60 dark:border-slate-800/60 gap-1.5">
+      <footer className="login-fade-up login-delay-5 w-full max-w-7xl mx-auto px-4 sm:px-8 py-2 sm:py-2.5 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-400 dark:text-slate-600 shrink-0 border-t border-slate-200/60 dark:border-slate-800/60 gap-1.5">
         <span>© 2026 MintReview System Inc. All rights reserved. Enterprise Performance & Appraisal Calibration.</span>
         <div className="flex items-center gap-3">
           <span className="hover:text-slate-600 dark:hover:text-slate-400 transition-colors cursor-pointer">Security</span>

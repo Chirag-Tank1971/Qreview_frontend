@@ -2,31 +2,24 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import {
   User as UserIcon,
-  Award,
-  TrendingUp,
-  Target,
-  BarChart3,
-  Users,
-  Bell,
   Shield,
-  Upload,
   Sparkles,
   X,
   LogOut,
   Moon,
   Sun,
-  Zap,
   Check,
   Building2,
   Briefcase,
   Layers,
   UserCheck,
   ChevronRight,
-  ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { UserRole } from '../types';
+import { NAV_ITEMS, getNavLabel, getNavSubtitle, isNavItemVisible } from '../config/navigation';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 
 interface MobileNavDrawerProps {
   isOpen: boolean;
@@ -41,10 +34,26 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
   currentView,
   onSelectView,
 }) => {
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, drawerLeftClass } = useModalAnimation({
+    isOpen,
+    onClose,
+  });
+
   const { user, employeeProfile, logout, switchRole, isLoading } = useAuth();
   const { isDark, toggleTheme } = useTheme();
 
-  if (!isOpen) return null;
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleClose]);
+
+  if (!isMounted) return null;
   if (typeof document === 'undefined') return null;
 
   const userRole = user?.role;
@@ -65,105 +74,11 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
   const currentRoleConfig = user ? roleConfigs[user.role] : roleConfigs.EMPLOYEE;
   const RoleIcon = currentRoleConfig.icon;
 
-  // Primary Workspaces
-  const primaryNavItems = [
-    {
-      id: 'management',
-      label: 'Executive Dashboard',
-      subtitle: 'Organization-wide KPIs, department matrix & trends',
-      icon: Sparkles,
-      roles: ['MANAGEMENT'],
-    },
-    {
-      id: 'portal',
-      label: 'My Space',
-      subtitle: 'Goals, self-evaluations & appraisal letters',
-      icon: UserIcon,
-      roles: ['SUPER_ADMIN', 'HR', 'REPORTING_MANAGER', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'],
-    },
-    {
-      id: 'reviews',
-      label: userRole === 'EMPLOYEE' ? 'My Reviews' : 'Quarterly Reviews',
-      subtitle: 'Score KRAs and track performance cycles',
-      icon: Award,
-      roles: ['SUPER_ADMIN', 'HR', 'REPORTING_MANAGER', 'MANAGER', 'HOD', 'EMPLOYEE'],
-    },
-    {
-      id: 'appraisals',
-      label: 'Annual Appraisals',
-      subtitle: 'Cohort calibrations & salary increment proposals',
-      icon: TrendingUp,
-      roles: ['SUPER_ADMIN', 'HR', 'HOD', 'REPORTING_MANAGER', 'MANAGER'],
-    },
-    {
-      id: 'ai_performance',
-      label: 'AI Copilot & 360',
-      subtitle: 'AI review assistant & continuous praise',
-      icon: Sparkles,
-      roles: ['SUPER_ADMIN'],
-      isAiBadge: true,
-    },
-    {
-      id: 'reports',
-      label: 'Analytics & Reports',
-      subtitle: 'Bell curve distributions & department trends',
-      icon: BarChart3,
-      roles: ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'],
-    },
-    {
-      id: 'notifications',
-      label: 'Notifications & Alerts',
-      subtitle: 'Actionable tasks & email delivery audit',
-      icon: Bell,
-      roles: ['SUPER_ADMIN', 'HR', 'REPORTING_MANAGER', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'],
-    },
-  ];
-
-  // Admin & System Settings items (Super Admin & HR)
-  const adminNavItems = [
-    {
-      id: 'employees',
-      label: 'Employee Directory',
-      subtitle: 'Organization directory & profiles',
-      icon: Users,
-      roles: ['SUPER_ADMIN', 'HR'],
-    },
-    {
-      id: 'hierarchy',
-      label: 'Department & Hierarchy',
-      subtitle: 'Org tree, HODs, & reporting lines',
-      icon: Layers,
-      roles: ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'],
-    },
-    {
-      id: 'pip',
-      label: 'Performance Plans',
-      subtitle: 'Improvement plans, goals & check-ins',
-      icon: ClipboardList,
-      roles: ['SUPER_ADMIN', 'HR', 'HOD', 'REPORTING_MANAGER', 'MANAGER', 'EMPLOYEE'],
-    },
-    {
-      id: 'kras',
-      label: 'Goal Templates (KRAs)',
-      subtitle: 'Standard metrics & 100% weight rubrics',
-      icon: Target,
-      roles: ['SUPER_ADMIN', 'HR'],
-    },
-    {
-      id: 'bulk',
-      label: 'Bulk Data Manager',
-      subtitle: 'Import or export Excel/CSV master data',
-      icon: Upload,
-      roles: ['SUPER_ADMIN', 'HR'],
-    },
-    {
-      id: 'audit',
-      label: userRole === 'HR' ? 'Appraisal Lifecycle' : 'Audit Trail & Lifecycle',
-      subtitle: userRole === 'HR' ? 'Employee appraisal evolution timeline' : 'Decision history & master audit stream',
-      icon: Shield,
-      roles: ['SUPER_ADMIN', 'HR'],
-    },
-  ];
+  // Both lists derive from the shared NAV_ITEMS registry (frontend/src/config/navigation.ts)
+  // instead of hand-duplicating labels/icons/roles here — see that file's header comment for why.
+  const visibleNavItems = NAV_ITEMS.filter((item) => isNavItemVisible(item, userRole));
+  const primaryNavItems = visibleNavItems.filter((item) => item.mobileSection === 'primary');
+  const adminNavItems = visibleNavItems.filter((item) => item.mobileSection === 'admin');
 
   const quickPersonas = [
     { role: 'SUPER_ADMIN' as UserRole, name: 'System Admin', title: 'Admin', userId: 'usr_sa' },
@@ -173,27 +88,27 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
     { role: 'EMPLOYEE' as UserRole, name: 'Grace Engineer', title: 'Employee', userId: 'usr_com_1' },
   ];
 
-  const visiblePrimary = primaryNavItems.filter((item) => !userRole || item.roles.includes(userRole));
-  const visibleAdmin = adminNavItems.filter((item) => !userRole || item.roles.includes(userRole));
+  const visiblePrimary = primaryNavItems;
+  const visibleAdmin = adminNavItems;
 
   const handleNavClick = (viewId: string) => {
     onSelectView(viewId);
-    onClose();
+    handleClose();
   };
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9998] flex bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200"
-      onClick={onClose}
+      className={`fixed inset-0 z-[9998] flex bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-xs ${backdropClass}`}
+      onClick={handleBackdropClick}
     >
       <div
-        className="w-[85vw] max-w-sm bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col border-r border-slate-200 dark:border-slate-800 animate-in slide-in-from-left duration-200 overflow-hidden"
+        className={`w-[85vw] max-w-sm bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col border-r border-slate-200 dark:border-slate-800 overflow-hidden ${drawerLeftClass}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drawer Header */}
         <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            <div className="w-7 h-7 rounded-[6px] bg-blue-600 text-white flex items-center justify-center font-bold shadow-2xs">
+            <div className="w-7 h-7 rounded-[6px] bg-indigo-600 text-white flex items-center justify-center font-bold shadow-2xs">
               <Layers className="w-4 h-4" />
             </div>
             <div>
@@ -207,7 +122,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
           </div>
 
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1 rounded-[4px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             aria-label="Close Navigation"
           >
@@ -263,28 +178,28 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
                     key={item.id}
                     onClick={() => handleNavClick(item.id)}
                     className={`w-full flex items-center justify-between p-2 rounded-[4px] text-left transition-colors cursor-pointer ${isActive
-                        ? 'border-l-2 border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-medium'
+                        ? 'border-l-2 border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-medium'
                         : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
                       }`}
                   >
                     <div className="flex items-center gap-2.5">
-                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`} />
                       <div>
                         <div className="text-xs font-medium leading-tight flex items-center gap-1.5">
-                          <span>{item.label}</span>
+                          <span>{getNavLabel(item, userRole)}</span>
                           {item.isAiBadge && (
-                            <span className={`text-[9px] font-medium px-1.5 py-0.2 rounded-[4px] uppercase ${isActive ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
+                            <span className={`text-[9px] font-medium px-1.5 py-0.2 rounded-[4px] uppercase ${isActive ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
                               AI
                             </span>
                           )}
                         </div>
-                        <div className={`text-[10px] leading-tight mt-0.5 ${isActive ? 'text-blue-600/80 dark:text-blue-300/80' : 'text-slate-400 dark:text-slate-500'}`}>
-                          {item.subtitle}
+                        <div className={`text-[10px] leading-tight mt-0.5 ${isActive ? 'text-indigo-600/80 dark:text-indigo-300/80' : 'text-slate-400 dark:text-slate-500'}`}>
+                          {getNavSubtitle(item, userRole)}
                         </div>
                       </div>
                     </div>
                     {isActive ? (
-                      <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                     ) : (
                       <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 shrink-0" />
                     )}
@@ -309,21 +224,21 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
                       key={item.id}
                       onClick={() => handleNavClick(item.id)}
                       className={`w-full flex items-center justify-between p-2 rounded-[4px] text-left transition-colors cursor-pointer ${isActive
-                          ? 'border-l-2 border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-medium'
+                          ? 'border-l-2 border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-medium'
                           : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
                         }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                        <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`} />
                         <div>
-                          <div className="text-xs font-medium leading-tight">{item.label}</div>
-                          <div className={`text-[10px] leading-tight mt-0.5 ${isActive ? 'text-blue-600/80 dark:text-blue-300/80' : 'text-slate-400 dark:text-slate-500'}`}>
-                            {item.subtitle}
+                          <div className="text-xs font-medium leading-tight">{getNavLabel(item, userRole)}</div>
+                          <div className={`text-[10px] leading-tight mt-0.5 ${isActive ? 'text-indigo-600/80 dark:text-indigo-300/80' : 'text-slate-400 dark:text-slate-500'}`}>
+                            {getNavSubtitle(item, userRole)}
                           </div>
                         </div>
                       </div>
                       {isActive ? (
-                        <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                        <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                       ) : (
                         <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 shrink-0" />
                       )}
@@ -349,7 +264,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
                       key={p.role}
                       onClick={() => {
                         switchRole(p.role, p.userId);
-                        onClose();
+                        handleClose();
                       }}
                       disabled={isLoading}
                       className={`px-2 py-1.5 rounded-lg text-left text-[11px] font-semibold border transition-all cursor-pointer ${isCurrent
@@ -371,7 +286,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
         <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60">
           <button
             onClick={() => {
-              onClose();
+              handleClose();
               logout();
             }}
             className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40 transition-colors"

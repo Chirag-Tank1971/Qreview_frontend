@@ -17,6 +17,7 @@ import { InitiateReviewModal } from './InitiateReviewModal';
 import { CycleBadge } from './ui/CycleBadge';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 import { toast } from '../context/ToastContext';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 import {
   Sparkles,
   Search,
@@ -101,6 +102,25 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   const [updatingTargetStatus, setUpdatingTargetStatus] = useState<'ACTIVE' | 'LOCKED' | 'UPCOMING' | null>(null);
   const handledReviewIdRef = useRef<string | null>(null);
   const openedViaDirectActionRef = useRef<boolean>(false);
+
+  const REVIEW_STATUS_LABELS: Record<string, string> = {
+    DRAFT: 'Draft',
+    ASSIGNED: 'Not Started',
+    MANAGER_PENDING: 'Awaiting Manager',
+    MANAGER_COMPLETED: 'Manager Scored',
+    HOD_PENDING: 'Awaiting HOD',
+    HR_PENDING: 'Awaiting HR',
+    RETURNED: 'Returned for Changes',
+    HR_COMPLETED: 'Finalized',
+    CLOSED: 'Closed',
+  };
+
+  const isEmployeeRole = currentUser?.role === 'EMPLOYEE';
+  // The reviews list is already backend-scoped to just this employee's own record(s), so the
+  // most recent one for the selected period stands in for "my review" on the summary cards.
+  const myReview = isEmployeeRole ? reviews[0] : undefined;
+  const myScoredKraCount = myReview?.kraSnapshot?.filter((k) => (k.rating || 0) > 0).length || 0;
+  const myTotalKraCount = myReview?.kraSnapshot?.length || 0;
 
   // Synchronize initialConfig
   useEffect(() => {
@@ -600,7 +620,82 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       </div>
 
       {/* 2. STATS & ANALYTICS CARDS */}
-      {stats && (
+      {isEmployeeRole && myReview ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {/* Card 1: Review Status */}
+          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-indigo-500 p-4 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
+              <span>Review Status</span>
+              <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                <FileCheck className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-baseline space-x-2">
+              <span className="text-xl font-bold text-slate-900 dark:text-white">
+                {REVIEW_STATUS_LABELS[myReview.status] || myReview.status}
+              </span>
+            </div>
+            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+              {myReview.reviewPeriodName || 'Current cycle'}
+            </div>
+          </div>
+
+          {/* Card 2: Self-Assessment */}
+          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-sky-500 p-4 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
+              <span>Self-Assessment</span>
+              <div className="w-7 h-7 rounded-lg bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center text-sky-600 dark:text-sky-400">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-baseline space-x-2">
+              <span className="text-xl font-bold text-slate-900 dark:text-white">
+                {myReview.isSelfSubmitted ? 'Submitted' : 'Not Submitted'}
+              </span>
+            </div>
+            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+              {myScoredKraCount}/{myTotalKraCount} goals scored by manager
+            </div>
+          </div>
+
+          {/* Card 3: My Weighted Score */}
+          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-emerald-500 p-4 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
+              <span>My Weighted Score</span>
+              <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                <Award className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-baseline space-x-2">
+              <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono">
+                {(myReview.finalScore || 0) > 0 ? myReview.finalScore!.toFixed(2) : '—'}
+              </span>
+              <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">/ 5.00</span>
+            </div>
+            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+              {(myReview.finalScore || 0) > 0 ? 'Manager-evaluated score' : 'Pending manager evaluation'}
+            </div>
+          </div>
+
+          {/* Card 4: Appraisal Cycle */}
+          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-amber-500 p-4 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
+              <span>Appraisal Cycle</span>
+              <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <Sparkles className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-baseline space-x-2">
+              <span className="text-xl font-bold text-slate-900 dark:text-white">
+                {myReview.isAppraisalMonthDue ? 'Due This Cycle' : 'Not Due'}
+              </span>
+            </div>
+            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+              {myReview.cycleCode ? `Cycle ${myReview.cycleCode}` : 'Annual calibration'}
+            </div>
+          </div>
+        </div>
+      ) : !isEmployeeRole && stats ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           {/* Card 1: Total Cohort Reviews */}
           <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-indigo-500 p-4 shadow-2xs">
@@ -679,7 +774,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* 3. FILTERS & SEARCH BAR */}
       <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 p-3.5 shadow-2xs space-y-3">
@@ -947,7 +1042,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                       <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-300 ${
-                            r.status === 'MANAGER_SUBMITTED'
+                            r.status === 'MANAGER_COMPLETED'
                               ? 'bg-amber-500'
                               : 'bg-indigo-500'
                           }`}
@@ -1161,142 +1256,192 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       )}
 
       {/* 6. PERIOD LIFECYCLE MANAGEMENT MODAL (HR / SUPER ADMIN) */}
-      {isPeriodModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/50 rounded-xl text-indigo-600 dark:text-indigo-400">
-                  <Settings2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Review Period Lifecycle Control
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Activate the current quarter, lock historical periods, or stage upcoming evaluation cycles.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsPeriodModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-              {periods.map((period) => {
-                const isCurrentSelected = period.id === selectedPeriodId;
-                const isUpdating = updatingPeriodId === period.id;
-
-                return (
-                  <div
-                    key={period.id}
-                    className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 ${
-                      period.status === 'ACTIVE'
-                        ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/80 shadow-xs'
-                        : period.status === 'LOCKED'
-                        ? 'bg-amber-50/30 dark:bg-amber-950/10 border-amber-200/80 dark:border-amber-800/40'
-                        : 'bg-slate-50 dark:bg-slate-850/50 border-slate-200 dark:border-slate-800'
-                    }`}
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">
-                          {period.name}
-                        </span>
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
-                          period.status === 'ACTIVE'
-                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
-                            : period.status === 'LOCKED'
-                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border-amber-300 dark:border-amber-700'
-                            : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-700'
-                        }`}>
-                          {period.status}
-                        </span>
-                        {isCurrentSelected && (
-                          <span className="text-[10px] bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded font-medium border border-indigo-200 dark:border-indigo-800">
-                            Viewing
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <span>Span: {period.startDate} to {period.endDate}</span>
-                        <span>•</span>
-                        <span>Due: {period.dueDate}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 self-end sm:self-center">
-                      {period.status !== 'ACTIVE' && (
-                        <button
-                          disabled={isUpdating}
-                          onClick={() => handleUpdatePeriodStatus(period.id, 'ACTIVE')}
-                          className="px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 rounded-lg border border-emerald-300 dark:border-emerald-800 transition-colors flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isUpdating && updatingTargetStatus === 'ACTIVE' ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Play className="w-3.5 h-3.5" />
-                          )}
-                          <span>Make Active</span>
-                        </button>
-                      )}
-
-                      {period.status !== 'LOCKED' && (
-                        <button
-                          disabled={isUpdating}
-                          onClick={() => handleUpdatePeriodStatus(period.id, 'LOCKED')}
-                          className="px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 hover:bg-amber-200 dark:hover:bg-amber-900/80 rounded-lg border border-amber-300 dark:border-amber-800 transition-colors flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isUpdating && updatingTargetStatus === 'LOCKED' ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Lock className="w-3.5 h-3.5" />
-                          )}
-                          <span>Lock Period</span>
-                        </button>
-                      )}
-
-                      {period.status !== 'UPCOMING' && (
-                        <button
-                          disabled={isUpdating}
-                          onClick={() => handleUpdatePeriodStatus(period.id, 'UPCOMING')}
-                          className="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg border border-slate-300 dark:border-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
-                        >
-                          {isUpdating && updatingTargetStatus === 'UPCOMING' && (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          )}
-                          <span>Set Upcoming</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="bg-slate-50 dark:bg-slate-850 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-start space-x-3 text-xs text-slate-600 dark:text-slate-400">
-              <AlertCircle className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-              <p>
-                <strong>Enterprise Policy:</strong> When setting a period to <strong>ACTIVE</strong>, any currently active period is automatically safely transitioned to <strong>LOCKED</strong>. All existing employee evaluation submissions and manager appraisals remain permanently archived.
-              </p>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setIsPeriodModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg shadow-2xs transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PeriodLifecycleModal
+        isOpen={isPeriodModalOpen}
+        onClose={() => setIsPeriodModalOpen(false)}
+        periods={periods}
+        selectedPeriodId={selectedPeriodId}
+        updatingPeriodId={updatingPeriodId}
+        updatingTargetStatus={updatingTargetStatus}
+        handleUpdatePeriodStatus={handleUpdatePeriodStatus}
+      />
 
     </div>
   );
 };
+
+interface PeriodLifecycleModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  periods: ReviewPeriod[];
+  selectedPeriodId: string;
+  updatingPeriodId: string | null;
+  updatingTargetStatus: string | null;
+  handleUpdatePeriodStatus: (periodId: string, newStatus: 'UPCOMING' | 'ACTIVE' | 'LOCKED') => void;
+}
+
+const PeriodLifecycleModal: React.FC<PeriodLifecycleModalProps> = ({
+  isOpen,
+  onClose,
+  periods,
+  selectedPeriodId,
+  updatingPeriodId,
+  updatingTargetStatus,
+  handleUpdatePeriodStatus,
+}) => {
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+    isOpen,
+    onClose,
+  });
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleClose]);
+
+  if (!isMounted) return null;
+
+  return (
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs ${backdropClass}`}
+      onClick={handleBackdropClick}
+    >
+      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-6 ${cardClass}`}>
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/50 rounded-xl text-indigo-600 dark:text-indigo-400">
+              <Settings2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                Review Period Lifecycle Control
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Activate the current quarter, lock historical periods, or stage upcoming evaluation cycles.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleClose}
+            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+          {periods.map((period) => {
+            const isCurrentSelected = period.id === selectedPeriodId;
+            const isUpdating = updatingPeriodId === period.id;
+
+            return (
+              <div
+                key={period.id}
+                className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 ${
+                  period.status === 'ACTIVE'
+                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/80 shadow-xs'
+                    : period.status === 'LOCKED'
+                    ? 'bg-amber-50/30 dark:bg-amber-950/10 border-amber-200/80 dark:border-amber-800/40'
+                    : 'bg-slate-50 dark:bg-slate-850/50 border-slate-200 dark:border-slate-800'
+                }`}
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">
+                      {period.name}
+                    </span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                      period.status === 'ACTIVE'
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                        : period.status === 'LOCKED'
+                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                        : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+                    }`}>
+                      {period.status}
+                    </span>
+                    {isCurrentSelected && (
+                      <span className="text-[10px] bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded font-medium border border-indigo-200 dark:border-indigo-800">
+                        Viewing
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span>Span: {period.startDate} to {period.endDate}</span>
+                    <span>•</span>
+                    <span>Due: {period.dueDate}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-center">
+                  {period.status !== 'ACTIVE' && (
+                    <button
+                      disabled={isUpdating}
+                      onClick={() => handleUpdatePeriodStatus(period.id, 'ACTIVE')}
+                      className="px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 rounded-lg border border-emerald-300 dark:border-emerald-800 transition-colors flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {isUpdating && updatingTargetStatus === 'ACTIVE' ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Play className="w-3.5 h-3.5" />
+                      )}
+                      <span>Make Active</span>
+                    </button>
+                  )}
+
+                  {period.status !== 'LOCKED' && (
+                    <button
+                      disabled={isUpdating}
+                      onClick={() => handleUpdatePeriodStatus(period.id, 'LOCKED')}
+                      className="px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 hover:bg-amber-200 dark:hover:bg-amber-900/80 rounded-lg border border-amber-300 dark:border-amber-800 transition-colors flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {isUpdating && updatingTargetStatus === 'LOCKED' ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Lock className="w-3.5 h-3.5" />
+                      )}
+                      <span>Lock Period</span>
+                    </button>
+                  )}
+
+                  {period.status !== 'UPCOMING' && (
+                    <button
+                      disabled={isUpdating}
+                      onClick={() => handleUpdatePeriodStatus(period.id, 'UPCOMING')}
+                      className="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg border border-slate-300 dark:border-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      {isUpdating && updatingTargetStatus === 'UPCOMING' && (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      )}
+                      <span>Set Upcoming</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="bg-slate-50 dark:bg-slate-850 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-start space-x-3 text-xs text-slate-600 dark:text-slate-400">
+          <AlertCircle className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+          <p>
+            <strong>Enterprise Policy:</strong> When setting a period to <strong>ACTIVE</strong>, any currently active period is automatically safely transitioned to <strong>LOCKED</strong>. All existing employee evaluation submissions and manager appraisals remain permanently archived.
+          </p>
+        </div>
+
+        <div className="flex justify-end pt-2">
+          <button
+            onClick={handleClose}
+            className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg shadow-2xs transition-colors cursor-pointer"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+

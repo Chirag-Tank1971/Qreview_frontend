@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Appraisal } from '../types';
 import { api } from '../services/api';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 import {
   downloadAppraisalPdf,
   generateLetterHtml,
@@ -40,12 +41,16 @@ export const AppraisalLetterModal: React.FC<AppraisalLetterModalProps> = ({ appr
   // Settings
   const [showDetailedBreakdown, setShowDetailedBreakdown] = useState<boolean>(true);
 
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+    useModalAnimation({ onClose });
+
   useEffect(() => {
+    if (!isMounted) return;
     const origOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -53,7 +58,9 @@ export const AppraisalLetterModal: React.FC<AppraisalLetterModalProps> = ({ appr
       document.body.style.overflow = origOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onClose]);
+  }, [isMounted, handleClose]);
+
+  if (!isMounted) return null;
 
   useEffect(() => {
     const fetchLetter = async () => {
@@ -184,14 +191,10 @@ export const AppraisalLetterModal: React.FC<AppraisalLetterModalProps> = ({ appr
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-950/70 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 print:p-0 print:bg-white"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
-      }}
+      className={`fixed inset-0 z-[9999] overflow-y-auto bg-slate-950/70 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 print:p-0 print:bg-white ${backdropClass}`}
+      onClick={handleBackdropClick}
     >
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 print:border-none print:shadow-none print:max-w-none my-auto">
+      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 print:border-none print:shadow-none print:max-w-none my-auto ${cardClass}`}>
         {/* Modal Toolbar (hidden in print) - sticky */}
         <div className="sticky top-0 z-10 px-6 py-3.5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 print:hidden shadow-md">
           <div className="flex items-center gap-2">
@@ -221,17 +224,21 @@ export const AppraisalLetterModal: React.FC<AppraisalLetterModalProps> = ({ appr
               type="button"
               disabled={isDownloadingPdf}
               onClick={handleDownloadPdf}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-all shadow-xs cursor-pointer disabled:opacity-50"
-              title="Download crisp vector PDF (.pdf)"
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border shadow-xs cursor-pointer ${
+                downloadPdfSuccess
+                  ? 'bg-emerald-600 border-emerald-500 text-white'
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500'
+              }`}
+              title="Generate and download branded vector PDF"
             >
               {isDownloadingPdf ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : downloadPdfSuccess ? (
-                <Check className="w-3.5 h-3.5 text-emerald-300" />
+                <Check className="w-3.5 h-3.5" />
               ) : (
                 <Download className="w-3.5 h-3.5" />
               )}
-              <span>{downloadPdfSuccess ? 'PDF Ready!' : 'Download PDF'}</span>
+              <span>{downloadPdfSuccess ? 'PDF Saved' : 'Download PDF'}</span>
             </button>
 
             {/* Browser Print / System PDF */}
@@ -248,7 +255,7 @@ export const AppraisalLetterModal: React.FC<AppraisalLetterModalProps> = ({ appr
             {/* Close Button */}
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition-colors border border-slate-700 cursor-pointer"
               title="Close Letter"
             >
@@ -327,7 +334,7 @@ export const AppraisalLetterModal: React.FC<AppraisalLetterModalProps> = ({ appr
                 We take immense pleasure in sharing the results of your Annual Performance Appraisal for cycle year{' '}
                 <strong>{appraisal.appraisalYear || '2026'}</strong> under the <strong>{appraisal.cycleName}</strong> cohort. Following the consolidation and thorough multi-stage calibration of your four quarterly performance reviews, your composite annual evaluation has been ratified as{' '}
                 <span className="font-bold text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 font-mono">
-                  {(appraisal.finalRating || appraisal.recommendedRating).replace(/_/g, ' ')}
+                  {(appraisal.finalRating || appraisal.recommendedRating || 'MEETS_EXPECTATIONS').replace(/_/g, ' ')}
                 </span>{' '}
                 with a rolling quarterly average score of <strong className="text-slate-900 font-mono">{appraisal.averageQuarterlyScore.toFixed(2)} / 5.00</strong>.
               </p>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Target, Plus, Trash2, CheckCircle2, Briefcase, Building2, Users, UserCheck, Calendar, Hash, Loader2 } from 'lucide-react';
 import { toast } from '../context/ToastContext';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 
 export interface CustomKraRow {
   id: string;
@@ -57,6 +58,9 @@ export const CustomKraScorecardModal: React.FC<CustomKraScorecardModalProps> = (
   const [rows, setRows] = useState<CustomKraRow[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+    useModalAnimation({ isOpen, onClose });
+
   useEffect(() => {
     if (isOpen) {
       setRows(
@@ -68,7 +72,16 @@ export const CustomKraScorecardModal: React.FC<CustomKraScorecardModalProps> = (
     }
   }, [isOpen, initialKras]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isMounted) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMounted, handleClose]);
+
+  if (!isMounted) return null;
 
   const totalWeight = rows.reduce((sum, r) => sum + (Number(r.weight) || 0), 0);
   const isBalanced = totalWeight === 100;
@@ -124,12 +137,10 @@ export const CustomKraScorecardModal: React.FC<CustomKraScorecardModalProps> = (
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9995] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      className={`fixed inset-0 z-[9995] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto ${backdropClass}`}
+      onClick={handleBackdropClick}
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
+      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col ${cardClass}`}>
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
@@ -145,7 +156,7 @@ export const CustomKraScorecardModal: React.FC<CustomKraScorecardModalProps> = (
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
           >
             <X className="w-4.5 h-4.5" />
@@ -262,7 +273,7 @@ export const CustomKraScorecardModal: React.FC<CustomKraScorecardModalProps> = (
           <div className="flex items-center gap-2.5">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={isSubmitting}
               className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >

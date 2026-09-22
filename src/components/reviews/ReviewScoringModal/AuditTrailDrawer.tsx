@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { History, X } from 'lucide-react';
 import { EmployeeReview } from '../../../types';
+import { useModalAnimation } from '../../../hooks/useModalAnimation';
 
 interface AuditTrailDrawerProps {
   isOpen: boolean;
@@ -14,16 +15,26 @@ export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
   onClose,
   review,
 }) => {
-  if (!isOpen) return null;
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+    useModalAnimation({ isOpen, onClose });
+
+  useEffect(() => {
+    if (!isMounted) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMounted, handleClose]);
+
+  if (!isMounted) return null;
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      className={`fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 ${backdropClass}`}
+      onClick={handleBackdropClick}
     >
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden ${cardClass}`}>
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-850">
           <div className="flex items-center space-x-2.5">
@@ -44,7 +55,7 @@ export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -149,7 +160,7 @@ export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
         <div className="px-6 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-850 flex justify-end">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="px-4 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
           >
             Close

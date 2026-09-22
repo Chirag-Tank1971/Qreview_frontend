@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
+import { toast } from './ToastContext';
 
 interface NotificationsContextType {
   /** Count of unread notifications visible to the current user — kept fresh by a single shared poller. */
@@ -27,12 +28,32 @@ export const NotificationsProvider: React.FC<{ children: ReactNode }> = ({ child
   const { isAuthenticated } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Tracks which HIGH-priority unread notification IDs we've already surfaced this session.
+  // null means "not yet seeded" — the first successful poll after (re)login populates it with
+  // whatever's already unread so we never toast-escalate a backlog right after signing in;
+  // only items that newly appear *during* the session trigger the real-time toast below.
+  const seenHighPriorityIdsRef = useRef<Set<string> | null>(null);
 
   const refreshUnreadCount = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
       const count = await api.getUnreadNotificationCount();
       setUnreadCount(count);
+
+      if (count > 0) {
+        const list = await api.getNotifications();
+        const highPriorityUnread = list.filter((n: any) => n.priority === 'HIGH' && !n.isRead);
+        if (seenHighPriorityIdsRef.current === null) {
+          seenHighPriorityIdsRef.current = new Set(highPriorityUnread.map((n: any) => n.id));
+        } else {
+          for (const n of highPriorityUnread) {
+            if (!seenHighPriorityIdsRef.current.has(n.id)) {
+              seenHighPriorityIdsRef.current.add(n.id);
+              toast.warning(n.message, n.title, 7000);
+            }
+          }
+        }
+      }
     } catch {
       // Quiet fallback — keep the last known count rather than flashing to 0 on a transient error.
     }
@@ -41,6 +62,7 @@ export const NotificationsProvider: React.FC<{ children: ReactNode }> = ({ child
   useEffect(() => {
     if (!isAuthenticated) {
       setUnreadCount(0);
+      seenHighPriorityIdsRef.current = null;
       return;
     }
 

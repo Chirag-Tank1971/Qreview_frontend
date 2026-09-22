@@ -21,6 +21,7 @@ import {
 import { EmployeeReview, ReviewKraSnapshot } from '../types';
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 
 interface SelfAssessmentModalProps {
   review: EmployeeReview;
@@ -91,6 +92,11 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
   const [showUnsavedAlert, setShowUnsavedAlert] = useState(false);
   const handleAttemptCloseRef = useRef<() => void>(() => {});
 
+  const { isMounted, handleClose, backdropClass, cardClass } = useModalAnimation({
+    isOpen: true,
+    onClose,
+  });
+
   const hasUnsavedChanges = useMemo(() => {
     if (isReadOnly) return false;
     if (selfStrengths !== (review.selfStrengths || '')) return true;
@@ -112,7 +118,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
     if (hasUnsavedChanges) {
       setShowUnsavedAlert(true);
     } else {
-      onClose();
+      handleClose();
     }
   };
 
@@ -194,7 +200,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
       }
 
       onSuccess(updated);
-      onClose();
+      handleClose();
     } catch (err: any) {
       console.error('Error submitting self evaluation:', err);
       const errMsg = err.message || 'Failed to submit self-assessment.';
@@ -205,14 +211,16 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
     }
   };
 
+  if (!isMounted) return null;
+
   return createPortal(
     <div
-      className="fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-150"
+      className={`fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto ${backdropClass}`}
       onClick={(e) => {
         if (e.target === e.currentTarget) handleAttemptClose();
       }}
     >
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[96vh] sm:max-h-[92vh] flex flex-col overflow-hidden my-auto">
+      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[96vh] sm:max-h-[92vh] flex flex-col overflow-hidden my-auto ${cardClass}`}>
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
           <div className="flex items-center space-x-3">
@@ -717,12 +725,12 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
         {/* UNSAVED CHANGES CONFIRMATION ALERT */}
         {showUnsavedAlert && (
           <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 modal-backdrop-enter"
             onClick={(e) => {
               if (e.target === e.currentTarget) setShowUnsavedAlert(false);
             }}
           >
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 text-slate-900 dark:text-white transform scale-100 transition-all">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 text-slate-900 dark:text-white modal-card-enter">
               <div className="flex items-start space-x-4">
                 <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-2xl border border-amber-500/20 shrink-0">
                   <AlertTriangle className="w-6 h-6" />
@@ -749,7 +757,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   type="button"
                   onClick={() => {
                     setShowUnsavedAlert(false);
-                    onClose();
+                    handleClose();
                   }}
                   className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-900/60 rounded-xl transition-colors cursor-pointer"
                 >

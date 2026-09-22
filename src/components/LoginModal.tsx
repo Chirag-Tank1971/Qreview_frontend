@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 import { Lock, Mail, AlertCircle, ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 
 interface LoginModalProps {
@@ -15,13 +16,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+    useModalAnimation({ isOpen, onClose });
+
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isMounted) return;
     const origOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -29,16 +33,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
       document.body.style.overflow = origOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isMounted, handleClose]);
 
-  if (!isOpen) return null;
+  if (!isMounted) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     try {
       await login(email.trim().toLowerCase(), password);
-      onClose();
+      handleClose();
     } catch (err: any) {
       setError(err.message || 'Invalid credentials');
     }
@@ -46,12 +50,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9990] bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      className={`fixed inset-0 z-[9990] bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 ${backdropClass}`}
+      onClick={handleBackdropClick}
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md shadow-xl overflow-hidden p-6 space-y-6 text-slate-800 dark:text-slate-200">
+      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md shadow-xl overflow-hidden p-6 space-y-6 text-slate-800 dark:text-slate-200 ${cardClass}`}>
         <div className="text-center space-y-2">
           <div className="w-11 h-11 rounded-xl bg-slate-900 dark:bg-slate-800 text-white flex items-center justify-center mx-auto shadow-xs border dark:border-slate-700">
             <Lock className="w-5 h-5 text-indigo-400" />

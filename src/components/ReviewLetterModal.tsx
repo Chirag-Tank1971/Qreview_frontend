@@ -4,6 +4,7 @@ import { X, Printer, Download, FileDown, Award, Loader2, Check } from 'lucide-re
 import { EmployeeReview } from '../types';
 import { generateReviewLetterHtml, downloadReviewLetterPdf } from '../utils/reviewLetterExport';
 import { DEFAULT_LETTER_SETTINGS } from '../utils/letterExport';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 
 interface ReviewLetterModalProps {
   review: EmployeeReview;
@@ -24,23 +25,26 @@ export const ReviewLetterModal: React.FC<ReviewLetterModalProps> = ({ review, is
   const [downloadPdfSuccess, setDownloadPdfSuccess] = useState(false);
   const [downloadHtmlSuccess, setDownloadHtmlSuccess] = useState(false);
 
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+    useModalAnimation({ isOpen, onClose });
+
   const htmlContent = useMemo(() => generateReviewLetterHtml(review, DEFAULT_LETTER_SETTINGS), [review]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isMounted) return;
     const origOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') handleClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       document.body.style.overflow = origOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isMounted, handleClose]);
 
-  if (!isOpen) return null;
+  if (!isMounted) return null;
 
   const handlePrint = () => {
     setIsPrinting(true);
@@ -90,12 +94,10 @@ export const ReviewLetterModal: React.FC<ReviewLetterModalProps> = ({ review, is
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9997] overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      className={`fixed inset-0 z-[9997] overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 ${backdropClass}`}
+      onClick={handleBackdropClick}
     >
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 my-auto flex flex-col max-h-[92vh]">
+      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 my-auto flex flex-col max-h-[92vh] ${cardClass}`}>
         {/* Toolbar */}
         <div className="px-6 py-3.5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 shadow-md shrink-0">
           <div className="flex items-center gap-2">
@@ -148,7 +150,7 @@ export const ReviewLetterModal: React.FC<ReviewLetterModalProps> = ({ review, is
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition-colors border border-slate-700 cursor-pointer"
               title="Close Letter"
             >

@@ -4,6 +4,7 @@ import { X, Sparkles, AlertCircle, Loader2, Calendar, CheckCircle2, ChevronRight
 import { Cycle, Employee } from '../types';
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
+import { useModalAnimation } from '../hooks/useModalAnimation';
 
 interface InitiateAppraisalModalProps {
   cycles: Cycle[];
@@ -38,7 +39,9 @@ const getDefaultCurrentCycleId = (cycleList: Cycle[]): string => {
 
   // 3. Fallback: closest appraisalMonth
   const sorted = [...activeCycles].sort((a, b) => {
-    return Math.abs(a.appraisalMonth - currentMonth) - Math.abs(b.appraisalMonth - currentMonth);
+    const diffA = Math.abs((a.appraisalMonth || 6) - currentMonth);
+    const diffB = Math.abs((b.appraisalMonth || 6) - currentMonth);
+    return diffA - diffB;
   });
   return sorted[0]?.id || activeCycles[0].id;
 };
@@ -50,8 +53,7 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
   onSuccess,
 }) => {
   const currentYear = new Date().getFullYear();
-  const defaultCurrentCycleId = getDefaultCurrentCycleId(cycles);
-  const [selectedCycleId, setSelectedCycleId] = useState<string>(defaultCurrentCycleId);
+  const [selectedCycleId, setSelectedCycleId] = useState<string>(() => getDefaultCurrentCycleId(cycles));
   const [employeeList, setEmployeeList] = useState<Employee[]>(employees || []);
   const [appraisalYear, setAppraisalYear] = useState<number>(currentYear);
   const [overrideExisting, setOverrideExisting] = useState<boolean>(false);
@@ -65,17 +67,18 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
     totalEligible: number;
   } | null>(null);
 
+  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+    useModalAnimation({ onClose });
+
   // Keep selectedCycleId in sync if cycles are loaded/updated asynchronously
   useEffect(() => {
-    if ((!selectedCycleId || !cycles.some((c) => c.id === selectedCycleId && c.active !== false)) && cycles.length > 0) {
+    if (cycles.length > 0 && (!selectedCycleId || !cycles.some((c) => c.id === selectedCycleId))) {
       setSelectedCycleId(getDefaultCurrentCycleId(cycles));
     }
-  }, [cycles]);
+  }, [cycles, selectedCycleId]);
 
   useEffect(() => {
-    if (employees && employees.length > 0) {
-      setEmployeeList(employees);
-    } else {
+    if (!employees || employees.length === 0) {
       api.getEmployees()
         .then((res) => {
           if (Array.isArray(res)) setEmployeeList(res);
@@ -85,11 +88,12 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
   }, [employees]);
 
   useEffect(() => {
+    if (!isMounted) return;
     const origOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -97,7 +101,9 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
       document.body.style.overflow = origOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onClose]);
+  }, [isMounted, handleClose]);
+
+  if (!isMounted) return null;
 
   const selectedCycle = cycles.find((c) => c.id === selectedCycleId) || cycles[0];
 
@@ -145,12 +151,10 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9990] overflow-y-auto bg-slate-900/60 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      className={`fixed inset-0 z-[9990] overflow-y-auto bg-slate-900/60 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 ${backdropClass}`}
+      onClick={handleBackdropClick}
     >
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800">
+      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800 ${cardClass}`}>
         {/* Modal Header */}
         <div className="px-6 py-5 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex items-center justify-between border-b border-slate-800">
           <div className="flex items-center gap-3">
@@ -163,8 +167,9 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
             </div>
           </div>
           <button
-            onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            type="button"
+            onClick={handleClose}
+            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -220,7 +225,7 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
                 {cycles.filter((c) => c.active !== false).map((c) => {
                   const count = getCycleEmployeeCount(c.id, c.code);
                   const isSelected = selectedCycleId === c.id;
-                  const isCurrentCycle = c.id === defaultCurrentCycleId;
+                  const isCurrentCycle = c.id === getDefaultCurrentCycleId(cycles);
                   return (
                     <button
                       key={c.id}
@@ -328,7 +333,7 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 disabled={isSubmitting}
                 className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
               >
