@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Department, Designation, Employee, Cycle } from '../types';
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import { useModalAnimation } from '../hooks/useModalAnimation';
+import { MasterDeleteModal, MasterDeleteTarget } from './MasterDeleteModal';
 import {
   Plus,
   Building2,
@@ -23,6 +25,7 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  MapPin,
 } from 'lucide-react';
 
 interface MastersManagementProps {
@@ -31,6 +34,7 @@ interface MastersManagementProps {
   employees: Employee[];
   cycles: Cycle[];
   onRefresh: () => void;
+  currentUser?: { role?: string } | null;
 }
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -41,17 +45,14 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
   employees,
   cycles,
   onRefresh,
+  currentUser,
 }) => {
+  const { user } = useAuth();
+  const effectiveUser = currentUser || user;
+  const isHRorAdmin = effectiveUser?.role === 'SUPER_ADMIN' || effectiveUser?.role === 'HR';
+
   // Delete Confirmation Modal State
-  const [deleteTarget, setDeleteTarget] = useState<{
-    type: 'department' | 'designation';
-    id: string;
-    name: string;
-    code?: string;
-    level?: number;
-    associatedDeptName?: string;
-    assignedEmployees: Employee[];
-  } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<MasterDeleteTarget | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Department Form State
@@ -88,6 +89,31 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
   const [cycleError, setCycleError] = useState<string | null>(null);
   const [selectedCycleForView, setSelectedCycleForView] = useState<Cycle | null>(null);
   const [cycleModalSearch, setCycleModalSearch] = useState('');
+
+  // Location Management State
+  const [locations, setLocations] = useState<{ id?: string; name: string; employeeCount: number; assignedEmployees?: { id: string; name: string; employeeCode: string }[] }[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
+  const [locationSearch, setLocationSearch] = useState('');
+  const [newLocationName, setNewLocationName] = useState('');
+  const [newLocLoading, setNewLocLoading] = useState(false);
+  const [newLocError, setNewLocError] = useState<string | null>(null);
+  const [newLocSuccess, setNewLocSuccess] = useState(false);
+
+  const loadLocations = useCallback(async () => {
+    try {
+      setLocationsLoading(true);
+      const data = await api.getLocations();
+      setLocations(data);
+    } catch (err: any) {
+      console.error('Failed to load locations', err);
+    } finally {
+      setLocationsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLocations();
+  }, [loadLocations]);
 
   const handleCreateDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,6 +205,18 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
     });
   };
 
+  const promptDeleteLocation = (loc: { name: string; employeeCount: number }) => {
+    const assigned = employees.filter(
+      (e) => (e.location || '').trim().toLowerCase() === loc.name.trim().toLowerCase() && e.status !== 'INACTIVE' && !e.isPastEmployee
+    );
+    setDeleteTarget({
+      type: 'location',
+      id: loc.name,
+      name: loc.name,
+      assignedEmployees: assigned,
+    });
+  };
+
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     setDeleteLoading(true);
@@ -186,9 +224,13 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
       if (deleteTarget.type === 'department') {
         const res = await api.deleteDepartment(deleteTarget.id);
         toast.success(res.message || `Department "${deleteTarget.name}" deleted from database.`, 'Department Deleted');
-      } else {
+      } else if (deleteTarget.type === 'designation') {
         const res = await api.deleteDesignation(deleteTarget.id);
         toast.success(res.message || `Designation "${deleteTarget.name}" deleted from database.`, 'Designation Deleted');
+      } else if (deleteTarget.type === 'location') {
+        const res = await api.deleteLocation(deleteTarget.name);
+        toast.success(res.message || `Location "${deleteTarget.name}" deleted from database.`, 'Location Deleted');
+        loadLocations();
       }
       setDeleteTarget(null);
       onRefresh();
@@ -196,6 +238,28 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
       toast.error(err.message || `Failed to delete ${deleteTarget.type}`, 'Deletion Blocked');
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const handleCreateLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLocationName.trim()) return;
+    setNewLocError(null);
+    setNewLocSuccess(false);
+    setNewLocLoading(true);
+    try {
+      await api.createLocation(newLocationName.trim());
+      toast.success(`Location "${newLocationName.trim()}" created successfully.`, 'Location Created');
+      setNewLocationName('');
+      setNewLocSuccess(true);
+      loadLocations();
+      setTimeout(() => setNewLocSuccess(false), 3000);
+    } catch (err: any) {
+      const errMsg = err.message || 'Failed to create location';
+      setNewLocError(errMsg);
+      toast.error(errMsg, 'Location Error');
+    } finally {
+      setNewLocLoading(false);
     }
   };
 
@@ -750,6 +814,160 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
         </div>
       </div>
 
+      {/* Location Master */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 space-y-5 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+              <MapPin className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Work Location Master</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Manage base office and remote work locations across the organization</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+              {locations.length} Locations
+            </span>
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+              {locations.reduce((acc, l) => acc + (l.employeeCount || 0), 0)} Total Assigned
+            </span>
+          </div>
+        </div>
+
+        {/* Add Location Form (HR / Super Admin only) */}
+        {isHRorAdmin && (
+          <form onSubmit={handleCreateLocation} className="space-y-3 bg-slate-50/70 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">Add New Work Location</h4>
+
+            {newLocError && (
+              <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{newLocError}</span>
+              </div>
+            )}
+
+            {newLocSuccess && (
+              <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                <Check className="w-3.5 h-3.5 shrink-0" />
+                <span>Location added successfully!</span>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  required
+                  value={newLocationName}
+                  onChange={(e) => setNewLocationName(e.target.value)}
+                  placeholder="e.g. Pune Tech Park, Kolkata Hub, Singapore Office"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={newLocLoading || !newLocationName.trim()}
+                className="py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              >
+                {newLocLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                <span>{newLocLoading ? 'Adding...' : 'Add Location'}</span>
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Location Search Bar & Grid */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Registered Locations</h4>
+            <div className="relative w-64 max-w-full">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={locationSearch}
+                onChange={(e) => setLocationSearch(e.target.value)}
+                placeholder="Search locations..."
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg pl-8 pr-2.5 py-1 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          {locationsLoading ? (
+            <div className="flex items-center justify-center py-10 gap-2 text-xs text-slate-400">
+              <Loader2 className="w-4 h-4 animate-spin" /> Loading locations...
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-80 overflow-y-auto p-1">
+              {locations
+                .filter((loc) => !locationSearch || loc.name.toLowerCase().includes(locationSearch.toLowerCase()))
+                .map((loc) => {
+                  const hasEmployees = loc.employeeCount > 0;
+                  return (
+                    <div
+                      key={loc.id || loc.name}
+                      className="p-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl hover:border-slate-300 dark:hover:border-slate-700 transition-all flex items-center justify-between gap-2 shadow-2xs group"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`p-1.5 rounded-lg shrink-0 ${
+                          hasEmployees
+                            ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/60'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700'
+                        }`}>
+                          <MapPin className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-slate-900 dark:text-white truncate" title={loc.name}>
+                            {loc.name}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            {hasEmployees ? (
+                              <span className="text-indigo-600 dark:text-indigo-400 font-medium">Active work hub</span>
+                            ) : (
+                              'No employees assigned'
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
+                            hasEmployees
+                              ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                          }`}
+                          title={`${loc.employeeCount} active employee(s) assigned`}
+                        >
+                          {loc.employeeCount} {loc.employeeCount === 1 ? 'emp' : 'emps'}
+                        </span>
+
+                        {isHRorAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => promptDeleteLocation(loc)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer"
+                            title={hasEmployees ? "Cannot delete: employees assigned" : "Delete location from database"}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              {locations.filter((loc) => !locationSearch || loc.name.toLowerCase().includes(locationSearch.toLowerCase())).length === 0 && (
+                <div className="col-span-full py-8 text-center text-xs text-slate-400">
+                  {locationSearch ? 'No locations matching search.' : 'No locations registered.'}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Custom Delete Confirmation Modal */}
       <MasterDeleteModal
         deleteTarget={deleteTarget}
@@ -767,211 +985,6 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
         onClose={() => setSelectedCycleForView(null)}
       />
     </div>
-  );
-};
-
-interface MasterDeleteModalProps {
-  deleteTarget: {
-    type: 'department' | 'designation';
-    id: string;
-    name: string;
-    code?: string;
-    level?: number;
-    associatedDeptName?: string;
-    assignedEmployees: Employee[];
-  } | null;
-  onClose: () => void;
-  onConfirm: () => void;
-  loading: boolean;
-}
-
-const MasterDeleteModal: React.FC<MasterDeleteModalProps> = ({
-  deleteTarget,
-  onClose,
-  onConfirm,
-  loading,
-}) => {
-  const cachedTargetRef = React.useRef(deleteTarget);
-  if (deleteTarget) {
-    cachedTargetRef.current = deleteTarget;
-  }
-  const target = deleteTarget || cachedTargetRef.current;
-
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
-    isOpen: !!deleteTarget,
-    onClose,
-  });
-
-  if (!isMounted || !target) return null;
-  if (typeof document === 'undefined') return null;
-
-  return createPortal(
-    <div
-      className={`fixed inset-0 z-[9990] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto ${backdropClass}`}
-      onClick={handleBackdropClick}
-    >
-      <div
-        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-md w-full my-auto overflow-hidden ${cardClass}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Modal Header */}
-        <div className="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div
-              className={`p-2 rounded-xl ${
-                target.assignedEmployees.length > 0
-                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
-                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
-              }`}
-            >
-              <ShieldAlert className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                {target.assignedEmployees.length > 0
-                  ? `Cannot Delete ${target.type === 'department' ? 'Department' : 'Designation'}`
-                  : `Delete ${target.type === 'department' ? 'Department' : 'Designation'}`}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {target.assignedEmployees.length > 0
-                  ? 'Active employee dependencies detected'
-                  : 'Confirm master registry removal'}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleClose}
-            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-            title="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Modal Body */}
-        <div className="p-5 space-y-4">
-          {/* Target Details Card */}
-          <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-            <div>
-              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 block">
-                {target.type === 'department' ? 'Target Department' : 'Target Designation'}
-              </span>
-              <span className="text-xs font-bold text-slate-900 dark:text-white">
-                {target.name}
-              </span>
-            </div>
-            {target.code && (
-              <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
-                {target.code}
-              </span>
-            )}
-            {target.level !== undefined && (
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                Role Level {target.level}
-              </span>
-            )}
-          </div>
-
-          {target.assignedEmployees.length > 0 ? (
-            /* Blocked State */
-            <div className="space-y-3">
-              <div className="p-3 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
-                <div className="flex items-center gap-1.5 font-bold">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                  <span>{target.assignedEmployees.length} Active Employee(s) Assigned</span>
-                </div>
-                <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
-                  To prevent orphaned employee profiles, broken review cycles, and missing manager linkages, this {target.type} cannot be deleted while employees are actively assigned.
-                </p>
-              </div>
-
-              <div className="space-y-1.5">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400 block">
-                  Assigned Personnel:
-                </span>
-                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1">
-                  {target.assignedEmployees.slice(0, 8).map((emp) => (
-                    <span
-                      key={emp.id}
-                      className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1"
-                    >
-                      <span className="font-semibold">{emp.name}</span>
-                      <span className="text-[10px] text-slate-400">({emp.employeeCode})</span>
-                    </span>
-                  ))}
-                  {target.assignedEmployees.length > 8 && (
-                    <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 font-medium">
-                      +{target.assignedEmployees.length - 8} more
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 italic">
-                Tip: Reassign or deactivate these employees in the <strong>Employees</strong> tab before deleting this {target.type}.
-              </p>
-            </div>
-          ) : (
-            /* Allowed to Delete State */
-            <div className="space-y-3">
-              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                Are you sure you want to permanently delete <strong>&quot;{target.name}&quot;</strong> from the database?
-              </p>
-
-              <div className="p-3 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl text-xs text-rose-800 dark:text-rose-300 space-y-1">
-                <div className="flex items-center gap-1.5 font-bold">
-                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
-                  <span>Permanent Action</span>
-                </div>
-                <p className="text-[11px] leading-relaxed text-rose-700 dark:text-rose-400">
-                  {target.type === 'department'
-                    ? 'All associated designations and department settings will be permanently removed. This action is recorded in the master audit log.'
-                    : 'This designation role will be permanently removed from the master registry.'}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Modal Footer */}
-        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2.5">
-          {target.assignedEmployees.length > 0 ? (
-            <button
-              type="button"
-              onClick={handleClose}
-              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-            >
-              Understood
-            </button>
-          ) : (
-            <>
-              <button
-                type="button"
-                disabled={loading}
-                onClick={handleClose}
-                className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={loading}
-                onClick={onConfirm}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
-              >
-                {loading ? (
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Trash2 className="w-3.5 h-3.5" />
-                )}
-                <span>{loading ? 'Deleting...' : 'Permanently Delete'}</span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>,
-    document.body
   );
 };
 

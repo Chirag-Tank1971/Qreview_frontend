@@ -1019,6 +1019,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
           employees={employees}
           cycles={cycles}
           onRefresh={loadData}
+          currentUser={user}
         />
       )}
 

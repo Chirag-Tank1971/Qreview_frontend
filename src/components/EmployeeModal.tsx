@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Employee, Department, Designation, Cycle, KraTemplate, ReviewPeriod, UserRole, CreateEmployeeResponse } from '../types';
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import { CustomKraScorecardModal, CustomKraRow } from './CustomKraScorecardModal';
+import { MasterDeleteModal, MasterDeleteTarget } from './MasterDeleteModal';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 
 function defaultCustomKraRows(): CustomKraRow[] {
@@ -44,6 +46,10 @@ import {
   RotateCcw,
   Layers,
   Loader2,
+  Trash2,
+  Search,
+  ChevronDown,
+  Plus,
 } from 'lucide-react';
 
 /**
@@ -106,7 +112,130 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [location, setLocation] = useState('Bangalore HQ');
+  const [location, setLocation] = useState('Delhi');
+  const [locationOther, setLocationOther] = useState('');
+
+  const { user } = useAuth();
+  const isHRorAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'HR';
+
+  // Dynamic Location Picker State
+  const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
+  const [locationSearch, setLocationSearch] = useState('');
+  const [dbLocations, setDbLocations] = useState<string[]>([]);
+  const locationPickerRef = useRef<HTMLDivElement>(null);
+
+  const loadAvailableLocations = useCallback(async () => {
+    try {
+      const list = await api.getLocations();
+      if (list && list.length > 0) {
+        setDbLocations(list.map((l) => l.name));
+      }
+    } catch {
+      // fallback
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadAvailableLocations();
+    }
+  }, [isOpen, loadAvailableLocations]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (locationPickerRef.current && !locationPickerRef.current.contains(e.target as Node)) {
+        setLocationDropdownOpen(false);
+      }
+    };
+    if (locationDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [locationDropdownOpen]);
+
+  const getEmployeeCountForLocation = (locName: string) => {
+    const assigned = (allEmployees || []).filter(
+      (e) => (e.location || '').trim().toLowerCase() === locName.trim().toLowerCase() && e.status !== 'INACTIVE' && !e.isPastEmployee
+    );
+    return {
+      count: assigned.length,
+      names: assigned.map((e) => e.name || e.employeeCode),
+    };
+  };
+
+  const [deletedLocationSet, setDeletedLocationSet] = useState<Set<string>>(new Set());
+
+  const PRESET_DEFAULT_LOCATIONS = [
+    'Corporate Office', 'Head Office', 'Mumbai Branch',
+    'Delhi NCR Hub', 'Hyderabad Tech Center', 'Jaipur Office',
+    'Delhi', 'Haryana', 'Uttar Pradesh', 'Rajasthan', 'West Bengal',
+    'Patna', 'Jodhpur', 'Jaipur', 'Chennai', 'HYDERABAD', 'LUCKNOW',
+    'Remote - India', 'Global Remote',
+  ];
+
+  // Primary source of truth is dbLocations from MongoDB; fallback to PRESET_DEFAULT_LOCATIONS only before DB finishes loading
+  const baseLocations = dbLocations.length > 0 ? dbLocations : PRESET_DEFAULT_LOCATIONS;
+
+  const allAvailableLocations = Array.from(
+    new Set(baseLocations)
+  ).filter((loc) => Boolean(loc) && !deletedLocationSet.has(loc.trim().toLowerCase()));
+
+  const filteredLocations = allAvailableLocations
+    .filter((l) => !locationSearch || l.toLowerCase().includes(locationSearch.toLowerCase()))
+    .sort((a, b) => {
+      const countA = getEmployeeCountForLocation(a).count;
+      const countB = getEmployeeCountForLocation(b).count;
+      return countB - countA || a.localeCompare(b);
+    });
+
+  // Location Custom Delete Modal State
+  const [locationDeleteTarget, setLocationDeleteTarget] = useState<MasterDeleteTarget | null>(null);
+  const [locationDeleteLoading, setLocationDeleteLoading] = useState(false);
+
+  const handleDeleteLocationClick = (locName: string) => {
+    const assigned = (allEmployees || []).filter(
+      (e) => (e.location || '').trim().toLowerCase() === locName.trim().toLowerCase() && e.status !== 'INACTIVE' && !e.isPastEmployee
+    );
+    setLocationDeleteTarget({
+      type: 'location',
+      id: locName,
+      name: locName,
+      assignedEmployees: assigned,
+    });
+  };
+
+  const handleConfirmDeleteLocation = async () => {
+    if (!locationDeleteTarget) return;
+    const locName = locationDeleteTarget.name;
+    setLocationDeleteLoading(true);
+    try {
+      const res = await api.deleteLocation(locName);
+      toast.success(res.message || `Location "${locName}" deleted successfully.`, 'Location Deleted');
+
+      const lower = locName.trim().toLowerCase();
+      // Instantly track in deletedLocationSet so it disappears immediately from dropdown
+      setDeletedLocationSet((prev) => new Set([...prev, lower]));
+      setDbLocations((prev) => prev.filter((l) => l.trim().toLowerCase() !== lower));
+
+      // If the currently selected location was the one deleted, switch to the next available location
+      if (location.trim().toLowerCase() === lower) {
+        const remaining = allAvailableLocations.filter((l) => l.trim().toLowerCase() !== lower);
+        const fallback = remaining[0] || 'Other';
+        setLocation(fallback);
+        if (fallback === 'Other') {
+          setLocationOther('');
+        }
+      }
+
+      setLocationDeleteTarget(null);
+      // Re-fetch fresh data from server
+      loadAvailableLocations();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete location', 'Deletion Blocked');
+    } finally {
+      setLocationDeleteLoading(false);
+    }
+  };
   const [departmentId, setDepartmentId] = useState('');
   const [designationId, setDesignationId] = useState('');
   const [joiningDate, setJoiningDate] = useState('');
@@ -312,7 +441,14 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
       setName(employeeToEdit.name || '');
       setEmail(employeeToEdit.email || '');
       setPhone(employeeToEdit.phone || '');
-      setLocation(employeeToEdit.location || 'Bangalore HQ');
+      const empLoc = employeeToEdit.location || '';
+      if (empLoc) {
+        setLocation(empLoc);
+        setLocationOther('');
+      } else {
+        setLocation(allAvailableLocations[0] || 'Delhi');
+        setLocationOther('');
+      }
       setDepartmentId(employeeToEdit.departmentId || '');
       setDesignationId(employeeToEdit.designationId || '');
       setJoiningDate(employeeToEdit.joiningDate ? employeeToEdit.joiningDate.split('T')[0] : '');
@@ -409,7 +545,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
       setName('');
       setEmail('');
       setPhone('');
-      setLocation('Bangalore HQ');
+      setLocation(allAvailableLocations[0] || 'Delhi');
       setDepartmentId(defaultDept);
       setDesignationId('');
       setJoiningDate(todayStr);
@@ -446,7 +582,14 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     setEmployeeCode(pastEmp.employeeCode || '');
     setEmail(pastEmp.email || '');
     setPhone(pastEmp.phone || '');
-    setLocation(pastEmp.location || 'Bangalore HQ');
+    const pastLoc = pastEmp.location || '';
+    if (pastLoc) {
+      setLocation(pastLoc);
+      setLocationOther('');
+    } else {
+      setLocation(allAvailableLocations[0] || 'Delhi');
+      setLocationOther('');
+    }
     setDepartmentId(pastEmp.departmentId || departments[0]?.id || '');
     const todayStr = new Date().toISOString().split('T')[0];
     setDesignationId(pastEmp.designationId || '');
@@ -770,7 +913,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
             name: name.trim(),
             email: email.trim(),
             phone: phone.trim() || undefined,
-            location: location.trim() || undefined,
+            location: (location === 'Other' ? locationOther.trim() : location.trim()) || undefined,
             departmentId,
             designationId,
             joiningDate: new Date(joiningDate).toISOString(),
@@ -810,7 +953,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
           name: name.trim(),
           email: email.trim().toLowerCase(),
           phone: phone.trim() || undefined,
-          location: location.trim() || undefined,
+          location: (location === 'Other' ? locationOther.trim() : location.trim()) || undefined,
           departmentId,
           designationId,
           joiningDate: new Date(joiningDate).toISOString(),
@@ -1179,27 +1322,159 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 </div>
 
                 {/* Base Office / Work Location */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Base Office / Work Location
-                  </label>
-                  <div className="relative">
-                    <MapPin className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
-                    <select
-                      disabled={isInactive}
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
-                    >
-                      <option value="Bangalore HQ">Bangalore HQ</option>
-                      <option value="Mumbai Branch">Mumbai Branch</option>
-                      <option value="Delhi NCR Hub">Delhi NCR Hub</option>
-                      <option value="Hyderabad Tech Center">Hyderabad Tech Center</option>
-                      <option value="Jaipur Office">Jaipur Office</option>
-                      <option value="Remote - India">Remote - India</option>
-                      <option value="Global Remote">Global Remote</option>
-                    </select>
+                <div className="relative" ref={locationPickerRef}>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Base Office / Work Location
+                    </label>
+                    {location && location !== 'Other' && (
+                      <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                        {getEmployeeCountForLocation(location).count} active emp(s)
+                      </span>
+                    )}
                   </div>
+
+                  {/* Trigger Button */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      disabled={isInactive}
+                      onClick={() => setLocationDropdownOpen(!locationDropdownOpen)}
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-left text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium flex items-center justify-between disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <MapPin className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
+                        <span className="truncate">
+                          {location === 'Other'
+                            ? (locationOther ? `Other: ${locationOther}` : 'Other (specify below)')
+                            : (location || 'Select Location')}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {location && location !== 'Other' && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-semibold">
+                            {getEmployeeCountForLocation(location).count} emps
+                          </span>
+                        )}
+                        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${locationDropdownOpen ? 'rotate-180' : ''}`} />
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Dropdown Menu Popover */}
+                  {locationDropdownOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                      {/* Search Bar */}
+                      <div className="p-2 border-b border-slate-100 dark:border-slate-750 bg-slate-50/80 dark:bg-slate-800/80">
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={locationSearch}
+                            onChange={(e) => setLocationSearch(e.target.value)}
+                            placeholder="Search locations..."
+                            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
+                            autoFocus
+                          />
+                        </div>
+                      </div>
+
+                      {/* Locations List */}
+                      <div className="max-h-56 overflow-y-auto divide-y divide-slate-100/80 dark:divide-slate-800/80">
+                        {filteredLocations.map((locName) => {
+                          const { count, names } = getEmployeeCountForLocation(locName);
+                          const isSelected = location === locName;
+                          return (
+                            <div
+                              key={locName}
+                              onClick={() => {
+                                setLocation(locName);
+                                setLocationOther('');
+                                setLocationDropdownOpen(false);
+                              }}
+                              className={`px-3 py-2 text-xs flex items-center justify-between gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors ${
+                                isSelected
+                                  ? 'bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold'
+                                  : 'text-slate-800 dark:text-slate-200'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <MapPin className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
+                                <span className="truncate">{locName}</span>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {/* Employee Count Badge */}
+                                <span
+                                  className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${
+                                    count > 0
+                                      ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'
+                                  }`}
+                                  title={`${count} active employee(s) assigned`}
+                                >
+                                  {count} {count === 1 ? 'emp' : 'emps'}
+                                </span>
+
+                                {/* Delete Location Icon (HR / Super Admin only) */}
+                                {isHRorAdmin && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteLocationClick(locName);
+                                    }}
+                                    className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded transition-colors cursor-pointer"
+                                    title={count > 0 ? `Cannot delete: ${count} employee(s) assigned` : `Delete location "${locName}"`}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {filteredLocations.length === 0 && (
+                          <div className="p-3 text-center text-xs text-slate-400">
+                            No locations matched your search.
+                          </div>
+                        )}
+
+                        {/* Other Option */}
+                        <div
+                          onClick={() => {
+                            setLocation('Other');
+                            setLocationDropdownOpen(false);
+                          }}
+                          className={`px-3 py-2.5 text-xs flex items-center justify-between gap-2 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer border-t border-slate-100 dark:border-slate-800 ${
+                            location === 'Other'
+                              ? 'bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold'
+                              : 'text-slate-600 dark:text-slate-400'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Plus className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                            <span>Other (specify custom location)</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {location === 'Other' && (
+                    <div className="relative mt-2">
+                      <MapPin className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        disabled={isInactive}
+                        placeholder="Enter custom location..."
+                        value={locationOther}
+                        onChange={(e) => setLocationOther(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-800 border border-indigo-400 dark:border-indigo-500 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Joining Date */}
@@ -1949,6 +2224,14 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         managerName={allEmployees.find((e) => e.id === managerId)?.name}
         hodName={allEmployees.find((e) => e.id === hodId)?.name}
         cycleName={cycles.find((c) => c.id === cycleId)?.name}
+      />
+
+      {/* Reusable Custom Location Deletion Confirmation Modal */}
+      <MasterDeleteModal
+        deleteTarget={locationDeleteTarget}
+        onClose={() => setLocationDeleteTarget(null)}
+        onConfirm={handleConfirmDeleteLocation}
+        loading={locationDeleteLoading}
       />
     </div>,
     document.body

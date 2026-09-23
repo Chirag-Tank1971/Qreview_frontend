@@ -483,6 +483,42 @@ export const api = {
     return res.json();
   },
 
+  // Locations API
+  async getLocations(): Promise<{ id?: string; name: string; employeeCount: number; assignedEmployees?: { id: string; name: string; employeeCode: string }[] }[]> {
+    return requestWithDedupeAndCache<{ id?: string; name: string; employeeCount: number; assignedEmployees?: { id: string; name: string; employeeCode: string }[] }[]>(
+      `${API_BASE}/locations`,
+      { headers: getAuthHeaders() },
+      30000 // 30 sec cache
+    );
+  },
+
+  async createLocation(name: string): Promise<{ success: boolean; message: string }> {
+    invalidateApiCache('/locations');
+    const res = await fetch(`${API_BASE}/locations`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to create location' }));
+      throw new Error(err.error || 'Failed to create location');
+    }
+    return res.json();
+  },
+
+  async deleteLocation(name: string): Promise<{ success: boolean; message: string }> {
+    invalidateApiCache('/locations');
+    const res = await fetch(`${API_BASE}/locations/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to delete location' }));
+      throw new Error(err.error || 'Failed to delete location');
+    }
+    return res.json();
+  },
+
   // Cycles API
   async getCycles(): Promise<Cycle[]> {
     return requestWithDedupeAndCache<Cycle[]>(
