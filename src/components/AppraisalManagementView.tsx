@@ -669,9 +669,12 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
               const currentCtc = appr.currentCtc || 0;
               const revisedCtc = appr.revisedCtc || (currentCtc + Math.round((currentCtc * incPct) / 100));
               const isEligibleForLetter = appr.status === 'HR_APPROVED' || appr.status === 'LOCKED' || appr.isLocked;
+              // Checked against the actual manager/HOD relationship on the appraisal, not the
+              // caller's stored account-level role label, so a person holding both capacities
+              // for this employee is flagged for both pending stages.
               const isPendingMyAction =
-                ((currentUser?.role === 'REPORTING_MANAGER' || currentUser?.role === 'MANAGER') && appr.status === 'PENDING') ||
-                (currentUser?.role === 'HOD' && appr.hodId === currentUser?.employeeId && appr.status === 'MANAGER_RECOMMENDED') ||
+                (appr.status === 'PENDING' && (appr.managerId === currentUser?.employeeId || appr.managerId === currentUser?.id)) ||
+                (appr.status === 'MANAGER_RECOMMENDED' && appr.hodId === currentUser?.employeeId) ||
                 (currentUser?.role === 'HR' && appr.status === 'HOD_CALIBRATED') ||
                 (currentUser?.role === 'SUPER_ADMIN' && appr.status === 'HR_APPROVED');
 
@@ -870,9 +873,9 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                     >
                       <Sliders className="w-3.5 h-3.5" />
                       <span>
-                        {(currentUser?.role === 'REPORTING_MANAGER' || currentUser?.role === 'MANAGER') && appr.status === 'PENDING'
+                        {appr.status === 'PENDING' && (appr.managerId === currentUser?.employeeId || appr.managerId === currentUser?.id)
                           ? 'Recommend Increment'
-                          : currentUser?.role === 'HOD' && appr.hodId === currentUser?.employeeId && appr.status === 'MANAGER_RECOMMENDED'
+                          : appr.status === 'MANAGER_RECOMMENDED' && appr.hodId === currentUser?.employeeId
                           ? 'Calibrate Increment'
                           : currentUser?.role === 'HR' && appr.status === 'HOD_CALIBRATED'
                           ? 'Review & Approve'
@@ -1044,7 +1047,9 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                             className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
                           >
                             <span>
-                              {currentUser?.role === 'HOD' && appr.hodId === currentUser?.employeeId && appr.status === 'MANAGER_RECOMMENDED'
+                              {appr.status === 'PENDING' && (appr.managerId === currentUser?.employeeId || appr.managerId === currentUser?.id)
+                                ? 'Recommend Increment'
+                                : appr.status === 'MANAGER_RECOMMENDED' && appr.hodId === currentUser?.employeeId
                                 ? 'Calibrate'
                                 : currentUser?.role === 'HOD'
                                 ? 'View'

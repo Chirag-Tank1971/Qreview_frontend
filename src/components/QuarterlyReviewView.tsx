@@ -975,9 +975,12 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
         ) : effectiveViewMode === 'cards' ? (
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/50 dark:bg-slate-950/40">
             {displayedReviews.map((r) => {
+              // Checked against the actual manager/HOD relationship on the review, not the
+              // caller's stored account-level role label, so a person holding both capacities
+              // for this employee is flagged for both pending stages.
               const isPendingMyAction =
-                ((currentUser?.role === 'REPORTING_MANAGER' || currentUser?.role === 'MANAGER') && r.status === 'MANAGER_PENDING') ||
-                (currentUser?.role === 'HOD' && r.status === 'HOD_PENDING' && r.hodId === currentUser?.employeeId);
+                (r.status === 'MANAGER_PENDING' && (r.managerId === currentUser?.employeeId || r.managerId === currentUser?.id)) ||
+                (r.status === 'HOD_PENDING' && r.hodId === currentUser?.employeeId);
               const scoredKraCount = r.kraSnapshot?.filter((k) => (k.rating || 0) > 0).length || 0;
               return (
                 <div

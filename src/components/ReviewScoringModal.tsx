@@ -201,15 +201,19 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
 
   if (!isMounted || !review) return null;
 
-  // Permissions: Only assigned Reporting Manager or HR / Super Admin can score and edit KRA ratings.
-  // HOD never edits Manager ratings — HOD instead reviews the submitted assessment and
-  // approves/returns it via canHodAct below.
+  // Permissions: Only the assigned Reporting Manager or HR / Super Admin can score and edit
+  // KRA ratings. A plain HOD never edits Manager ratings — HOD instead reviews the submitted
+  // assessment and approves/returns it via canHodAct below. These are checked against the
+  // actual manager/HOD relationship on the review, not the caller's stored account-level role
+  // label, so a person who holds both capacities for this employee (e.g. is both their
+  // reporting manager and their HOD) gets both abilities.
   const isHrOrAdmin = currentUser?.role === 'HR' || currentUser?.role === 'SUPER_ADMIN';
+  const canActInElevatedCapacity = currentUser?.role !== 'EMPLOYEE';
   const isManager =
-    (currentUser?.role === 'REPORTING_MANAGER' || currentUser?.role === 'MANAGER') &&
+    canActInElevatedCapacity &&
     (review.managerId === currentUser?.employeeId || review.managerId === currentUser?.id);
   const canEdit = !review.isClosed && (isHrOrAdmin || isManager);
-  const isHod = currentUser?.role === 'HOD' && review.hodId === currentUser?.employeeId;
+  const isHod = canActInElevatedCapacity && review.hodId === currentUser?.employeeId;
   const canHodAct = isHod && review.status === 'HOD_PENDING' && !review.isClosed;
 
   // Detect if user has entered unsaved scores, notes, or commentary

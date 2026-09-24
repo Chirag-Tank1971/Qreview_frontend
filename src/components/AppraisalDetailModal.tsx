@@ -111,16 +111,19 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
   const monthlyIncrement = revisedMonthly - currentMonthly;
 
   const userRole = currentUser?.role || 'EMPLOYEE';
+  // Capability is derived from the actual manager/HOD relationship on this appraisal,
+  // not from the user's single account-level role label — the same person can hold
+  // both capacities (e.g. when they are both the reporting manager and the HOD).
+  const canActInElevatedCapacity = userRole !== 'EMPLOYEE';
   const isManager =
-    (userRole === 'REPORTING_MANAGER' || userRole === 'MANAGER') &&
+    canActInElevatedCapacity &&
     (appraisal.managerId === currentUser?.employeeId || appraisal.managerId === currentUser?.id);
-  const isHod = userRole === 'HOD';
+  const isHod = canActInElevatedCapacity && appraisal.hodId === currentUser?.employeeId;
   const isHr = userRole === 'HR' || userRole === 'SUPER_ADMIN';
   const isSuperAdmin = userRole === 'SUPER_ADMIN';
   const isLocked = appraisal.isLocked || appraisal.status === 'LOCKED';
   const canHodAct =
     isHod &&
-    appraisal.hodId === currentUser?.employeeId &&
     ['MANAGER_RECOMMENDED', 'HOD_CALIBRATED'].includes(appraisal.status) &&
     !isLocked;
   const canEdit = !isLocked && (isHr || isManager || canHodAct);
