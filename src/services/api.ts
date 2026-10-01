@@ -31,6 +31,7 @@ import {
   ManagementEmployeeDossier,
   ManagementWorkforceRiskData,
   PerformanceImprovementPlan,
+  DepartmentBudgetSnapshot,
 } from '../types'
 
 // Resolve API Base URL: respects VITE_API_BASE_URL; falls back to relative '/api' in production
@@ -1001,6 +1002,15 @@ export const api = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Failed to submit manager recommendation' }));
       throw new Error(err.error || 'Failed to submit manager recommendation');
+    }
+    return res.json();
+  },
+
+  async getAppraisalBudget(id: string): Promise<DepartmentBudgetSnapshot> {
+    const res = await fetch(`${API_BASE}/appraisals/${id}/budget`, { headers: getAuthHeaders() });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to load department budget' }));
+      throw new Error(err.error || 'Failed to load department budget');
     }
     return res.json();
   },

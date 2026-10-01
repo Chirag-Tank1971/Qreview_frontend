@@ -17,7 +17,12 @@ export interface DepartmentBellCurveBucket {
 export interface DepartmentBellCurve {
   departmentId: string;
   departmentName: string;
+  departmentCode?: string;
   totalEmployees: number;
+  /** Appraisals with a rating band — the distribution percentages are out of this. */
+  ratedEmployees?: number;
+  /** Appraisals with no evaluated quarters yet, excluded from the distribution. */
+  unratedEmployees?: number;
   skewAlert?: string;
   skewSeverity?: 'INFO' | 'WARNING' | 'CRITICAL' | string;
   averageScore?: number;
@@ -28,6 +33,7 @@ export interface DepartmentBellCurve {
 export interface DepartmentBudgetPool {
   departmentId: string;
   departmentName: string;
+  departmentCode?: string;
   allocatedBudgetAmount: number;
   actualSpentAmount: number;
   totalCurrentCtc?: number;
@@ -38,6 +44,19 @@ export interface DepartmentBudgetPool {
   isOverBudget?: boolean;
   variance?: number;
   [key: string]: any;
+}
+
+/** Department increment budget pool as seen from one appraisal (GET /appraisals/:id/budget). */
+export interface DepartmentBudgetSnapshot {
+  departmentId?: string;
+  departmentName: string;
+  appraisalYear: number;
+  budgetCapPercent: number;
+  poolCtc: number;
+  allocatedAmount: number;
+  spentByOthers: number;
+  currentIncrementAmount: number;
+  maxAllowedIncrementPercent: number;
 }
 
 export interface ExecutiveAnalyticsData {
@@ -59,9 +78,12 @@ export interface ExecutiveAnalyticsData {
       exceeds: number;
       meets: number;
       needsImprovement: number;
+      unrated?: number;
     };
   };
   cohortSummary: {
+    ratedAppraisals?: number;
+    unratedAppraisals?: number;
     totalBudgetCap: number;
     totalBudgetSpent: number;
     averageIncrementPercent: number;

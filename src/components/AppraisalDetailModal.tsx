@@ -21,7 +21,7 @@ import {
   Briefcase,
   RotateCcw,
 } from 'lucide-react';
-import { Appraisal, Designation, User as AuthUser, EmployeeStatus } from '../types';
+import { Appraisal, Designation, User as AuthUser, EmployeeStatus, DepartmentBudgetSnapshot } from '../types';
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
 import { AppraisalLetterModal } from './AppraisalLetterModal';
@@ -109,6 +109,22 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
   const currentMonthly = Math.round(currentCtc / 12);
   const revisedMonthly = Math.round(calculatedRevisedCtc / 12);
   const monthlyIncrement = revisedMonthly - currentMonthly;
+
+  // Department budget pool — the cap covers the whole department's increment spend for the
+  // year. Mirrors the server-side hard block (checkDepartmentBudget): raising this increment
+  // past the pool is refused, while lowering it is always allowed.
+  const [budget, setBudget] = useState<DepartmentBudgetSnapshot | null>(null);
+  useEffect(() => {
+    if (currentUser?.role === 'EMPLOYEE') return;
+    api.getAppraisalBudget(appraisal.id).then(setBudget).catch(() => setBudget(null));
+  }, [appraisal.id, appraisal.updatedAt, currentUser?.role]);
+
+  const projectedSpend = budget ? budget.spentByOthers + incrementAmount : 0;
+  const projectedSpendPercent = budget && budget.poolCtc > 0 ? (projectedSpend / budget.poolCtc) * 100 : 0;
+  const budgetUsedRatio = budget && budget.allocatedAmount > 0 ? projectedSpend / budget.allocatedAmount : 0;
+  const isOverBudget =
+    !!budget && incrementAmount > budget.currentIncrementAmount && projectedSpend > budget.allocatedAmount + 0.5;
+  const isNearBudget = !!budget && !isOverBudget && budgetUsedRatio >= 0.9;
 
   const userRole = currentUser?.role || 'EMPLOYEE';
   // Capability is derived from the actual manager/HOD relationship on this appraisal,
@@ -364,6 +380,12 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
     if (type === 'HOD_RETURN') {
       setHodReturnReason('');
     }
+    if (type !== 'HOD_RETURN' && isOverBudget && budget) {
+      const msg = `This increment exceeds the ${budget.departmentName} department's ${budget.budgetCapPercent}% budget cap. The maximum allowed for this employee is ${budget.maxAllowedIncrementPercent}%.`;
+      setError(msg);
+      toast.error(msg, 'Budget Cap Exceeded');
+      return;
+    }
     if (type === 'MANAGER') {
       if (!justification.trim()) {
         const msg = 'Please provide a manager recommendation justification before submitting.';
@@ -608,7 +630,16 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                       <span className="text-xs text-indigo-700 dark:text-indigo-300">/ 5.00</span>
                     </div>
                     <p className="text-[11px] text-indigo-800 dark:text-indigo-300">
-                      Calculated from {appraisal.quarterlyHistory?.length || 4} evaluated quarters
+                      {(() => {
+                        const evaluated =
+                          appraisal.evaluatedQuarterCount ??
+                          Math.min(4, (appraisal.quarterlyHistory || []).filter(
+                            (q) => (q.score || 0) > 0 && ['MANAGER_COMPLETED', 'HR_PENDING', 'CLOSED'].includes(q.status || '')
+                          ).length);
+                        return evaluated > 0
+                          ? `Calculated from ${evaluated} evaluated quarter${evaluated === 1 ? '' : 's'}`
+                          : 'No evaluated quarters yet';
+                      })()}
                     </p>
                   </div>
 
@@ -691,6 +722,44 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                       }`}
                     />
                   </div>
+
+                  {/* Department Budget Pool */}
+                  {budget && !isLocked && (
+                    <div
+                      className={`p-3 rounded-xl border space-y-2 ${
+                        isOverBudget
+                          ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800'
+                          : isNearBudget
+                          ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'
+                          : 'bg-slate-50 dark:bg-slate-850 border-slate-200/80 dark:border-slate-700/80'
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-medium">
+                        <span className="text-slate-600 dark:text-slate-300">
+                          {budget.departmentName} budget ({budget.appraisalYear}): {projectedSpendPercent.toFixed(2)}% of {budget.budgetCapPercent}% cap used
+                        </span>
+                        <span className="font-mono text-slate-500 dark:text-slate-400">
+                          {currencySymbol}{Math.round(projectedSpend).toLocaleString()} / {currencySymbol}{Math.round(budget.allocatedAmount).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${isOverBudget ? 'bg-rose-500' : isNearBudget ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                          style={{ width: `${Math.min(100, budgetUsedRatio * 100)}%` }}
+                        />
+                      </div>
+                      {(isOverBudget || isNearBudget) && (
+                        <div className={`flex items-start gap-1.5 text-[11px] font-semibold ${isOverBudget ? 'text-rose-700 dark:text-rose-300' : 'text-amber-700 dark:text-amber-300'}`}>
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" />
+                          <span>
+                            {isOverBudget
+                              ? `Over the department budget cap — this increment can't be submitted. Maximum allowed for this employee: ${budget.maxAllowedIncrementPercent}%.`
+                              : `Approaching the department budget cap. Maximum allowed for this employee: ${budget.maxAllowedIncrementPercent}%.`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Compensation Breakdown Cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">

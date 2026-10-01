@@ -84,6 +84,15 @@ export const NAV_ITEMS: NavItemConfig[] = [
     roles: ['SUPER_ADMIN', 'HR', 'HOD', 'REPORTING_MANAGER', 'MANAGER'],
   },
   {
+    id: 'calibration',
+    group: 'Work',
+    mobileSection: 'primary',
+    label: 'Bell Curve & Budget',
+    subtitle: 'Distribution normalization & department budget pools',
+    icon: BarChart3,
+    roles: ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'],
+  },
+  {
     id: 'reports',
     group: 'Work',
     mobileSection: 'primary',

@@ -210,6 +210,7 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                       centerLabel="Target"
                       centerValue="100%"
                       formatValue={(v) => `${v}%`}
+                      showShare={false}
                       data={[
                         { label: 'Outstanding (4.50 - 5.00)', value: 10, color: '#34d399' },
                         { label: 'Exceeds (3.80 - 4.49)', value: 25, color: '#60a5fa' },
@@ -219,10 +220,15 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                     />
                     <PieChart
                       title="Actual Distribution"
-                      subtitle="Active cohort performance distribution"
-                      centerLabel="Cohort"
-                      centerValue={data.cohortSummary.totalActiveAppraisals}
+                      subtitle={
+                        (data.cohortSummary.unratedAppraisals ?? 0) > 0
+                          ? `Of ${data.cohortSummary.ratedAppraisals ?? 0} rated appraisals · ${data.cohortSummary.unratedAppraisals} not yet scored`
+                          : 'Active cohort performance distribution'
+                      }
+                      centerLabel="Rated"
+                      centerValue={data.cohortSummary.ratedAppraisals ?? data.cohortSummary.totalActiveAppraisals}
                       formatValue={(v) => `${v}%`}
+                      showShare={false}
                       data={[
                         {
                           label: `Outstanding (${data.bellCurveDistribution.actualCount.outstanding} emp)`,
@@ -282,11 +288,21 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                             <div>
                               <div className="flex items-center gap-2">
                                 <h5 className="text-sm font-bold text-slate-900 dark:text-white">{deptCurve.departmentName}</h5>
+                                {deptCurve.departmentCode && (
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                    {deptCurve.departmentCode}
+                                  </span>
+                                )}
                                 <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                                   {deptCurve.totalEmployees} Active Appraisals
                                 </span>
                               </div>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                {(deptCurve.unratedEmployees ?? 0) > 0 && (
+                                  <span className="text-amber-700 dark:text-amber-400 font-medium">
+                                    {deptCurve.unratedEmployees} not yet scored ·{' '}
+                                  </span>
+                                )}
                                 Click to {isExpanded ? 'collapse' : 'expand'} distribution details
                               </p>
                             </div>
@@ -320,14 +336,20 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                               <AlertCircle className="w-3.5 h-3.5" />
                               <span>No active appraisals calibrated in selected cycle/year</span>
                             </div>
+                          ) : (deptCurve.ratedEmployees ?? deptCurve.totalEmployees) === 0 ? (
+                            <div className="h-7 w-full rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-dashed border-amber-200 dark:border-amber-800/60 flex items-center justify-center text-[11px] text-amber-700 dark:text-amber-400 gap-1.5 font-medium">
+                              <AlertCircle className="w-3.5 h-3.5" />
+                              <span>None of the {deptCurve.totalEmployees} appraisals have an evaluated quarter yet — no distribution to show</span>
+                            </div>
                           ) : (
                             <PieChart
                               size={140}
                               donutThickness={16}
                               legendPosition="right"
-                              centerLabel="Active"
-                              centerValue={deptCurve.totalEmployees}
+                              centerLabel="Rated"
+                              centerValue={deptCurve.ratedEmployees ?? deptCurve.totalEmployees}
                               formatValue={(v) => `${v}%`}
+                              showShare={false}
                               data={deptCurve.buckets.map((b) => ({
                                 label: `${b.label} (${b.actualCount} emp)`,
                                 value: b.actualPercent,
@@ -429,7 +451,13 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                         {currencySymbol}{(data.cohortSummary.totalBudgetSpent / 100000).toFixed(2)}L
                       </div>
                       <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                        +{data.cohortSummary.averageIncrementPercent}% company-wide avg
+                        {data.cohortSummary.totalPayrollPre > 0
+                          ? `+${((data.cohortSummary.totalBudgetSpent / data.cohortSummary.totalPayrollPre) * 100).toFixed(2)}% of payroll`
+                          : '+0% of payroll'}
+                        {' · '}
+                        {(data.cohortSummary.committedAppraisals ?? 0) > 0
+                          ? `avg +${data.cohortSummary.committedAverageIncrementPercent}% across ${data.cohortSummary.committedAppraisals} committed`
+                          : 'no increments committed yet'}
                       </div>
                     </div>
 
@@ -441,7 +469,7 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                       <div className="text-2xl font-bold text-blue-700 dark:text-blue-400 font-mono">
                         {currencySymbol}{((data.cohortSummary.totalBudgetCap - data.cohortSummary.totalBudgetSpent) / 100000).toFixed(2)}L
                       </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">Unallocated reserve pool</div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">Cap not yet committed to increments</div>
                     </div>
                   </div>
                 );
@@ -455,7 +483,7 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {data.departmentBudgets.map((pool) => {
+                  {data.departmentBudgets.filter((pool) => pool.inCohort !== false).map((pool) => {
                     const spendPercentage = pool.allocatedBudgetAmount > 0
                       ? Math.min(150, Math.round((pool.actualSpentAmount / pool.allocatedBudgetAmount) * 100))
                       : 0;
@@ -469,6 +497,11 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                           <div>
                             <div className="flex items-center gap-2">
                               <h5 className="text-sm font-bold text-slate-900 dark:text-white">{pool.departmentName}</h5>
+                              {pool.departmentCode && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                  {pool.departmentCode}
+                                </span>
+                              )}
                               <span
                                 className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                                   pool.status === 'EXCEEDED'
@@ -482,7 +515,7 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                               </span>
                             </div>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
-                              {pool.headcount} Employees • Base CTC: {currencySymbol}{(pool.totalCurrentCtc / 100000).toFixed(2)}L
+                              {pool.headcount} Employees • Base CTC: {currencySymbol}{((pool.totalCurrentCtc ?? 0) / 100000).toFixed(2)}L
                             </p>
                           </div>
 
@@ -539,6 +572,26 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                     );
                   })}
                 </div>
+
+                {/* Departments with no appraisals in the selected cohort get no pool */}
+                {data.departmentBudgets.some((pool) => pool.inCohort === false) && (
+                  <div className="p-3 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/30 text-[11px] text-slate-500 dark:text-slate-400 space-y-1.5">
+                    <div className="font-semibold text-slate-600 dark:text-slate-300">Not in this cohort — no budget pool allocated</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {data.departmentBudgets
+                        .filter((pool) => pool.inCohort === false)
+                        .map((pool) => (
+                          <span
+                            key={pool.departmentId}
+                            className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700"
+                          >
+                            {pool.departmentName}
+                            {pool.departmentCode ? ` (${pool.departmentCode})` : ''} · {pool.employeeHeadcount ?? 0} employees · {pool.budgetCapPercent}% cap
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -553,7 +606,9 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                     <span>Top-Performer Retention & Attrition Flight Risk Insights</span>
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Proactive flight risk detection for employees with composite scores &gt; 4.20 and sub-optimal compensation adjustments.
+                    Employees with a rolling score of 4.20 or above. Risk compares each person's increment with the
+                    guideline band for their score and with other top performers in this cohort — internal data only,
+                    no external market benchmark.
                   </p>
                 </div>
                 <span className="px-3 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-xl text-xs font-semibold">
@@ -570,11 +625,19 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                         <th className="px-4 py-3">Department</th>
                         <th className="px-4 py-3">4-Qtr Score</th>
                         <th className="px-4 py-3">Increment</th>
+                        <th className="px-4 py-3">Guideline Band</th>
                         <th className="px-4 py-3">Flight Risk</th>
                         <th className="px-4 py-3">Risk Diagnostic & Recommended Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {data.attritionRiskInsights.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-8 text-center text-[11px] text-slate-400 dark:text-slate-500">
+                            No employees in this cohort have a rolling score of 4.20 or above yet.
+                          </td>
+                        </tr>
+                      )}
                       {data.attritionRiskInsights.map((risk) => (
                         <tr key={risk.employeeId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
                           <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
@@ -589,6 +652,15 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                           </td>
                           <td className="px-4 py-3 font-mono font-bold text-emerald-700 dark:text-emerald-400">
                             +{risk.incrementPercent}%
+                            {risk.isSystemDefaultIncrement && (
+                              <div className="text-[10px] font-normal text-slate-400 dark:text-slate-500">system default</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">
+                            {risk.guidelineMinPercent}–{risk.guidelineMaxPercent}%
+                            {risk.peerAverageIncrementPercent !== null && risk.peerAverageIncrementPercent !== undefined && (
+                              <div className="text-[10px] text-slate-400 dark:text-slate-500">peer avg {risk.peerAverageIncrementPercent}%</div>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <span

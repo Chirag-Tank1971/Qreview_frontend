@@ -6,6 +6,7 @@ export type AppView =
   | 'management'
   | 'ai_performance'
   | 'appraisals'
+  | 'calibration'
   | 'reviews'
   | 'kras'
   | 'employees'

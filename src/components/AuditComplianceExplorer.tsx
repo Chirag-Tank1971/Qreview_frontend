@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ShieldCheck,
   History,
@@ -58,6 +58,22 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   const [timelineData, setTimelineData] = useState<{ employee: any; timeline: AuditTimelineEvent[] } | null>(null);
   const [isTimelineLoading, setIsTimelineLoading] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+
+  // Employees matching the lifecycle-trail search. The currently selected employee is always
+  // kept in the list so the dropdown never shows a value that isn't among its options.
+  const matchingEmployees = useMemo(() => {
+    const q = employeeSearch.toLowerCase().trim();
+    if (!q) return employees;
+    return employees.filter((e) =>
+      [e.name || (e as any).fullName, e.employeeCode, e.departmentName, e.designationName, e.cycleName || e.cycleCode]
+        .some((field) => typeof field === 'string' && field.toLowerCase().includes(q))
+    );
+  }, [employees, employeeSearch]);
+  const filteredEmployees = useMemo(() => {
+    const selected = employees.find((e) => e.id === selectedEmployeeId);
+    return selected && !matchingEmployees.includes(selected) ? [selected, ...matchingEmployees] : matchingEmployees;
+  }, [employees, matchingEmployees, selectedEmployeeId]);
 
   // Filtering states for Master Audit Log (Admin only)
   const [searchTerm, setSearchTerm] = useState('');
@@ -315,35 +331,59 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
       {activeTab === 'timeline' && (
         <div className="space-y-6">
           {/* Employee Selector Bar */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+            <div className="flex-1 min-w-0 space-y-2">
               <label htmlFor="select-audit-employee" className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 whitespace-nowrap">
                 <User className="w-3.5 h-3.5 text-slate-500" />
-                <span>Select Employee for Lifecycle Trail:</span>
+                <span>Select Employee for Lifecycle Trail</span>
               </label>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="relative w-full sm:w-60 shrink-0">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  type="search"
+                  value={employeeSearch}
+                  onChange={(e) => setEmployeeSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Enter jumps straight to the first match
+                    if (e.key === 'Enter' && matchingEmployees.length > 0) {
+                      setSelectedEmployeeId(matchingEmployees[0].id);
+                    }
+                  }}
+                  placeholder="Search name, code, department..."
+                  aria-label="Search employees for lifecycle trail"
+                  className="w-full h-8 pl-8 pr-3 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
               <select
                 id="select-audit-employee"
                 value={selectedEmployeeId}
                 onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-slate-800 dark:text-slate-100 font-medium focus:ring-1 focus:ring-emerald-500 focus:outline-none cursor-pointer"
+                className="h-8 w-full sm:flex-1 sm:max-w-md min-w-0 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 text-slate-800 dark:text-slate-100 font-medium focus:ring-1 focus:ring-emerald-500 focus:outline-none cursor-pointer truncate"
               >
-                {employees.map((emp) => (
+                {filteredEmployees.map((emp) => (
                   <option key={emp.id} value={emp.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                     {emp.name || (emp as any).fullName} ({emp.employeeCode}) - {emp.departmentName} [{emp.cycleName || emp.cycleCode || 'Cycle'}]
                   </option>
                 ))}
               </select>
+              {employeeSearch.trim() && (
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                  {matchingEmployees.length === 0 ? 'No matches' : `${matchingEmployees.length} of ${employees.length} match`}
+                </span>
+              )}
+              </div>
             </div>
 
             {timelineData?.employee && (
-              <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-400">
-                <span className="font-semibold text-slate-900 dark:text-white">{timelineData.employee.designation}</span>
-                <span>•</span>
-                <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-slate-700 dark:text-slate-300 font-medium border border-slate-200 dark:border-slate-700">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-400 shrink-0 lg:h-8">
+                <span className="font-semibold text-slate-900 dark:text-white whitespace-nowrap">{timelineData.employee.designation}</span>
+                <span className="text-slate-300 dark:text-slate-600">•</span>
+                <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-slate-700 dark:text-slate-300 font-medium border border-slate-200 dark:border-slate-700 whitespace-nowrap">
                   {timelineData.employee.department}
                 </span>
-                <span>•</span>
-                <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 rounded font-semibold border border-indigo-200 dark:border-indigo-800">
+                <span className="text-slate-300 dark:text-slate-600">•</span>
+                <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 rounded font-semibold border border-indigo-200 dark:border-indigo-800 whitespace-nowrap">
                   {timelineData.employee.cycle}
                 </span>
               </div>

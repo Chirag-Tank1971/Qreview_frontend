@@ -18,6 +18,9 @@ interface PieChartProps {
   className?: string;
   legendPosition?: 'bottom' | 'right';
   formatValue?: (val: number) => string;
+  /** Show each slice's share of the total next to its value. Turn off when the values are
+   *  already percentages, otherwise the legend shows the same number twice. */
+  showShare?: boolean;
 }
 
 export const PieChart: React.FC<PieChartProps> = ({
@@ -31,6 +34,7 @@ export const PieChart: React.FC<PieChartProps> = ({
   className = '',
   legendPosition = 'right',
   formatValue = (v) => v.toString(),
+  showShare = true,
 }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isAnimated, setIsAnimated] = useState(false);
@@ -209,9 +213,11 @@ export const PieChart: React.FC<PieChartProps> = ({
                   <span className="font-semibold text-slate-900 dark:text-white font-mono text-xs">
                     {formatValue(item.value)}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-mono w-7 text-right">
-                    {percent}%
-                  </span>
+                  {showShare && (
+                    <span className="text-[10px] text-slate-400 font-mono w-7 text-right">
+                      {percent}%
+                    </span>
+                  )}
                 </div>
               </div>
             );

@@ -319,17 +319,17 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
     switch (notif.type) {
       case 'BUDGET_ALERT':
         return {
-          tab: 'appraisals',
+          tab: 'calibration',
           label: 'Department Budget Pool Tracking',
           badgeColor: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800',
-          config: { activeSection: 'bellCurveAnalytics', cycleId: meta.cycleId || 'cycle_f', ...meta },
+          config: { cycleId: meta.cycleId || 'cycle_f', ...meta },
         };
       case 'CALIBRATION_WARNING':
         return {
-          tab: 'appraisals',
+          tab: 'calibration',
           label: 'Bell Curve Normalization',
           badgeColor: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200/80 dark:border-amber-800',
-          config: { activeSection: 'bellCurveAnalytics', departmentId: meta.departmentId || 'dept_sales', ...meta },
+          config: { departmentId: meta.departmentId || 'dept_sales', ...meta },
         };
       case 'HOD_ACTION_REQUIRED':
         return {

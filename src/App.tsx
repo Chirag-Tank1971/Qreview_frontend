@@ -33,6 +33,9 @@ const QuarterlyReviewView = lazy(() =>
 const AppraisalManagementView = lazy(() =>
   import('./components/AppraisalManagementView').then((m) => ({ default: m.AppraisalManagementView }))
 );
+const BellCurveBudgetAnalytics = lazy(() =>
+  import('./components/BellCurveBudgetAnalytics').then((m) => ({ default: m.BellCurveBudgetAnalytics }))
+);
 const ReportsCenterView = lazy(() =>
   import('./components/ReportsCenterView').then((m) => ({ default: m.ReportsCenterView }))
 );
@@ -102,6 +105,12 @@ const VIEW_META: Record<string, { title: string; subtitle: string; tag: string; 
     subtitle: 'Manage yearly appraisal cycles, salary calibrations, promotion reviews, and letter generation',
     tag: 'Annual Calibration',
     tagColor: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/60',
+  },
+  calibration: {
+    title: 'Bell Curve & Budget Calibration',
+    subtitle: 'Departmental distribution normalization, increment budget pools, and retention risk',
+    tag: 'Executive & HOD',
+    tagColor: 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200/80 dark:border-violet-800/60',
   },
   reports: {
     title: 'Analytics & Reports',
@@ -332,6 +341,15 @@ function AppContent() {
                     employees={employees}
                     initialConfig={appraisalConfig}
                     onClearInitialConfig={() => setAppraisalConfig(null)}
+                  />
+                ) : currentView === 'calibration' && ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'].includes(user?.role || '') ? (
+                  <BellCurveBudgetAnalytics
+                    departments={departments}
+                    cycles={cycles}
+                    onOpenCalibrationModal={(departmentId) =>
+                      isViewPermitted('appraisals', user?.role) &&
+                      handleNavigate('appraisals', departmentId ? { departmentId } : undefined)
+                    }
                   />
                 ) : currentView === 'reviews' ? (
                   <QuarterlyReviewView

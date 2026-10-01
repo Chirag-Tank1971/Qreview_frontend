@@ -15,7 +15,6 @@ import {
   Sliders,
   ChevronRight,
   AlertCircle,
-  BarChart3,
   Building2,
   Briefcase,
   HelpCircle,
@@ -42,14 +41,14 @@ import { InitiateAppraisalModal } from './InitiateAppraisalModal';
 import { AppraisalDetailModal } from './AppraisalDetailModal';
 import { AppraisalLetterModal } from './AppraisalLetterModal';
 import { BatchLetterExportModal } from './BatchLetterExportModal';
-import { BellCurveBudgetAnalytics } from './BellCurveBudgetAnalytics';
 import { CycleBadge } from './ui/CycleBadge';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 import { downloadAppraisalPdf, downloadPayrollCsv } from '../utils/letterExport';
 import { useIsMobile } from '../hooks/useIsMobile';
 
 export interface AppraisalViewConfig {
-  activeSection?: 'appraisals' | 'bellCurveAnalytics';
+  /** Legacy deep-link field; Bell Curve & Budget is now its own 'calibration' view. */
+  activeSection?: 'appraisals';
   cycleId?: string;
   year?: number;
   departmentId?: string;
@@ -78,7 +77,6 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
   initialConfig,
   onClearInitialConfig,
 }) => {
-  const [activeSection, setActiveSection] = useState<'appraisals' | 'bellCurveAnalytics'>('appraisals');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const isMobile = useIsMobile();
   // A wide data table is unusable on a phone regardless of the desktop-oriented toggle
@@ -108,7 +106,6 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
   // Sync initialConfig if provided
   useEffect(() => {
     if (initialConfig) {
-      if (initialConfig.activeSection) setActiveSection(initialConfig.activeSection);
       if (initialConfig.cycleId) setSelectedCycleId(initialConfig.cycleId);
       if (initialConfig.year) setSelectedYear(initialConfig.year);
       if (initialConfig.appraisalId) {
@@ -155,7 +152,6 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
   const userRole = currentUser?.role || 'EMPLOYEE';
   const canInitiate = userRole === 'SUPER_ADMIN' || userRole === 'HR';
   const canBatchExport = userRole === 'SUPER_ADMIN' || userRole === 'HR' || userRole === 'EXECUTIVE_MANAGEMENT';
-  const canViewBellCurve = ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'].includes(userRole);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -354,46 +350,6 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
         </div>
       </div>
 
-      {/* View Mode Toggle: Annual Appraisals vs Bell Curve Calibration & Budget Controls */}
-      {canViewBellCurve && (
-        <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-800/80 rounded-lg border border-slate-200 dark:border-slate-700/80 overflow-x-auto w-max max-w-full">
-          <button
-            onClick={() => setActiveSection('appraisals')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
-              activeSection === 'appraisals'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Sliders className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-            <span>Appraisal & Increment List</span>
-            <span className="text-[10px] px-1.5 py-0.2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded font-semibold">
-              {appraisals.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveSection('bellCurveAnalytics')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
-              activeSection === 'bellCurveAnalytics'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-            <span>Bell Curve & Budget Calibration</span>
-          </button>
-        </div>
-      )}
-
-      {canViewBellCurve && activeSection === 'bellCurveAnalytics' ? (
-        <BellCurveBudgetAnalytics
-          departments={departments}
-          cycles={cycles}
-          onOpenCalibrationModal={() => setActiveSection('appraisals')}
-        />
-      ) : (
-        <>
           {/* KPI & Metric Cards */}
           {stats && (
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
@@ -1069,8 +1025,6 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
           </div>
         )}
       </div>
-      </>
-      )}
 
       {/* Initiate Appraisal Cycle Modal */}
       {isInitiateModalOpen && (
