@@ -27,6 +27,7 @@ import {
   Cycle,
 } from '../types';
 import { api } from '../services/api';
+import { PieChart } from './ui/PieChart';
 
 interface BellCurveBudgetAnalyticsProps {
   departments: Department[];
@@ -195,93 +196,56 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                   </div>
                 </div>
 
-                {/* Visual Comparative Curve Bar */}
+                {/* Visual Comparative Distribution Charts */}
                 <div className="space-y-3 pt-2">
                   <div className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
                     <span>Organizational Distribution Comparison</span>
                     <span>Target vs Actual %</span>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                    {/* Outstanding */}
-                    <div className="p-3 bg-emerald-950/50 border border-emerald-500/30 rounded-xl space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-emerald-300">Outstanding (Top 10%)</span>
-                        <span className="font-mono text-xs font-bold text-emerald-400">
-                          {data.bellCurveDistribution.actual.outstanding}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex">
-                        <div
-                          className="bg-emerald-400 h-full rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(100, Math.max(0, data.bellCurveDistribution.actual.outstanding))}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between text-[10px] text-slate-400">
-                        <span>Target: 10% (4.50 - 5.00)</span>
-                        <span className="font-mono text-emerald-300">{data.bellCurveDistribution.actualCount.outstanding} emp</span>
-                      </div>
-                    </div>
-
-                    {/* Exceeds */}
-                    <div className="p-3 bg-blue-950/50 border border-blue-500/30 rounded-xl space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-blue-300">Exceeds (25%)</span>
-                        <span className="font-mono text-xs font-bold text-blue-400">
-                          {data.bellCurveDistribution.actual.exceeds}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex">
-                        <div
-                          className="bg-blue-400 h-full rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(100, Math.max(0, data.bellCurveDistribution.actual.exceeds))}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between text-[10px] text-slate-400">
-                        <span>Target: 25% (3.80 - 4.49)</span>
-                        <span className="font-mono text-blue-300">{data.bellCurveDistribution.actualCount.exceeds} emp</span>
-                      </div>
-                    </div>
-
-                    {/* Meets */}
-                    <div className="p-3 bg-indigo-950/50 border border-indigo-500/30 rounded-xl space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-indigo-300">Meets Expectations (45%)</span>
-                        <span className="font-mono text-xs font-bold text-indigo-400">
-                          {data.bellCurveDistribution.actual.meets}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex">
-                        <div
-                          className="bg-indigo-400 h-full rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(100, Math.max(0, data.bellCurveDistribution.actual.meets))}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between text-[10px] text-slate-400">
-                        <span>Target: 45% (2.80 - 3.79)</span>
-                        <span className="font-mono text-indigo-300">{data.bellCurveDistribution.actualCount.meets} emp</span>
-                      </div>
-                    </div>
-
-                    {/* Needs Improvement */}
-                    <div className="p-3 bg-amber-950/50 border border-amber-500/30 rounded-xl space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-amber-300">Needs Improvement (20%)</span>
-                        <span className="font-mono text-xs font-bold text-amber-400">
-                          {data.bellCurveDistribution.actual.needsImprovement}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex">
-                        <div
-                          className="bg-amber-400 h-full rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(100, Math.max(0, data.bellCurveDistribution.actual.needsImprovement))}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between text-[10px] text-slate-400">
-                        <span>Target: 20% (&lt; 2.80)</span>
-                        <span className="font-mono text-amber-300">{data.bellCurveDistribution.actualCount.needsImprovement} emp</span>
-                      </div>
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <PieChart
+                      title="Target Distribution"
+                      subtitle="Standard organizational guideline"
+                      centerLabel="Target"
+                      centerValue="100%"
+                      formatValue={(v) => `${v}%`}
+                      data={[
+                        { label: 'Outstanding (4.50 - 5.00)', value: 10, color: '#34d399' },
+                        { label: 'Exceeds (3.80 - 4.49)', value: 25, color: '#60a5fa' },
+                        { label: 'Meets Expectations (2.80 - 3.79)', value: 45, color: '#818cf8' },
+                        { label: 'Needs Improvement (< 2.80)', value: 20, color: '#fbbf24' },
+                      ]}
+                    />
+                    <PieChart
+                      title="Actual Distribution"
+                      subtitle="Active cohort performance distribution"
+                      centerLabel="Cohort"
+                      centerValue={data.cohortSummary.totalActiveAppraisals}
+                      formatValue={(v) => `${v}%`}
+                      data={[
+                        {
+                          label: `Outstanding (${data.bellCurveDistribution.actualCount.outstanding} emp)`,
+                          value: data.bellCurveDistribution.actual.outstanding,
+                          color: '#34d399',
+                        },
+                        {
+                          label: `Exceeds (${data.bellCurveDistribution.actualCount.exceeds} emp)`,
+                          value: data.bellCurveDistribution.actual.exceeds,
+                          color: '#60a5fa',
+                        },
+                        {
+                          label: `Meets Expectations (${data.bellCurveDistribution.actualCount.meets} emp)`,
+                          value: data.bellCurveDistribution.actual.meets,
+                          color: '#818cf8',
+                        },
+                        {
+                          label: `Needs Improvement (${data.bellCurveDistribution.actualCount.needsImprovement} emp)`,
+                          value: data.bellCurveDistribution.actual.needsImprovement,
+                          color: '#fbbf24',
+                        },
+                      ]}
+                    />
                   </div>
                 </div>
               </div>
@@ -350,30 +314,26 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
 
                         {/* Distribution Visual Chart */}
                         <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                          {/* 4-bucket Stacked Visual Bar */}
+                          {/* 4-bucket Distribution Donut */}
                           {deptCurve.totalEmployees === 0 ? (
                             <div className="h-7 w-full rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700/60 flex items-center justify-center text-[11px] text-slate-400 dark:text-slate-500 gap-1.5 font-medium">
                               <AlertCircle className="w-3.5 h-3.5" />
                               <span>No active appraisals calibrated in selected cycle/year</span>
                             </div>
                           ) : (
-                            <div className="w-full h-7 rounded-xl overflow-hidden flex p-1 bg-slate-100 dark:bg-slate-800 gap-1">
-                              {deptCurve.buckets
-                                .filter((b) => b.actualPercent > 0)
-                                .map((b) => (
-                                  <div
-                                    key={b.ratingBand}
-                                    className="h-full rounded-lg flex items-center justify-center text-[10px] font-bold text-white transition-all overflow-hidden"
-                                    style={{
-                                      width: `${b.actualPercent}%`,
-                                      backgroundColor: b.color,
-                                    }}
-                                    title={`${b.label}: ${b.actualPercent}% (${b.actualCount} emp)`}
-                                  >
-                                    {b.actualPercent >= 8 ? `${b.actualPercent}%` : ''}
-                                  </div>
-                                ))}
-                            </div>
+                            <PieChart
+                              size={140}
+                              donutThickness={16}
+                              legendPosition="right"
+                              centerLabel="Active"
+                              centerValue={deptCurve.totalEmployees}
+                              formatValue={(v) => `${v}%`}
+                              data={deptCurve.buckets.map((b) => ({
+                                label: `${b.label} (${b.actualCount} emp)`,
+                                value: b.actualPercent,
+                                color: b.color,
+                              }))}
+                            />
                           )}
 
                           {/* Bucket Stats Breakdown */}
