@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useTransition } from 'react';
 import type { UserRole } from '../types';
 
 export type AppView =
+  | 'dashboard'
   | 'portal'
   | 'management'
   | 'ai_performance'
@@ -32,7 +33,7 @@ const VALID_VIEWS: AppView[] = NAV_ITEMS.map((item) => item.id);
 
 const ALL_ROLES: UserRole[] = ['SUPER_ADMIN', 'HR', 'REPORTING_MANAGER', 'MANAGER', 'HOD', 'EMPLOYEE', 'MANAGEMENT'];
 
-export const ROLE_ALLOWED_VIEWS: Record<string, AppView[]> = ALL_ROLES.reduce((acc, role) => {
+const ROLE_ALLOWED_VIEWS: Record<string, AppView[]> = ALL_ROLES.reduce((acc, role) => {
   acc[role] = NAV_ITEMS.filter((item) => item.roles.includes(role)).map((item) => item.id);
   return acc;
 }, {} as Record<string, AppView[]>);

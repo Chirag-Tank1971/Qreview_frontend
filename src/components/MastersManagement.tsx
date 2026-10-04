@@ -17,13 +17,10 @@ import {
   X,
   Save,
   Trash2,
-  ShieldAlert,
-  AlertTriangle,
   Users,
   Search,
   UserMinus,
   CheckCircle2,
-  Clock,
   Loader2,
   MapPin,
 } from 'lucide-react';
@@ -36,8 +33,6 @@ interface MastersManagementProps {
   onRefresh: () => void;
   currentUser?: { role?: string } | null;
 }
-
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export const MastersManagement: React.FC<MastersManagementProps> = ({
   departments,
@@ -705,9 +700,6 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
           {activeCycles.map((cycle) => {
             const cycleEmployees = (employees || []).filter(
               (e) => e.cycleId === cycle.id || e.cycleCode === cycle.code
-            );
-            const activeCycleEmployees = cycleEmployees.filter(
-              (e) => !e.isPastEmployee && e.status !== 'INACTIVE'
             );
 
             return (

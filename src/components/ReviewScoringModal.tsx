@@ -40,7 +40,7 @@ import {
 import { ReviewLetterModal } from './ReviewLetterModal';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 
-export interface ReviewScoringModalProps {
+interface ReviewScoringModalProps {
   review: EmployeeReview | null;
   currentUser: User | null;
   isOpen: boolean;
@@ -834,7 +834,6 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
             <Step2ManagerSection
               snapshots={snapshots}
               canEdit={canEdit}
-              isHrOrAdmin={isHrOrAdmin}
               onKraChange={handleKraChange}
             />
           )}

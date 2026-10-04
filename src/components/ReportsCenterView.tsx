@@ -6,23 +6,14 @@ import {
   Filter,
   RefreshCw,
   Clock,
-  AlertTriangle,
   CheckCircle2,
   TrendingUp,
-  BarChart3,
   Award,
   Users,
   Building2,
-  Calendar,
-  Layers,
   Shield,
   Sliders,
-  ChevronRight,
-  ArrowUpDown,
-  Tag,
-  Briefcase,
   UserCheck,
-  Check,
 } from 'lucide-react';
 import { Department, Cycle } from '../types';
 import { api } from '../services/api';
@@ -82,7 +73,7 @@ const reportNavItems: Array<{
 
 export const ReportsCenterView: React.FC<ReportsCenterViewProps> = ({ departments, cycles, initialConfig }) => {
   const [activeReport, setActiveReport] = useState<ReportType>('quarterly-status');
-  const [selectedCategory, setSelectedCategory] = useState<CategoryGroupId>('ALL');
+  const [, setSelectedCategory] =useState<CategoryGroupId>('ALL');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
 

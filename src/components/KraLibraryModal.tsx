@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Kra, Department } from '../types';
 import { toast } from '../context/ToastContext';
 import { useModalAnimation } from '../hooks/useModalAnimation';
-import { Target, Plus, Search, Filter, CheckCircle2, ShieldCheck, HelpCircle, Edit2, Layers, Tag, Loader2, X } from 'lucide-react';
+import { Target, Plus, Search, Filter, ShieldCheck, Edit2, Loader2 } from 'lucide-react';
 
 interface KraLibraryModalProps {
   kras: Kra[];

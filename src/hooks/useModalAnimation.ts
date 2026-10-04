@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-export interface UseModalAnimationOptions {
+interface UseModalAnimationOptions {
   isOpen?: boolean;
   onClose: () => void;
   duration?: number;

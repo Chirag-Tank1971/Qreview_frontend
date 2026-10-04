@@ -4,41 +4,28 @@ import {
   DollarSign,
   AlertTriangle,
   Award,
-  Users,
   Building2,
   CheckCircle2,
   Sliders,
-  Shield,
-  Briefcase,
   Layers,
-  ArrowUpRight,
-  Info,
   ChevronDown,
   ChevronUp,
   BarChart2,
-  UserCheck,
   AlertCircle,
 } from 'lucide-react';
 import {
   ExecutiveAnalyticsData,
-  DepartmentBudgetPool,
-  DepartmentBellCurve,
-  Department,
   Cycle,
 } from '../types';
 import { api } from '../services/api';
 import { PieChart } from './ui/PieChart';
 
 interface BellCurveBudgetAnalyticsProps {
-  departments: Department[];
   cycles: Cycle[];
-  onOpenCalibrationModal?: (departmentId?: string) => void;
 }
 
 export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> = ({
-  departments,
   cycles,
-  onOpenCalibrationModal,
 }) => {
   const [data, setData] = useState<ExecutiveAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);

@@ -15,7 +15,6 @@ import {
   AlertTriangle,
   TrendingUp,
   UserCheck,
-  MessageSquare,
   Loader2,
 } from 'lucide-react';
 import { EmployeeReview, ReviewKraSnapshot } from '../types';
@@ -157,13 +156,6 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
     if (isReadOnly) return;
     setKraStates((prev) =>
       prev.map((k) => (k.id === id ? { ...k, selfAchievement: text } : k))
-    );
-  };
-
-  const handleCommentsChange = (id: string, text: string) => {
-    if (isReadOnly) return;
-    setKraStates((prev) =>
-      prev.map((k) => (k.id === id ? { ...k, selfComments: text } : k))
     );
   };
 

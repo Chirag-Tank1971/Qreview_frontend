@@ -57,7 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <TooltipProvider delayDuration={200}>
       <aside
         className={cn(
-          'hidden md:flex flex-col shrink-0 h-full border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all duration-150 z-30 select-none',
+          'hidden md:flex flex-col shrink-0 h-full border-r border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm transition-all duration-150 z-30 select-none',
           isCollapsed ? 'w-14' : 'w-56',
           className
         )}
@@ -70,13 +70,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         >
           {!isCollapsed && (
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
               Navigation
             </span>
           )}
           <button
             onClick={toggleCollapse}
-            className="p-1.5 rounded-[4px] text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
@@ -109,21 +109,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       key={item.id}
                       onClick={() => onSelectView(item.id)}
                       className={cn(
-                        'w-full flex items-center gap-2.5 px-2 py-1.5 text-xs transition-colors cursor-pointer relative',
-                        isCollapsed
-                          ? 'justify-center rounded-[6px]'
-                          : 'rounded-[4px]',
+                        'w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs transition-all cursor-pointer relative group rounded-lg',
+                        isCollapsed ? 'justify-center' : '',
                         isActive
-                          ? 'border-l-2 border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-medium'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/60'
+                          ? 'bg-indigo-50/90 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold shadow-2xs border border-indigo-200/60 dark:border-indigo-800/50'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent'
                       )}
                     >
                       <Icon
                         className={cn(
-                          'w-4 h-4 shrink-0',
+                          'w-4 h-4 shrink-0 transition-transform duration-150',
                           isActive
-                            ? 'text-indigo-600 dark:text-indigo-400'
-                            : 'text-slate-400 dark:text-slate-500'
+                            ? 'text-indigo-600 dark:text-indigo-400 scale-105'
+                            : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
                         )}
                       />
                       {!isCollapsed && (
@@ -161,12 +159,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 isCollapsed && 'justify-center'
               )}
             >
-              <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium flex items-center justify-center text-xs shrink-0 border border-slate-200 dark:border-slate-700">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white font-semibold flex items-center justify-center text-xs shrink-0 shadow-2xs">
                 {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </div>
               {!isCollapsed && (
                 <div className="truncate flex-1 min-w-0">
-                  <div className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate">
+                  <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
                     {user.name}
                   </div>
                   <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
@@ -181,7 +179,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               title="Sign Out"
               aria-label="Sign Out"
               className={cn(
-                'w-full flex items-center gap-2 px-2 py-1.5 rounded-[4px] text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer',
+                'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/80 dark:hover:bg-rose-950/40 transition-colors cursor-pointer',
                 isCollapsed && 'justify-center'
               )}
             >

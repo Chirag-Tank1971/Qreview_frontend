@@ -6,13 +6,10 @@ import {
   Download,
   Award,
   Building2,
-  Calendar,
   Loader2,
   Check,
-  FileDown,
   Sliders,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 import { Appraisal } from '../types';
 import { api } from '../services/api';
@@ -35,7 +32,6 @@ export const AppraisalLetterModal: React.FC<AppraisalLetterModalProps> = ({ appr
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState<boolean>(false);
-  const [downloadHtmlSuccess, setDownloadHtmlSuccess] = useState<boolean>(false);
   const [downloadPdfSuccess, setDownloadPdfSuccess] = useState<boolean>(false);
 
   // Settings
@@ -149,31 +145,6 @@ export const AppraisalLetterModal: React.FC<AppraisalLetterModalProps> = ({ appr
       handlePrint();
     } finally {
       setIsDownloadingPdf(false);
-    }
-  };
-
-  // Standalone HTML Download
-  const handleDownloadHtml = () => {
-    try {
-      const settings: LetterSettings = {
-        ...DEFAULT_LETTER_SETTINGS,
-        includeBreakdown: showDetailedBreakdown,
-      };
-      const htmlContent = generateLetterHtml(appraisal, settings, letterData?.referenceNumber);
-      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Appraisal_Letter_${appraisal.employeeCode}_${appraisal.appraisalYear || '2026'}.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      setDownloadHtmlSuccess(true);
-      setTimeout(() => setDownloadHtmlSuccess(false), 3000);
-    } catch (err) {
-      console.error('Download HTML error:', err);
     }
   };
 

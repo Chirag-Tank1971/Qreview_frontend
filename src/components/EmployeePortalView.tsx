@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  User,
   Employee,
   EmployeeReview,
   Appraisal,
@@ -16,16 +15,13 @@ import { CycleBadge } from './ui/CycleBadge';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 import { EmptyState } from './ui/EmptyState';
 import {
-  Sparkles,
   Award,
-  Calendar,
   Layers,
   FileText,
   TrendingUp,
   CheckCircle2,
   AlertCircle,
   Clock,
-  Printer,
   Download,
   UserCheck,
   Building2,
@@ -34,12 +30,8 @@ import {
   CheckSquare,
   ShieldCheck,
   ClipboardList,
-  ExternalLink,
-  ArrowUpRight,
-  Info,
   RefreshCw,
   Loader2,
-  Sliders,
   Mail,
   Phone,
   MapPin,
@@ -94,15 +86,11 @@ export interface EmployeePortalConfig {
 }
 
 interface EmployeePortalViewProps {
-  onNavigateToAppraisals?: (options?: any) => void;
-  onNavigateToReviews?: (options?: any) => void;
   initialConfig?: EmployeePortalConfig | null;
   employees?: Employee[];
 }
 
 export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
-  onNavigateToAppraisals,
-  onNavigateToReviews,
   initialConfig,
   employees: propEmployees,
 }) => {
@@ -132,10 +120,15 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
   // Active Tab
   const [activeTab, setActiveTab] = useState<'appraisal' | 'reviews' | 'kras' | 'growth'>('appraisal');
 
+  // App clears initialConfig as soon as the view changes, which is usually before the ESS data
+  // below has loaded — so hold the deep link here until the modal it asks for has been opened.
+  const [pendingLink, setPendingLink] = useState<EmployeePortalConfig | null>(null);
+
   useEffect(() => {
     if (initialConfig) {
       if (initialConfig.subTab) setActiveTab(initialConfig.subTab);
       if (initialConfig.employeeId) setSelectedEmployeeId(initialConfig.employeeId);
+      setPendingLink(initialConfig);
     }
   }, [initialConfig]);
 
@@ -143,33 +136,24 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
   const [selectedReviewForSelfAssess, setSelectedReviewForSelfAssess] = useState<EmployeeReview | null>(null);
   const [selectedAppraisalForLetter, setSelectedAppraisalForLetter] = useState<Appraisal | null>(null);
 
-  // Auto-open review modal or appraisal letter when deep-linked via notifications
+  // Auto-open review modal or appraisal letter when deep-linked (notifications, dashboard tasks)
   useEffect(() => {
-    if (initialConfig && essData?.reviews && essData.reviews.length > 0) {
-      if (initialConfig.reviewId) {
-        const matched = essData.reviews.find((r) => r.id === initialConfig.reviewId);
-        if (matched) {
-          setSelectedReviewForSelfAssess(matched);
-        }
-      } else if (initialConfig.openSelfAssess) {
-        const pending = essData.reviews.find((r) => !r.isClosed && !r.isSelfSubmitted);
-        if (pending) {
-          setSelectedReviewForSelfAssess(pending);
-        }
-      }
-    }
-  }, [initialConfig, essData?.reviews]);
+    if (!pendingLink || (!pendingLink.reviewId && !pendingLink.openSelfAssess) || !essData?.reviews) return;
+    const target = pendingLink.reviewId
+      ? essData.reviews.find((r) => r.id === pendingLink.reviewId)
+      : essData.reviews.find((r) => !r.isClosed && !r.isSelfSubmitted);
+    if (target) setSelectedReviewForSelfAssess(target);
+    setPendingLink((link) => (link ? { ...link, reviewId: undefined, openSelfAssess: undefined } : null));
+  }, [pendingLink, essData?.reviews]);
 
   useEffect(() => {
-    if (initialConfig?.openLetter && essData?.allAppraisals && essData.allAppraisals.length > 0) {
-      if (initialConfig.appraisalId) {
-        const matched = essData.allAppraisals.find((a) => a.id === initialConfig.appraisalId);
-        if (matched) setSelectedAppraisalForLetter(matched);
-      } else if (essData.activeAppraisal) {
-        setSelectedAppraisalForLetter(essData.activeAppraisal);
-      }
-    }
-  }, [initialConfig, essData?.allAppraisals, essData?.activeAppraisal]);
+    if (!pendingLink?.openLetter || !essData?.allAppraisals) return;
+    const target = pendingLink.appraisalId
+      ? essData.allAppraisals.find((a) => a.id === pendingLink.appraisalId)
+      : essData.activeAppraisal;
+    if (target) setSelectedAppraisalForLetter(target);
+    setPendingLink((link) => (link ? { ...link, openLetter: undefined, appraisalId: undefined } : null));
+  }, [pendingLink, essData?.allAppraisals, essData?.activeAppraisal]);
 
   // Acknowledgement form state
   const [ackAccepted, setAckAccepted] = useState(false);
@@ -320,7 +304,6 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
   const reviews = essData?.reviews || [];
   const activeKra = essData?.activeKraTemplate;
   const metrics = essData?.metrics;
-  const isLetterLocked = activeAppraisal?.isLocked;
   const isAcknowledged = Boolean(activeAppraisal?.employeeAcknowledgement?.acknowledged);
   const isStage1Done = Boolean(activeAppraisal && ['MANAGER_RECOMMENDED', 'HOD_CALIBRATED', 'HR_APPROVED', 'COMPLETED', 'LOCKED', 'APPROVED'].includes(activeAppraisal.status));
   const isStage2Done = Boolean(activeAppraisal && ['HOD_CALIBRATED', 'HR_APPROVED', 'COMPLETED', 'LOCKED', 'APPROVED'].includes(activeAppraisal.status));

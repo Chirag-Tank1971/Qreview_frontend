@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ReviewPeriod, Department, Cycle, Employee } from '../types';
+import { ReviewPeriod, Department, Cycle } from '../types';
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
 import { useModalAnimation } from '../hooks/useModalAnimation';
@@ -24,7 +24,6 @@ interface BatchGenerateReviewsModalProps {
   periods: ReviewPeriod[];
   departments: Department[];
   cycles: Cycle[];
-  employees: Employee[];
 }
 
 export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps> = ({
@@ -34,7 +33,6 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
   periods,
   departments,
   cycles,
-  employees,
 }) => {
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('ALL');
@@ -111,7 +109,6 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
   }, [selectedPeriodId, selectedDepartmentId, selectedCycleId, overrideExisting]);
 
   const eligibleCount = eligiblePreview?.eligibleCount ?? 0;
-  const selectedPeriod = periods.find((p) => p.id === selectedPeriodId);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();

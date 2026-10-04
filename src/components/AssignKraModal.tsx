@@ -45,6 +45,8 @@ export const AssignKraModal: React.FC<AssignKraModalProps> = ({
 }) => {
   const [search, setSearch] = useState('');
   const [pickedEmployee, setPickedEmployee] = useState<Employee | null>(null);
+  const [resolvedKras, setResolvedKras] = useState<CustomKraRow[]>(initialKras);
+  const [loadingKras, setLoadingKras] = useState<boolean>(false);
 
   const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
     useModalAnimation({ isOpen, onClose });
@@ -53,10 +55,99 @@ export const AssignKraModal: React.FC<AssignKraModalProps> = ({
     if (!isOpen) {
       setPickedEmployee(null);
       setSearch('');
+      setResolvedKras(initialKras);
     }
-  }, [isOpen]);
+  }, [isOpen, initialKras]);
 
   const activeEmployee = preselectedEmployee || pickedEmployee;
+
+  // Auto-fetch existing employee KRA template/scorecard if not pre-provided
+  useEffect(() => {
+    if (initialKras && initialKras.length > 0) {
+      setResolvedKras(initialKras);
+      return;
+    }
+
+    if (!activeEmployee) {
+      setResolvedKras([]);
+      return;
+    }
+
+    let isSubscribed = true;
+    setLoadingKras(true);
+
+    (async () => {
+      try {
+        // 1. Try template by currentKraTemplateId
+        if (activeEmployee.currentKraTemplateId) {
+          const tmpl = await api.getKraTemplateById(activeEmployee.currentKraTemplateId);
+          if (isSubscribed && tmpl?.items?.length) {
+            setResolvedKras(
+              tmpl.items.map((it, idx) => ({
+                id: it.id || `kra_${idx}`,
+                title: it.title || '',
+                weight: it.weight ?? 0,
+                target: it.target || '100% Target SLA',
+                description: it.description,
+                measurementCriteria: it.measurementCriteria,
+              }))
+            );
+            setLoadingKras(false);
+            return;
+          }
+        }
+
+        // 2. Try template by employeeId or employeeCode
+        const allTemplates = await api.getKraTemplates();
+        const match = allTemplates.find(
+          (t) =>
+            (t.employeeId && t.employeeId === activeEmployee.id) ||
+            (t.employeeCode && t.employeeCode.toUpperCase() === activeEmployee.employeeCode?.toUpperCase())
+        );
+        if (isSubscribed && match?.items?.length) {
+          setResolvedKras(
+            match.items.map((it, idx) => ({
+              id: it.id || `kra_${idx}`,
+              title: it.title || '',
+              weight: it.weight ?? 0,
+              target: it.target || '100% Target SLA',
+              description: it.description,
+              measurementCriteria: it.measurementCriteria,
+            }))
+          );
+          setLoadingKras(false);
+          return;
+        }
+
+        // 3. Fallback: check reviews for this employee to extract snapshot
+        const reviews = await api.getReviews();
+        const empReview = reviews?.find((r) => r.employeeId === activeEmployee.id && r.kraSnapshot?.length > 0);
+        if (isSubscribed && empReview?.kraSnapshot?.length) {
+          setResolvedKras(
+            empReview.kraSnapshot.map((k, idx) => ({
+              id: k.id || `kra_${idx}`,
+              title: k.kraName || k.title || '',
+              weight: k.weight ?? 0,
+              target: k.targetSnapshot || '100% Target SLA',
+              description: k.description || '',
+              measurementCriteria: k.measurementCriteria,
+            }))
+          );
+        } else if (isSubscribed) {
+          setResolvedKras([]);
+        }
+      } catch (err) {
+        console.warn('Could not auto-fetch employee KRA template:', err);
+        if (isSubscribed) setResolvedKras([]);
+      } finally {
+        if (isSubscribed) setLoadingKras(false);
+      }
+    })();
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [activeEmployee?.id, activeEmployee?.currentKraTemplateId, initialKras]);
 
   useEffect(() => {
     if (!isMounted || activeEmployee) return;
@@ -89,7 +180,7 @@ export const AssignKraModal: React.FC<AssignKraModalProps> = ({
             toast.error(err?.message || 'Failed to assign the KRA scorecard.', 'Assignment Failed');
           }
         }}
-        initialKras={initialKras}
+        initialKras={resolvedKras}
         employeeCode={activeEmployee.employeeCode}
         name={activeEmployee.name}
         designationName={activeEmployee.designationName}

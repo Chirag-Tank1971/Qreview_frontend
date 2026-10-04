@@ -19,8 +19,6 @@ import {
   Send,
   ExternalLink,
   Sparkles,
-  ShieldCheck,
-  SlidersHorizontal,
   X,
   RotateCcw,
 } from 'lucide-react';

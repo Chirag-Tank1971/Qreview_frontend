@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -12,6 +12,7 @@ import { ViewSkeletonFallback } from './components/ui/ViewSkeletonFallback';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useMasterData } from './hooks/useMasterData';
 import { useUrlHashView, AppView, isViewPermitted } from './hooks/useUrlHashView';
+import { getHomeView } from './config/navigation';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Sidebar } from './components/ui/Sidebar';
 import { KraTemplate, Employee } from './types';
@@ -24,6 +25,9 @@ import { PageLoadingProgress } from './components/ui/PageLoadingProgress';
 import { PageTransition } from './components/ui/PageTransition';
 
 // Route-level code splitting: Lazy load heavy domain views
+const DashboardView = lazy(() =>
+  import('./components/dashboard/DashboardView').then((m) => ({ default: m.DashboardView }))
+);
 const EmployeePortalView = lazy(() =>
   import('./components/EmployeePortalView').then((m) => ({ default: m.EmployeePortalView }))
 );
@@ -81,87 +85,6 @@ const AssignKraModal = lazy(() =>
   import('./components/AssignKraModal').then((m) => ({ default: m.AssignKraModal }))
 );
 
-const VIEW_META: Record<string, { title: string; subtitle: string; tag: string; tagColor: string }> = {
-  management: {
-    title: 'Executive Management Intelligence',
-    subtitle: 'Organization-wide review progress, department rankings, quarterly rating trends, and appraisal rollups',
-    tag: 'Executive Leadership',
-    tagColor: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/60',
-  },
-  portal: {
-    title: 'My Space & Performance Goals',
-    subtitle: 'Track your quarterly performance, complete self-reviews, and view your digital appraisal letter',
-    tag: 'Personal Workspace',
-    tagColor: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800/60',
-  },
-  reviews: {
-    title: 'Performance Reviews',
-    subtitle: 'Review quarterly goals, provide ratings and feedback, and track team progress',
-    tag: 'Evaluation Cycle',
-    tagColor: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/80 dark:border-blue-800/60',
-  },
-  appraisals: {
-    title: 'Annual Appraisals & Calibrations',
-    subtitle: 'Manage yearly appraisal cycles, salary calibrations, promotion reviews, and letter generation',
-    tag: 'Annual Calibration',
-    tagColor: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/60',
-  },
-  calibration: {
-    title: 'Bell Curve & Budget Calibration',
-    subtitle: 'Departmental distribution normalization, increment budget pools, and retention risk',
-    tag: 'Executive & HOD',
-    tagColor: 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200/80 dark:border-violet-800/60',
-  },
-  reports: {
-    title: 'Analytics & Reports',
-    subtitle: 'Monitor review completion rates, department performance trends, and rating distributions',
-    tag: 'Executive Reports',
-    tagColor: 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200/80 dark:border-purple-800/60',
-  },
-  employees: {
-    title: 'Employee Directory',
-    subtitle: 'Search team members, view reporting managers, and browse department structures',
-    tag: 'Team Directory',
-    tagColor: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200/80 dark:border-slate-700',
-  },
-  hierarchy: {
-    title: 'Department & Manager Hierarchy',
-    subtitle: 'Organizational structure, department HODs, reporting managers, and team headcount distribution',
-    tag: 'Org Structure',
-    tagColor: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/80 dark:border-blue-800/60',
-  },
-  kras: {
-    title: 'Goals & KRA Template Library',
-    subtitle: 'Browse and configure Key Result Area templates and evaluation criteria by role',
-    tag: 'Goal Templates',
-    tagColor: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200/80 dark:border-amber-800/60',
-  },
-  ai_performance: {
-    title: 'AI Review & Talent Hub',
-    subtitle: 'Generate AI-assisted review summaries and analyze strategic 9-box talent matrix',
-    tag: 'AI Assisted',
-    tagColor: 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200/80 dark:border-violet-800/60',
-  },
-  bulk: {
-    title: 'Bulk Data Management',
-    subtitle: 'Import employee lists or download spreadsheet exports for reviews and salary records',
-    tag: 'Data Tools',
-    tagColor: 'bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border-cyan-200/80 dark:border-cyan-800/60',
-  },
-  audit: {
-    title: 'Compliance & Audit Trail',
-    subtitle: 'Review tamper-evident change history, sign-offs, and administrative security logs',
-    tag: 'Security & Audit',
-    tagColor: 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200/80 dark:border-rose-800/60',
-  },
-  notifications: {
-    title: 'Notifications & Workflow Center',
-    subtitle: 'Track your actionable tasks, review deadlines, and monitor transactional audit communications',
-    tag: 'Notification Hub',
-    tagColor: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/60',
-  },
-};
-
 function AppContent() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -177,12 +100,14 @@ function AppContent() {
   const [portalConfig, setPortalConfig] = useState<EmployeePortalConfig | null>(null);
   const [pipConfig, setPipConfig] = useState<{ pipId?: string } | null>(null);
 
-  // Auto-land on Executive Management Dashboard for MANAGEMENT role
+  const homeView = getHomeView(user?.role);
+
+  // With no hash in the URL, land on the role's home view.
   useEffect(() => {
-    if (user?.role === 'MANAGEMENT' && (!window.location.hash || window.location.hash === '#' || window.location.hash === '#portal')) {
-      setView('management');
+    if (user?.role && (!window.location.hash || window.location.hash === '#')) {
+      setView(homeView, true);
     }
-  }, [user?.role, setView]);
+  }, [user?.role, homeView, setView]);
 
   // Centralized Master Data via Custom Hook
   const {
@@ -230,11 +155,11 @@ function AppContent() {
     setPortalConfig(null);
     setPipConfig(null);
 
-    // If current view is not permitted for the user's role, automatically redirect to their primary allowed workspace
+    // If current view is not permitted for the user's role, automatically redirect to their home view
     if (user?.role && !isViewPermitted(currentView, user.role)) {
-      setView('portal', true);
+      setView(homeView, true);
     }
-  }, [user?.id, user?.role, currentView, setView]);
+  }, [user?.id, user?.role, currentView, homeView, setView]);
 
   if (isLoading) {
     return (
@@ -303,12 +228,12 @@ function AppContent() {
           {currentView === 'notifications' && (
             <div className="mb-4">
               <button
-                onClick={() => handleNavigate('portal')}
+                onClick={() => handleNavigate(homeView)}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 transition-colors shadow-2xs cursor-pointer"
-                title="Back to Workspace"
+                title="Back"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back to Workspace</span>
+                <span>Back to {homeView === 'dashboard' ? 'Dashboard' : homeView === 'management' ? 'Executive Analytics' : 'Workspace'}</span>
               </button>
             </div>
           )}
@@ -317,19 +242,12 @@ function AppContent() {
           <ErrorBoundary>
             <Suspense fallback={<ViewSkeletonFallback />}>
               <PageTransition viewKey={currentView}>
-                {currentView === 'management' && user?.role === 'MANAGEMENT' ? (
-                  <ManagementDashboardView
-                    currentUser={user}
-                    departments={departments}
-                    onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
-                    onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
-                  />
+                {currentView === 'dashboard' && user?.role !== 'MANAGEMENT' ? (
+                  <DashboardView onNavigate={(view, params) => handleNavigate(view, params)} />
+                ) : currentView === 'management' && user?.role === 'MANAGEMENT' ? (
+                  <ManagementDashboardView departments={departments} />
                 ) : currentView === 'portal' ? (
-                  <EmployeePortalView
-                    onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
-                    onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
-                    initialConfig={portalConfig}
-                  />
+                  <EmployeePortalView initialConfig={portalConfig} />
                 ) : currentView === 'ai_performance' && user?.role === 'SUPER_ADMIN' ? (
                   <AiPerformanceHub currentUser={user} />
                 ) : currentView === 'appraisals' && ['SUPER_ADMIN', 'HR', 'MANAGEMENT', 'HOD', 'REPORTING_MANAGER', 'MANAGER'].includes(user?.role || '') ? (
@@ -343,14 +261,7 @@ function AppContent() {
                     onClearInitialConfig={() => setAppraisalConfig(null)}
                   />
                 ) : currentView === 'calibration' && ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'].includes(user?.role || '') ? (
-                  <BellCurveBudgetAnalytics
-                    departments={departments}
-                    cycles={cycles}
-                    onOpenCalibrationModal={(departmentId) =>
-                      isViewPermitted('appraisals', user?.role) &&
-                      handleNavigate('appraisals', departmentId ? { departmentId } : undefined)
-                    }
-                  />
+                  <BellCurveBudgetAnalytics cycles={cycles} />
                 ) : currentView === 'reviews' ? (
                   <QuarterlyReviewView
                     currentUser={user}
@@ -367,7 +278,7 @@ function AppContent() {
                     initialConfig={reportsConfig}
                   />
                 ) : currentView === 'bulk' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
-                  <BulkImportExportManager currentUser={user} onDataImported={refreshMasterData} />
+                  <BulkImportExportManager onDataImported={refreshMasterData} />
                 ) : currentView === 'audit' && ['SUPER_ADMIN', 'HR'].includes(user?.role || '') ? (
                   <AuditComplianceExplorer currentUser={user} />
                 ) : currentView === 'notifications' ? (
@@ -387,7 +298,6 @@ function AppContent() {
                     templates={templates}
                     kras={kras}
                     departments={departments}
-                    designations={designations}
                     employees={employees}
                     canManage={canManageKras}
                     onOpenCreateTemplate={() => {
@@ -447,8 +357,6 @@ function AppContent() {
                     <DepartmentHierarchyView
                       employees={employees}
                       departments={departments}
-                      designations={designations}
-                      cycles={cycles}
                       isHRorAdmin={['SUPER_ADMIN', 'HR'].includes(user?.role || '')}
                       onEditEmployee={(emp) => {
                         setHierarchyEditingEmployee(emp);
@@ -477,11 +385,7 @@ function AppContent() {
                     </Suspense>
                   </div>
                 ) : (
-                  <EmployeePortalView
-                    onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
-                    onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
-                    initialConfig={portalConfig}
-                  />
+                  <EmployeePortalView initialConfig={portalConfig} />
                 )}
               </PageTransition>
             </Suspense>
@@ -520,10 +424,6 @@ function AppContent() {
             onClose={() => {
               setIsTemplateBuilderOpen(false);
               setEditingTemplate(null);
-            }}
-            onOpenLibrary={() => {
-              setIsTemplateBuilderOpen(false);
-              setIsKraLibraryOpen(true);
             }}
           />
         )}

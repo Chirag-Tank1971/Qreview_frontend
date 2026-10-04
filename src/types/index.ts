@@ -8,3 +8,4 @@ export * from './bulk';
 export * from './ai';
 export * from './analytics';
 export * from './pip';
+export * from './dashboard';

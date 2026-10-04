@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KraTemplate, Kra, Department, Designation, Employee } from '../types';
+import { KraTemplate, Kra, Department, Employee } from '../types';
 import {
   Plus,
   Search,
@@ -18,7 +18,6 @@ interface KraManagementViewProps {
   templates: KraTemplate[];
   kras: Kra[];
   departments: Department[];
-  designations: Designation[];
   employees: Employee[];
   canManage: boolean;
   onOpenCreateTemplate: () => void;
@@ -31,7 +30,6 @@ export const KraManagementView: React.FC<KraManagementViewProps> = ({
   templates,
   kras,
   departments,
-  designations,
   employees,
   canManage,
   onOpenCreateTemplate,

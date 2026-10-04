@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type PageSkeletonVariant = 'dashboard' | 'portal' | 'table' | 'hierarchy' | 'generic';
+type PageSkeletonVariant = 'dashboard' | 'portal' | 'table' | 'hierarchy' | 'generic';
 
 interface PageSkeletonLoaderProps {
   variant?: PageSkeletonVariant;

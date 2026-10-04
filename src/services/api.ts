@@ -32,6 +32,7 @@ import {
   ManagementWorkforceRiskData,
   PerformanceImprovementPlan,
   DepartmentBudgetSnapshot,
+  DashboardSummary,
 } from '../types'
 
 // Resolve API Base URL: respects VITE_API_BASE_URL; falls back to relative '/api' in production
@@ -60,7 +61,7 @@ function onRefreshed(token: string) {
 /**
  * Transparent fetch wrapper with automatic token refresh and failed request replay
  */
-export async function fetchWithAutoRefresh(url: string, options: RequestInit = {}): Promise<Response> {
+async function fetchWithAutoRefresh(url: string, options: RequestInit = {}): Promise<Response> {
   const headers = new Headers(options.headers || {});
   const currentToken = localStorage.getItem('review_app_token');
   if (currentToken && !headers.has('Authorization')) {
@@ -140,7 +141,7 @@ interface CacheEntry<T> {
 const memoryCache = new Map<string, CacheEntry<any>>();
 const inFlightRequests = new Map<string, Promise<any>>();
 
-export function invalidateApiCache(pattern?: string) {
+function invalidateApiCache(pattern?: string) {
   if (!pattern) {
     memoryCache.clear();
     return;
@@ -1172,6 +1173,14 @@ export const api = {
       throw new Error(err.error || 'Failed to fetch ESS overview');
     }
     return res.json();
+  },
+
+  async getDashboardSummary(): Promise<DashboardSummary> {
+    return requestWithDedupeAndCache<DashboardSummary>(
+      `${API_BASE}/dashboard/summary`,
+      { headers: getAuthHeaders() },
+      0
+    );
   },
 
   // Executive Analytics, Bell Curve Normalization & Budget Pools (Phase 4)

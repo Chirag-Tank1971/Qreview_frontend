@@ -10,12 +10,10 @@ import {
   AlertCircle,
   CheckCircle2,
   Library,
-  ArrowRight,
   Info,
   Scale,
   Sparkles,
   Loader2,
-  X,
 } from 'lucide-react';
 
 interface KraTemplateBuilderModalProps {
@@ -25,7 +23,6 @@ interface KraTemplateBuilderModalProps {
   kraLibrary: Kra[];
   onSave: (templateData: Partial<KraTemplate>) => Promise<void>;
   onClose: () => void;
-  onOpenLibrary: () => void;
 }
 
 export const KraTemplateBuilderModal: React.FC<KraTemplateBuilderModalProps> = ({
@@ -35,12 +32,10 @@ export const KraTemplateBuilderModal: React.FC<KraTemplateBuilderModalProps> = (
   kraLibrary,
   onSave,
   onClose,
-  onOpenLibrary,
 }) => {
   const [title, setTitle] = useState(template?.title || template?.name || '');
   const [departmentId, setDepartmentId] = useState(template?.departmentId || '');
   const [designationId, setDesignationId] = useState(template?.designationId || '');
-  const [description, setDescription] = useState(template?.description || '');
   const [items, setItems] = useState<KraItem[]>(
     template?.items && template.items.length > 0
       ? template.items

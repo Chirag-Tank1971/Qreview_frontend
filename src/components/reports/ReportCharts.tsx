@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
-  CheckCircle2,
-  Clock,
-  UserCheck,
-  AlertTriangle,
   Award,
   TrendingUp,
-  Building2,
-  Users,
-  Sliders,
-  ChevronRight,
   PieChart as PieChartIcon,
   BarChart2,
 } from 'lucide-react';
@@ -17,7 +9,7 @@ import {
 // =========================================================================
 // 1. Interactive Animated SVG Donut Chart
 // =========================================================================
-export interface DonutSegment {
+interface DonutSegment {
   id: string;
   label: string;
   value: number;
@@ -194,7 +186,7 @@ export const DonutChart: React.FC<{
 // =========================================================================
 // 2. Horizontal Ranked Bar Chart with Smooth Load Animation
 // =========================================================================
-export interface HorizontalBarItem {
+interface HorizontalBarItem {
   id: string;
   label: string;
   value: number;
@@ -297,7 +289,7 @@ export const HorizontalBarChart: React.FC<{
 // =========================================================================
 // 3. Performance Rating Tier Distribution (Animated Histogram)
 // =========================================================================
-export interface RatingDistributionProps {
+interface RatingDistributionProps {
   outstanding: number;
   exceeds: number;
   meets: number;
@@ -431,7 +423,7 @@ export const RatingTierChart: React.FC<RatingDistributionProps> = ({
 // =========================================================================
 // 4. SVG Smooth Trend Line Chart with Draw-in Path Animation
 // =========================================================================
-export interface TrendPoint {
+interface TrendPoint {
   label: string;
   value: number;
   secondary?: number;

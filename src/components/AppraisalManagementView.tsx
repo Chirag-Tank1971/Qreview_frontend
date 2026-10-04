@@ -2,25 +2,19 @@ import React, { useState, useEffect } from 'react';
 import {
   Award,
   TrendingUp,
-  Filter,
   Search,
-  Plus,
   RefreshCw,
   Sparkles,
   DollarSign,
   Users,
-  CheckCircle2,
   Lock,
   FileText,
   Sliders,
   ChevronRight,
-  AlertCircle,
   Building2,
   Briefcase,
-  HelpCircle,
   Archive,
   Download,
-  FileSpreadsheet,
   Loader2,
   LayoutGrid,
   List,
@@ -43,7 +37,7 @@ import { AppraisalLetterModal } from './AppraisalLetterModal';
 import { BatchLetterExportModal } from './BatchLetterExportModal';
 import { CycleBadge } from './ui/CycleBadge';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
-import { downloadAppraisalPdf, downloadPayrollCsv } from '../utils/letterExport';
+import { downloadAppraisalPdf } from '../utils/letterExport';
 import { useIsMobile } from '../hooks/useIsMobile';
 
 export interface AppraisalViewConfig {
@@ -85,7 +79,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
   const [appraisals, setAppraisals] = useState<Appraisal[]>([]);
   const [stats, setStats] = useState<AppraisalSummaryStats | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] =useState<string | null>(null);
 
   // Filters
   const [selectedCycleId, setSelectedCycleId] = useState<string>('ALL');
@@ -93,7 +87,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [onlyMine, setOnlyMine] = useState<boolean>(false);
+  const [onlyMine] =useState<boolean>(false);
   const [hideInactive, setHideInactive] = useState<boolean>(false);
 
   // Modals
@@ -847,10 +841,10 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
             })}
           </div>
         ) : (
-          <div className="overflow-x-auto overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="overflow-x-auto overscroll-x-contain max-h-[70vh]" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-semibold">
+              <thead className="sticky top-0 z-10 backdrop-blur-md bg-slate-50/95 dark:bg-slate-800/95 border-b border-slate-200 dark:border-slate-700 shadow-2xs">
+                <tr className="text-slate-600 dark:text-slate-300 font-semibold">
                   <th className="py-3.5 px-4">Employee</th>
                   <th className="py-3.5 px-3">Cycle</th>
                   <th className="py-3.5 px-3 text-center">4-Qtr Rolling Score</th>

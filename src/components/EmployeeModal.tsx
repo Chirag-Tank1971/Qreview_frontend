@@ -380,29 +380,6 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     return false;
   };
 
-  // Helper to check if designation is a reporting manager/lead designation
-  const isReportingManagerDesignation = (desName?: string) => {
-    if (!desName) return false;
-    const lower = desName.toLowerCase();
-    // Exclude HOD / executive titles
-    if (
-      lower.includes('hod') ||
-      lower.includes('head of') ||
-      lower.includes('vp') ||
-      lower.includes('vice president') ||
-      lower.includes('director')
-    ) {
-      return false;
-    }
-    return (
-      lower.includes('manager') ||
-      lower.includes('lead') ||
-      lower.includes('supervisor') ||
-      lower.includes('coordinator') ||
-      lower.includes('principal')
-    );
-  };
-
   // Auto infer default role based on designation
   const inferDefaultRole = (desigId: string): UserRole => {
     const des = designations.find((d) => d.id === desigId);
@@ -652,9 +629,6 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   const isTargetHod =
     systemRole === 'HOD' ||
     Boolean(currentDes && (currentDes.level >= 4 || currentDes.name?.toLowerCase().includes('vp') || currentDes.name?.toLowerCase().includes('head')));
-  const isTargetManager =
-    systemRole === 'MANAGER' ||
-    Boolean(currentDes && (currentDes.level >= 3 || currentDes.name?.toLowerCase().includes('manager') || currentDes.name?.toLowerCase().includes('lead')));
 
   // Reporting Managers from all departments + All HODs (strictly exclude regular employees)
   const departmentManagers = (() => {
@@ -1382,7 +1356,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       {/* Locations List */}
                       <div className="max-h-56 overflow-y-auto divide-y divide-slate-100/80 dark:divide-slate-800/80">
                         {filteredLocations.map((locName) => {
-                          const { count, names } = getEmployeeCountForLocation(locName);
+                          const { count } = getEmployeeCountForLocation(locName);
                           const isSelected = location === locName;
                           return (
                             <div

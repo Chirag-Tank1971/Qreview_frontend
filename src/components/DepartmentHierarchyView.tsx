@@ -1,37 +1,28 @@
 import React, { useState, useMemo } from 'react';
-import { Employee, Department, Designation, Cycle, KraTemplate, User } from '../types';
+import { Employee, Department } from '../types';
 import {
   Building2,
   Users,
-  Shield,
   Briefcase,
   ChevronDown,
   ChevronRight,
   Search,
   CheckCircle2,
   Clock,
-  UserCheck,
   AlertCircle,
   Crown,
   Edit2,
   Mail,
-  ArrowRight,
   ArrowLeft,
-  Layers,
-  Sparkles,
   TrendingUp,
-  Filter,
   Plus,
   Upload,
 } from 'lucide-react';
 import { CycleBadge } from './ui/CycleBadge';
-import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 
 interface DepartmentHierarchyViewProps {
   employees: Employee[];
   departments: Department[];
-  designations?: Designation[];
-  cycles?: Cycle[];
   isHRorAdmin?: boolean;
   onEditEmployee?: (employee: Employee) => void;
   onAddEmployee?: () => void;
@@ -56,8 +47,6 @@ interface DepartmentHierarchyData {
 export const DepartmentHierarchyView: React.FC<DepartmentHierarchyViewProps> = ({
   employees,
   departments,
-  designations = [],
-  cycles = [],
   isHRorAdmin = false,
   onEditEmployee,
   onAddEmployee,

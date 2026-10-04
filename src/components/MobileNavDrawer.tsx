@@ -1,7 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import {
-  User as UserIcon,
   Shield,
   Sparkles,
   X,
@@ -39,7 +38,7 @@ export const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({
     onClose,
   });
 
-  const { user, employeeProfile, logout, switchRole, isLoading } = useAuth();
+  const { user, logout, switchRole, isLoading } = useAuth();
   const { isDark, toggleTheme } = useTheme();
 
   React.useEffect(() => {

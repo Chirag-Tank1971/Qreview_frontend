@@ -15,8 +15,6 @@ import {
   Bell,
   LogIn,
   User as UserIcon,
-  Calendar,
-  Users,
   Check,
   Sun,
   Moon,
@@ -25,12 +23,10 @@ import {
   Award,
   TrendingUp,
   BarChart3,
-  Target,
-  Upload,
-  Settings,
   Grid,
+  LayoutDashboard,
 } from 'lucide-react';
-import { NAV_ITEMS, getNavLabel } from '../config/navigation';
+import { NAV_ITEMS, getNavLabel, getHomeView } from '../config/navigation';
 
 interface HeaderProps {
   currentView?: string;
@@ -52,7 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { unreadCount: unreadNotifCount } = useNotifications();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isPersonaMenuOpen, setIsPersonaMenuOpen] = useState(false);
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [, setIsAdminOpen] =useState(false);
   const [isSwitchingRole, setIsSwitchingRole] = useState(false);
 
   const personaDropdownRef = useRef<HTMLDivElement>(null);
@@ -123,6 +119,9 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const homeView = getHomeView(user?.role);
+  const isDashboardHome = homeView === 'dashboard';
+
   const handleSelectTab = (viewId: string) => {
     if (onSelectView) {
       onSelectView(viewId);
@@ -145,7 +144,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 sticky top-0 z-40 transition-colors duration-200">
+      <header className="backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border-b border-slate-200/80 dark:border-slate-800/80 text-slate-800 dark:text-slate-200 sticky top-0 z-40 transition-colors duration-200 shadow-2xs">
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
             {/* Left: Brand + Location Breadcrumbs */}
@@ -153,7 +152,7 @@ export const Header: React.FC<HeaderProps> = ({
               {/* Mobile Hamburger Drawer Button */}
               <button
                 onClick={onOpenMobileMenu}
-                className="p-1.5 -ml-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors md:hidden cursor-pointer"
+                className="p-1.5 -ml-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors md:hidden cursor-pointer"
                 aria-label="Open navigation menu"
                 title="Open Navigation"
               >
@@ -162,20 +161,20 @@ export const Header: React.FC<HeaderProps> = ({
 
               {/* Brand Logo & Title */}
               <button
-                onClick={() => handleSelectTab('portal')}
+                onClick={() => handleSelectTab(homeView)}
                 className="flex items-center gap-2.5 shrink-0 cursor-pointer text-left group"
               >
-                <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold shrink-0 shadow-xs group-hover:bg-indigo-500 transition-colors">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center font-bold shrink-0 shadow-xs shadow-indigo-500/20 group-hover:from-indigo-500 group-hover:to-indigo-400 transition-all">
                   <Layers className="w-4 h-4" />
                 </div>
-                <span className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight">
+                <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
                   MintReview System
                 </span>
               </button>
 
               {/* Enterprise Location Breadcrumbs */}
               {currentView && viewTitles[currentView] && (
-                <div className="hidden sm:flex items-center gap-2 pl-4 border-l border-slate-200 dark:border-slate-800 text-xs">
+                <div className="hidden sm:flex items-center gap-2 pl-4 border-l border-slate-200/80 dark:border-slate-800 text-xs">
                   <span className="text-slate-400 font-medium">{viewTitles[currentView].group}</span>
                   <span className="text-slate-300 dark:text-slate-600 font-normal">/</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">{viewTitles[currentView].label}</span>
@@ -193,7 +192,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <button
                         onClick={() => setIsPersonaMenuOpen(!isPersonaMenuOpen)}
                         disabled={isSwitchingRole || isLoading}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-colors cursor-pointer"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 shadow-2xs transition-all cursor-pointer"
                         title="Switch Persona Role"
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
@@ -203,7 +202,7 @@ export const Header: React.FC<HeaderProps> = ({
                       </button>
 
                       {isPersonaMenuOpen && (
-                        <div className="absolute right-0 mt-1.5 w-64 bg-white dark:bg-slate-900 rounded-[6px] shadow-dropdown border border-slate-200 dark:border-slate-800 p-1 z-50 animate-in fade-in duration-120">
+                        <div className="absolute right-0 mt-1.5 w-64 bg-white dark:bg-slate-900 rounded-xl shadow-dropdown border border-slate-200/80 dark:border-slate-800 p-1.5 z-50 animate-in fade-in duration-120">
                           <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                             Switch Role
                           </div>
@@ -215,7 +214,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 <button
                                   key={p.role}
                                   onClick={() => handleQuickSwitch(p)}
-                                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-[4px] text-xs transition-colors cursor-pointer ${isCurrent
+                                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${isCurrent
                                       ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-medium'
                                       : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                                     }`}
@@ -237,7 +236,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   ) : (
                     <div
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 select-none"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 select-none shadow-2xs"
                       title={`Role: ${currentRoleConfig.label}`}
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
@@ -250,7 +249,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <button
                     onClick={toggleTheme}
                     id="theme-toggle-btn"
-                    className="p-1.5 rounded-[6px] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
                     title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
                     aria-label="Toggle Theme"
                   >
@@ -265,13 +264,13 @@ export const Header: React.FC<HeaderProps> = ({
                   <button
                     onClick={() => onNavigate?.('notifications')}
                     id="workflow-notifications-btn"
-                    className="relative p-1.5 rounded-[6px] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    className="relative p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
                     title={unreadNotifCount > 0 ? `${unreadNotifCount} unread notification${unreadNotifCount === 1 ? '' : 's'}` : 'Notifications'}
                     aria-label={`Notifications${unreadNotifCount > 0 ? ` (${unreadNotifCount} unread)` : ''}`}
                   >
                     <Bell className="w-4 h-4" />
                     {unreadNotifCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center bg-rose-600 text-white text-[10px] font-semibold rounded-[4px] leading-none tabular-nums">
+                      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center bg-rose-600 text-white text-[10px] font-semibold rounded-full leading-none tabular-nums shadow-xs">
                         {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
                       </span>
                     )}
@@ -283,15 +282,14 @@ export const Header: React.FC<HeaderProps> = ({
                       onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                       disabled={isLoading}
                       id="user-profile-menu-btn"
-                      className="flex items-center gap-2 p-1 pl-1.5 pr-2 rounded-[6px] hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-xs font-medium cursor-pointer"
+                      className="flex items-center gap-2 p-1 pl-1.5 pr-2 rounded-lg hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border border-transparent hover:border-slate-200/80 dark:hover:border-slate-700/80 transition-all text-xs font-medium cursor-pointer"
                     >
-                      <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 flex items-center justify-center font-medium text-[11px]">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white flex items-center justify-center font-semibold text-[11px] shadow-2xs">
                         {user.name.charAt(0).toUpperCase()}
                       </div>
                       <span className="font-medium text-slate-900 dark:text-white hidden lg:inline max-w-[120px] truncate">
                         {user.name}
                       </span>
-                      <ChevronDown className="w-3 h-3 text-slate-400" />
                     </button>
 
                     {isProfileMenuOpen && (
@@ -441,16 +439,16 @@ export const Header: React.FC<HeaderProps> = ({
       {user && (
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-2 py-1.5 transition-colors duration-150">
           <div className="flex items-center justify-around max-w-md mx-auto">
-            {/* Tab 1: My Space */}
+            {/* Tab 1: Home (Dashboard where the role has one, otherwise My Space) */}
             <button
-              onClick={() => handleSelectTab('portal')}
-              className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-colors cursor-pointer ${currentView === 'portal'
+              onClick={() => handleSelectTab(isDashboardHome ? 'dashboard' : 'portal')}
+              className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-colors cursor-pointer ${currentView === (isDashboardHome ? 'dashboard' : 'portal')
                   ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
                   : 'text-slate-500 dark:text-slate-400'
                 }`}
             >
-              <UserIcon className="w-4 h-4" />
-              <span className="text-[10px]">My Space</span>
+              {isDashboardHome ? <LayoutDashboard className="w-4 h-4" /> : <UserIcon className="w-4 h-4" />}
+              <span className="text-[10px]">{isDashboardHome ? 'Dashboard' : 'My Space'}</span>
             </button>
 
             {/* Tab 2: Reviews */}

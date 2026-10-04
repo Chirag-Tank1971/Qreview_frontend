@@ -25,7 +25,7 @@ export const DEFAULT_LETTER_SETTINGS: LetterSettings = {
   customFooterText: 'This is a system-generated compensation revision document registered in the corporate audit registry.',
 };
 
-export interface SalaryBreakdown {
+interface SalaryBreakdown {
   basic: number;
   hra: number;
   specialAllowance: number;
@@ -560,7 +560,7 @@ export async function downloadAppraisalPdf(
 /**
  * Generates an array of individual PDF blobs for batch packaging into ZIP
  */
-export async function generateAppraisalPdfBlob(
+async function generateAppraisalPdfBlob(
   appraisal: Appraisal,
   settings: LetterSettings = DEFAULT_LETTER_SETTINGS
 ): Promise<{ filename: string; blob: Blob }> {
@@ -641,7 +641,7 @@ export async function exportAppraisalsToZip(
 /**
  * Exports complete payroll reconciliation table as a downloadable CSV
  */
-export function generatePayrollCsv(appraisals: Appraisal[]): string {
+function generatePayrollCsv(appraisals: Appraisal[]): string {
   const headers = [
     'Employee Code',
     'Employee Name',

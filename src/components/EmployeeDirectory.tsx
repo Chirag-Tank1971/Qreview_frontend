@@ -12,16 +12,13 @@ import {
   Users,
   Search,
   Plus,
-  Filter,
   Edit2,
   Building2,
-  Shield,
   CheckCircle2,
   Clock,
   AlertTriangle,
   RotateCw,
   MapPin,
-  DollarSign,
   Key,
   LayoutGrid,
   List,
@@ -32,11 +29,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Layers,
-  Crown,
-  Briefcase,
   UserCheck,
-  Upload,
 } from 'lucide-react';
 import { User } from '../types';
 import { CycleBadge } from './ui/CycleBadge';
@@ -726,10 +719,10 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
             </div>
           ) : (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
-              <div className="overflow-x-auto overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="overflow-x-auto overscroll-x-contain max-h-[70vh]" style={{ WebkitOverflowScrolling: 'touch' }}>
                 <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider text-[11px]">
+                  <thead className="sticky top-0 z-10 backdrop-blur-md bg-slate-50/95 dark:bg-slate-800/95 border-b border-slate-200 dark:border-slate-800 shadow-2xs">
+                    <tr className="text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider text-[11px]">
                       <th className="px-5 py-3.5">Employee</th>
                       <th className="px-4 py-3.5">Department & Role</th>
                       <th className="px-4 py-3.5">Appraisal Cycle</th>

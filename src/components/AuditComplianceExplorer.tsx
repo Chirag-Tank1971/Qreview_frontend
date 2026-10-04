@@ -16,7 +16,6 @@ import {
   Minus,
   ChevronDown,
   ChevronRight,
-  Info,
   Layers,
 } from 'lucide-react';
 import {

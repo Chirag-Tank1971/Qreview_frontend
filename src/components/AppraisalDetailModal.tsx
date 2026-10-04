@@ -3,22 +3,16 @@ import { createPortal } from 'react-dom';
 import {
   X,
   Award,
-  TrendingUp,
   CheckCircle2,
   Lock,
   Calendar,
   AlertCircle,
   FileText,
-  User,
-  Building2,
   DollarSign,
-  ChevronRight,
-  Sparkles,
   Sliders,
   Send,
   Loader2,
   ShieldCheck,
-  Briefcase,
   RotateCcw,
 } from 'lucide-react';
 import { Appraisal, Designation, User as AuthUser, EmployeeStatus, DepartmentBudgetSnapshot } from '../types';
@@ -70,7 +64,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
   const [justification, setJustification] = useState<string>(
     appraisal.managerRecommendation?.justification || ''
   );
-  const [strengthsSummary, setStrengthsSummary] = useState<string>(
+  const [strengthsSummary] =useState<string>(
     appraisal.managerRecommendation?.strengthsSummary || ''
   );
   const [hodNotes, setHodNotes] = useState<string>(

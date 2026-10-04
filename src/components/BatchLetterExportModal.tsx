@@ -11,11 +11,6 @@ import {
   AlertCircle,
   Loader2,
   Building2,
-  Users,
-  Award,
-  DollarSign,
-  TrendingUp,
-  FileText,
 } from 'lucide-react';
 import { Appraisal, Cycle, Department } from '../types';
 import { toast } from '../context/ToastContext';
@@ -45,7 +40,6 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
   const [filterDept, setFilterDept] = useState<string>('ALL');
   const [filterCycle, setFilterCycle] = useState<string>('ALL');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'LOCKED_ONLY' | 'HR_APPROVED_ONLY' | 'LOCKED_OR_APPROVED'>('LOCKED_OR_APPROVED');
-  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Selected appraisals for batch export
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

@@ -3,16 +3,12 @@ import {
   Sparkles,
   TrendingUp,
   Target,
-  Users,
   CheckCircle2,
   RefreshCw,
   Copy,
   Check,
   Layers,
-  ArrowUpRight,
-  HelpCircle,
   FileText,
-  ChevronRight,
   MessageSquare,
 } from 'lucide-react';
 import { api } from '../services/api';
@@ -34,7 +30,7 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
   // Common data
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
-  const [loadingEmployees, setLoadingEmployees] = useState<boolean>(true);
+  const [, setLoadingEmployees] =useState<boolean>(true);
 
   // 1. AI Review Synthesizer State
   const [synthesizing, setSynthesizing] = useState<boolean>(false);

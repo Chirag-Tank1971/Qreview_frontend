@@ -14,7 +14,7 @@ export interface MasterDeleteTarget {
   assignedEmployees: Employee[];
 }
 
-export interface MasterDeleteModalProps {
+interface MasterDeleteModalProps {
   deleteTarget: MasterDeleteTarget | null;
   onClose: () => void;
   onConfirm: () => void;

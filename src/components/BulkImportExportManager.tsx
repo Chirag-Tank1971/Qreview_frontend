@@ -15,11 +15,9 @@ import {
   History,
   Filter,
   Check,
-  Eye,
   AlertCircle,
   ArrowRight,
   Database,
-  Layers,
   Sparkles,
 } from 'lucide-react';
 import { api } from '../services/api';
@@ -28,15 +26,12 @@ import {
   BulkDatasetType,
   BulkTemplateColumn,
   BulkValidationReport,
-  BulkValidationRowResult,
   BulkImportResult,
-  User,
   Cycle,
   Department,
 } from '../types';
 
 interface BulkImportExportManagerProps {
-  currentUser?: User | null;
   onDataImported?: () => void;
 }
 
@@ -46,7 +41,6 @@ const MAX_FILES = 50; // Real-world KRA scorecards arrive as one workbook per em
 const PREVIEW_PAGE_SIZE = 20; // 20 rows per page to prevent DOM memory ballooning
 
 export const BulkImportExportManager: React.FC<BulkImportExportManagerProps> = ({
-  currentUser,
   onDataImported,
 }) => {
   const [activeTab, setActiveTab] = useState<'IMPORT' | 'EXPORT' | 'HISTORY'>('IMPORT');

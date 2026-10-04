@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, Lock, CheckCircle2 } from 'lucide-react';
+import { Award, CheckCircle2 } from 'lucide-react';
 import { ReviewKraSnapshot } from '../../../types';
 
 export const RATING_RUBRIC = [
@@ -13,14 +13,12 @@ export const RATING_RUBRIC = [
 interface Step2ManagerSectionProps {
   snapshots: ReviewKraSnapshot[];
   canEdit: boolean;
-  isHrOrAdmin: boolean;
   onKraChange: (index: number, field: keyof ReviewKraSnapshot, value: any) => void;
 }
 
 export const Step2ManagerSection: React.FC<Step2ManagerSectionProps> = ({
   snapshots,
   canEdit,
-  isHrOrAdmin,
   onKraChange,
 }) => {
   return (

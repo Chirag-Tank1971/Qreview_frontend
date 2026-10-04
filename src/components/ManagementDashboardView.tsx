@@ -8,24 +8,15 @@ import {
   Clock,
   AlertTriangle,
   TrendingUp,
-  TrendingDown,
   Minus,
-  Sparkles,
   Download,
   Search,
-  Filter,
   RefreshCw,
   Eye,
   Award,
   DollarSign,
-  Layers,
-  ChevronRight,
   ShieldCheck,
-  BarChart3,
   X,
-  FileSpreadsheet,
-  HelpCircle,
-  Briefcase,
   UserCheck,
   AlertCircle,
   ArrowUpRight,
@@ -43,7 +34,6 @@ import {
   ManagementWorkforceRiskData,
   Department,
   ReviewPeriod,
-  User,
 } from '../types';
 import { api } from '../services/api';
 import { useModalAnimation } from '../hooks/useModalAnimation';
@@ -51,10 +41,7 @@ import { PieChart, PieChartItem } from './ui/PieChart';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 
 interface ManagementDashboardViewProps {
-  currentUser?: User | null;
   departments?: Department[];
-  onNavigateToReviews?: (opts?: any) => void;
-  onNavigateToAppraisals?: (opts?: any) => void;
 }
 
 type TabType = 'departments' | 'trends' | 'talent' | 'appraisals' | 'workforceRisk';
@@ -65,10 +52,7 @@ const safeNum = (val: any, decimals: number = 2, fallback: string = '0.00'): str
 };
 
 export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = ({
-  currentUser,
   departments = [],
-  onNavigateToReviews,
-  onNavigateToAppraisals,
 }) => {
   // State: Tab navigation
   const [activeTab, setActiveTab] = useState<TabType>('departments');

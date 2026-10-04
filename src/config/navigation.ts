@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import {
+  LayoutDashboard,
   Layers,
   BarChart3,
   FileCheck,
@@ -47,6 +48,15 @@ export interface NavItemConfig {
  * up automatically.
  */
 export const NAV_ITEMS: NavItemConfig[] = [
+  {
+    id: 'dashboard',
+    group: 'Work',
+    mobileSection: 'primary',
+    label: 'Dashboard',
+    subtitle: 'Your pending tasks, your review and your team',
+    icon: LayoutDashboard,
+    roles: ['SUPER_ADMIN', 'HR', 'REPORTING_MANAGER', 'MANAGER', 'HOD', 'EMPLOYEE'],
+  },
   {
     id: 'management',
     group: 'Work',
@@ -189,6 +199,20 @@ export function isNavItemVisible(item: NavItemConfig, role?: UserRole): boolean 
   return !role || item.roles.includes(role);
 }
 
-export function getVisibleNavItems(role?: UserRole): NavItemConfig[] {
-  return NAV_ITEMS.filter((item) => isNavItemVisible(item, role));
+// Roles whose dashboard is built so far; the rest keep their previous landing page until
+// their dashboard version ships.
+const DASHBOARD_HOME_ROLES: UserRole[] = [
+  'SUPER_ADMIN',
+  'HR',
+  'HOD',
+  'REPORTING_MANAGER',
+  'MANAGER',
+  'EMPLOYEE',
+];
+
+/** The view a role lands on after login, and the fallback when a view isn't permitted. */
+export function getHomeView(role?: UserRole): AppView {
+  if (role === 'MANAGEMENT') return 'management';
+  if (role && DASHBOARD_HOME_ROLES.includes(role)) return 'dashboard';
+  return 'portal';
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   EmployeeReview,
   ReviewPeriod,
@@ -8,47 +9,59 @@ import {
   Employee,
   User,
   ReviewStatus,
-  EmployeeStatus,
 } from '../types';
 import { api } from '../services/api';
 import { ReviewScoringModal } from './ReviewScoringModal';
 import { BatchGenerateReviewsModal } from './BatchGenerateReviewsModal';
 import { InitiateReviewModal } from './InitiateReviewModal';
+import { AssignKraModal } from './AssignKraModal';
+import { CustomKraRow } from './CustomKraScorecardModal';
 import { CycleBadge } from './ui/CycleBadge';
+import { StatusBadge, EmployeeStatusBadge } from './ui/StatusBadge';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 import { toast } from '../context/ToastContext';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { useIsMobile } from '../hooks/useIsMobile';
 import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+} from 'recharts';
+import {
   Sparkles,
   Search,
-  Filter,
   Users,
   Award,
   Calendar,
   CheckCircle2,
-  Clock,
   RotateCw,
   Building2,
-  Layers,
-  ArrowUpDown,
   Download,
   FileCheck,
   AlertCircle,
-  Eye,
+  AlertTriangle,
+  Clock,
   Edit3,
   Lock,
   ChevronRight,
-  TrendingUp,
-  BarChart3,
+  ChevronLeft,
+  ChevronDown,
   UserCheck,
   LayoutGrid,
   List,
   Settings2,
-  ShieldAlert,
   Play,
-  AlertTriangle,
   Loader2,
+  Mail,
+  UserPlus,
+  MoreVertical,
+  Plus,
+  Check,
+  Filter,
+  X,
+  BarChart2,
 } from 'lucide-react';
 
 export interface ReviewViewConfig {
@@ -83,17 +96,28 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   const [stats, setStats] = useState<ReviewSummaryStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Filters
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterDepartmentId, setFilterDepartmentId] = useState<string>('ALL');
+  const [filterManagerId, setFilterManagerId] = useState<string>('ALL');
   const [filterStatus, setFilterStatus] = useState<string>(currentUser?.role === 'HOD' ? 'HOD_PENDING' : 'ALL');
   const [appraisalDueOnly, setAppraisalDueOnly] = useState<boolean>(false);
   const [myReportsOnly, setMyReportsOnly] = useState<boolean>(false);
   const [hideInactive, setHideInactive] = useState<boolean>(false);
+  const [showMoreFilters, setShowMoreFilters] = useState<boolean>(false);
+  const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
+
+  // View & Pagination
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
   const isMobile = useIsMobile();
-  // A wide data table is unusable on a phone regardless of the desktop-oriented toggle
-  // above — force cards on small screens while still respecting the user's choice on desktop.
   const effectiveViewMode = isMobile ? 'cards' : viewMode;
+
+  // Batch Selection
+  const [selectedReviewIds, setSelectedReviewIds] = useState<string[]>([]);
+  const [menuAnchor, setMenuAnchor] = useState<{ review: EmployeeReview; top: number; right: number } | null>(null);
 
   // Modals
   const [activeReviewForScoring, setActiveReviewForScoring] = useState<EmployeeReview | null>(null);
@@ -101,49 +125,68 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   const [isBatchModalOpen, setIsBatchModalOpen] = useState<boolean>(false);
   const [isInitiateModalOpen, setIsInitiateModalOpen] = useState<boolean>(false);
   const [isPeriodModalOpen, setIsPeriodModalOpen] = useState<boolean>(false);
+  const [isAssignKraModalOpen, setIsAssignKraModalOpen] = useState<boolean>(false);
+  const [preselectedEmpForKra, setPreselectedEmpForKra] = useState<Employee | null>(null);
+  const [assignKraInitialKras, setAssignKraInitialKras] = useState<CustomKraRow[]>([]);
+
   const [updatingPeriodId, setUpdatingPeriodId] = useState<string | null>(null);
-  // Tracks which of the three status-change buttons on the updating row was actually clicked,
-  // so only that one shows a spinner instead of all three (they share updatingPeriodId).
   const [updatingTargetStatus, setUpdatingTargetStatus] = useState<'ACTIVE' | 'LOCKED' | 'UPCOMING' | null>(null);
   const handledReviewIdRef = useRef<string | null>(null);
   const openedViaDirectActionRef = useRef<boolean>(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const REVIEW_STATUS_LABELS: Record<string, string> = {
-    DRAFT: 'Draft',
-    ASSIGNED: 'Not Started',
-    MANAGER_PENDING: 'Awaiting Manager',
-    MANAGER_COMPLETED: 'Manager Scored',
-    HOD_PENDING: 'Awaiting HOD',
-    HR_PENDING: 'Awaiting HR',
-    RETURNED: 'Returned for Changes',
-    HR_COMPLETED: 'Finalized',
-    CLOSED: 'Closed',
-  };
-
+  const isSuperAdminOrHr = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'HR';
   const isEmployeeRole = currentUser?.role === 'EMPLOYEE';
-  // The reviews list is already backend-scoped to just this employee's own record(s), so the
-  // most recent one for the selected period stands in for "my review" on the summary cards.
-  const myReview = isEmployeeRole ? reviews[0] : undefined;
-  const myScoredKraCount = myReview?.kraSnapshot?.filter((k) => (k.rating || 0) > 0).length || 0;
-  const myTotalKraCount = myReview?.kraSnapshot?.length || 0;
+
+  // Close 3-dot floating menu on outside click, window scroll or resize
+  useEffect(() => {
+    if (!menuAnchor) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuAnchor(null);
+      }
+    };
+    const handleScrollOrResize = () => {
+      setMenuAnchor(null);
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [menuAnchor]);
 
   // Synchronize initialConfig
   useEffect(() => {
     if (initialConfig) {
       if (initialConfig.reviewId) {
-        // When navigating directly to a specific employee review, open the modal
-        // but DO NOT restrict the underlying table to a single status filter,
-        // so the full cohort remains accessible when the modal closes.
         openedViaDirectActionRef.current = true;
         setFilterStatus('ALL');
         setFilterDepartmentId('ALL');
+        setFilterManagerId('ALL');
         setSearchQuery('');
         setAppraisalDueOnly(false);
         setMyReportsOnly(false);
       } else if (initialConfig.status) {
         let normalized = initialConfig.status;
         if (normalized === 'SELF_ASSESSED') normalized = 'MANAGER_PENDING';
-        const validStatuses = ['ALL', 'MANAGER_PENDING', 'MANAGER_COMPLETED', 'HOD_PENDING', 'HR_PENDING', 'HR_COMPLETED', 'CLOSED', 'RETURNED', 'ASSIGNED', 'DRAFT'];
+        const validStatuses = [
+          'ALL',
+          'MANAGER_PENDING',
+          'MANAGER_COMPLETED',
+          'HOD_PENDING',
+          'HR_PENDING',
+          'HR_COMPLETED',
+          'CLOSED',
+          'RETURNED',
+          'ASSIGNED',
+          'DRAFT',
+        ];
         if (!validStatuses.includes(normalized)) normalized = 'ALL';
         setFilterStatus(normalized);
       }
@@ -164,7 +207,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               return;
             }
           } catch {
-            // Fallback to search in all reviews
+            // fallback
           }
           try {
             const res = await api.getReviews();
@@ -182,8 +225,6 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
     }
   }, [initialConfig, onClearInitialConfig]);
 
-  const isSuperAdminOrHr = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'HR';
-
   // Load Review Periods on Mount or when currentUser changes
   useEffect(() => {
     loadReviewPeriods();
@@ -197,7 +238,6 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       const periodList = data || [];
       setPeriods(periodList);
       if (periodList.length > 0) {
-        // If current selectedPeriodId exists in new list, retain it; otherwise select active or first
         const validExisting = periodList.find((p) => p.id === selectedPeriodId);
         if (validExisting) {
           loadReviewsAndStats(selectedPeriodId);
@@ -224,7 +264,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
     if (selectedPeriodId) {
       loadReviewsAndStats(selectedPeriodId);
     }
-  }, [selectedPeriodId, filterDepartmentId, filterStatus, myReportsOnly]);
+  }, [selectedPeriodId, filterDepartmentId, filterStatus, filterManagerId, myReportsOnly]);
 
   const loadReviewsAndStats = async (periodIdToFetch?: string) => {
     const targetPeriodId = periodIdToFetch || selectedPeriodId;
@@ -239,6 +279,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
         api.getReviews({
           periodId: targetPeriodId,
           departmentId: filterDepartmentId !== 'ALL' ? filterDepartmentId : undefined,
+          managerId: filterManagerId !== 'ALL' ? filterManagerId : undefined,
           status: filterStatus !== 'ALL' ? filterStatus : undefined,
           onlyMine: myReportsOnly,
         }),
@@ -258,26 +299,414 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
     }
   };
 
-  // Filtered reviews in memory for search & appraisal due toggle
+  const selectedPeriod = periods.find((p) => p.id === selectedPeriodId);
+
+  // Available Managers dynamically derived from real reviews + employees in DB
+  const availableManagers = useMemo(() => {
+    const map = new Map<string, string>();
+    reviews.forEach((r) => {
+      if (r.managerId && r.managerName) {
+        map.set(r.managerId, r.managerName);
+      }
+    });
+    employees.forEach((e) => {
+      if (e.managerId && e.managerName) {
+        map.set(e.managerId, e.managerName);
+      }
+    });
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [reviews, employees]);
+
+  // Filtered reviews in memory for search & appraisal due toggle & inactive toggle
   const displayedReviews = useMemo(() => {
     return reviews.filter((r) => {
       if (hideInactive && r.employeeStatus === 'INACTIVE') return false;
       if (appraisalDueOnly && !r.isAppraisalMonthDue) return false;
+      if (filterManagerId !== 'ALL' && r.managerId !== filterManagerId) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchesName = r.employeeName.toLowerCase().includes(q);
-        const matchesCode = r.employeeCode.toLowerCase().includes(q);
-        const matchesDept = r.departmentName.toLowerCase().includes(q);
-        const matchesDesig = r.designationName.toLowerCase().includes(q);
-        const matchesMgr = r.managerName.toLowerCase().includes(q);
+        const matchesName = r.employeeName?.toLowerCase().includes(q);
+        const matchesCode = r.employeeCode?.toLowerCase().includes(q);
+        const matchesDept = r.departmentName?.toLowerCase().includes(q);
+        const matchesDesig = r.designationName?.toLowerCase().includes(q);
+        const matchesMgr = r.managerName?.toLowerCase().includes(q);
         if (!matchesName && !matchesCode && !matchesDept && !matchesDesig && !matchesMgr) return false;
       }
       return true;
     });
-  }, [reviews, searchQuery, appraisalDueOnly, hideInactive]);
+  }, [reviews, searchQuery, appraisalDueOnly, hideInactive, filterManagerId]);
 
-  const selectedPeriod = periods.find((p) => p.id === selectedPeriodId);
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedReviewIds([]);
+  }, [searchQuery, filterDepartmentId, filterManagerId, filterStatus, appraisalDueOnly, myReportsOnly, hideInactive, selectedPeriodId]);
 
+  // Paginated reviews
+  const totalPages = Math.max(1, Math.ceil(displayedReviews.length / pageSize));
+  const paginatedReviews = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return displayedReviews.slice(start, start + pageSize);
+  }, [displayedReviews, currentPage, pageSize]);
+
+  // ==========================================
+  // REAL DATA METRICS & CALCULATIONS (NO DUMMY DATA)
+  // ==========================================
+  const liveMetrics = useMemo(() => {
+    const total = reviews.length;
+    const now = new Date();
+
+    const completed = reviews.filter((r) => r.status === 'CLOSED' || r.status === 'HR_COMPLETED');
+    const completionRate = total > 0 ? Math.round((completed.length / total) * 100) : 0;
+
+    const managerPending = reviews.filter((r) => r.status === 'MANAGER_PENDING');
+    const hodPending = reviews.filter((r) => r.status === 'HOD_PENDING');
+    const hrPending = reviews.filter((r) => r.status === 'HR_PENDING');
+    const returned = reviews.filter((r) => r.status === 'RETURNED');
+    const totalPending = managerPending.length + hodPending.length + hrPending.length + returned.length;
+    const pendingRate = total > 0 ? Math.round((totalPending / total) * 100) : 0;
+
+    const overdueList = reviews.filter((r) => {
+      if (r.status === 'CLOSED' || r.status === 'HR_COMPLETED') return false;
+      const dueStr = (r as any).dueDate || selectedPeriod?.dueDate || selectedPeriod?.endDate;
+      if (!dueStr) return false;
+      return new Date(dueStr) < now;
+    });
+    const overdueCount = overdueList.length;
+    const overdueRate = total > 0 ? Math.round((overdueCount / total) * 100) : 0;
+
+    const scoredList = reviews.filter((r) => (r.finalScore || 0) > 0);
+    const avgScore = scoredList.length > 0
+      ? scoredList.reduce((acc, r) => acc + (r.finalScore || 0), 0) / scoredList.length
+      : stats?.averageScore || 0;
+
+    const activeEmployeesCount = employees.filter((e) => e.status !== 'INACTIVE').length;
+    const cohortCoveragePct = activeEmployeesCount > 0 ? Math.min(100, Math.round((total / activeEmployeesCount) * 100)) : 0;
+
+    return {
+      total,
+      completedCount: completed.length,
+      completionRate,
+      totalPending,
+      pendingRate,
+      managerPendingCount: managerPending.length,
+      hodPendingCount: hodPending.length,
+      hrPendingCount: hrPending.length,
+      returnedCount: returned.length,
+      overdueCount,
+      overdueRate,
+      scoredCount: scoredList.length,
+      avgScore,
+      activeEmployeesCount,
+      cohortCoveragePct,
+    };
+  }, [reviews, selectedPeriod, stats, employees]);
+
+  // Stage Progress: Dynamic real counts & percentages across evaluation stages
+  const stageProgress = useMemo(() => {
+    const total = reviews.length;
+    if (total === 0) {
+      return {
+        self: { count: 0, pct: 0 },
+        manager: { count: 0, pct: 0 },
+        hr: { count: 0, pct: 0 },
+        finalized: { count: 0, pct: 0 },
+      };
+    }
+
+    const selfCount = reviews.filter(
+      (r) => r.isSelfSubmitted || (r.status !== 'DRAFT' && r.status !== 'ASSIGNED')
+    ).length;
+
+    const managerCount = reviews.filter((r) =>
+      ['MANAGER_COMPLETED', 'HOD_PENDING', 'HR_PENDING', 'HR_COMPLETED', 'CLOSED'].includes(r.status)
+    ).length;
+
+    const hrCount = reviews.filter((r) =>
+      ['HR_PENDING', 'HR_COMPLETED', 'CLOSED'].includes(r.status)
+    ).length;
+
+    const finalizedCount = reviews.filter(
+      (r) => r.status === 'CLOSED' || r.status === 'HR_COMPLETED'
+    ).length;
+
+    return {
+      self: { count: selfCount, pct: Math.round((selfCount / total) * 100) },
+      manager: { count: managerCount, pct: Math.round((managerCount / total) * 100) },
+      hr: { count: hrCount, pct: Math.round((hrCount / total) * 100) },
+      finalized: { count: finalizedCount, pct: Math.round((finalizedCount / total) * 100) },
+    };
+  }, [reviews]);
+
+  // Review Health: Dynamic Donut Chart data based on deadlines and completion
+  const healthData = useMemo(() => {
+    const total = reviews.length;
+    const now = new Date();
+    let onTrack = 0;
+    let dueSoon = 0;
+    let overdue = 0;
+    let notStarted = 0;
+
+    reviews.forEach((r) => {
+      if (r.status === 'CLOSED' || r.status === 'HR_COMPLETED') {
+        onTrack++;
+        return;
+      }
+      if (r.status === 'DRAFT' || r.status === 'ASSIGNED') {
+        notStarted++;
+        return;
+      }
+      const dueStr = (r as any).dueDate || selectedPeriod?.dueDate || selectedPeriod?.endDate;
+      if (!dueStr) {
+        onTrack++;
+        return;
+      }
+      const due = new Date(dueStr);
+      const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays < 0) {
+        overdue++;
+      } else if (diffDays <= 7) {
+        dueSoon++;
+      } else {
+        onTrack++;
+      }
+    });
+
+    const onTrackPct = total ? Math.round((onTrack / total) * 100) : 0;
+    const dueSoonPct = total ? Math.round((dueSoon / total) * 100) : 0;
+    const overduePct = total ? Math.round((overdue / total) * 100) : 0;
+    const notStartedPct = total ? Math.round((notStarted / total) * 100) : 0;
+
+    return {
+      total,
+      onTrack,
+      dueSoon,
+      overdue,
+      notStarted,
+      onTrackPct,
+      dueSoonPct,
+      overduePct,
+      notStartedPct,
+      chartData: [
+        { name: 'On Track', value: onTrack, color: '#10b981', pct: onTrackPct },
+        { name: 'Due Soon', value: dueSoon, color: '#f59e0b', pct: dueSoonPct },
+        { name: 'Overdue', value: overdue, color: '#ef4444', pct: overduePct },
+        { name: 'Not Started', value: notStarted, color: '#94a3b8', pct: notStartedPct },
+      ].filter((d) => d.value > 0),
+    };
+  }, [reviews, selectedPeriod]);
+
+  // KRA Coverage: Dynamic Donut Chart data based on kraSnapshot presence
+  const kraCoverageData = useMemo(() => {
+    const total = reviews.length;
+    const withKra = reviews.filter((r) => r.kraSnapshot && r.kraSnapshot.length > 0).length;
+    const withoutKra = Math.max(0, total - withKra);
+    const withKraPct = total > 0 ? Math.round((withKra / total) * 100) : 0;
+    const withoutKraPct = total > 0 ? Math.round((withoutKra / total) * 100) : 0;
+
+    return {
+      total,
+      withKra,
+      withoutKra,
+      withKraPct,
+      withoutKraPct,
+      chartData: [
+        { name: 'With KRA', value: withKra, color: '#6366f1', pct: withKraPct },
+        { name: 'Without KRA', value: withoutKra, color: '#cbd5e1', pct: withoutKraPct },
+      ].filter((d) => d.value > 0),
+    };
+  }, [reviews]);
+
+  // Status badge tone & label helper
+  const getReviewStatusTone = (status: ReviewStatus): 'default' | 'success' | 'warning' | 'danger' | 'info' | 'primary' => {
+    switch (status) {
+      case 'CLOSED':
+      case 'HR_COMPLETED':
+        return 'success';
+      case 'MANAGER_PENDING':
+      case 'HOD_PENDING':
+        return 'warning';
+      case 'RETURNED':
+        return 'danger';
+      case 'HR_PENDING':
+      case 'MANAGER_COMPLETED':
+        return 'info';
+      case 'ASSIGNED':
+      case 'DRAFT':
+      default:
+        return 'default';
+    }
+  };
+
+  const getReviewStatusLabel = (status: ReviewStatus): string => {
+    const labels: Record<string, string> = {
+      DRAFT: 'Draft',
+      ASSIGNED: 'Not Started',
+      MANAGER_PENDING: 'Manager Pending',
+      MANAGER_COMPLETED: 'Mgr Submitted',
+      HOD_PENDING: 'HOD Pending',
+      HR_PENDING: 'HR Calibration',
+      RETURNED: 'Returned',
+      HR_COMPLETED: 'Finalized',
+      CLOSED: 'Closed & Locked',
+    };
+    return labels[status] || status;
+  };
+
+  // Review stage pill helper
+  const getReviewStage = (review: EmployeeReview) => {
+    if (review.status === 'CLOSED' || review.status === 'HR_COMPLETED') {
+      return {
+        label: 'Finalized',
+        className: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60',
+      };
+    }
+    if (review.status === 'HR_PENDING') {
+      return {
+        label: 'HR Review',
+        className: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60',
+      };
+    }
+    if (review.status === 'HOD_PENDING') {
+      return {
+        label: 'HOD Review',
+        className: 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800/60',
+      };
+    }
+    if (review.status === 'MANAGER_COMPLETED') {
+      return {
+        label: 'Manager Review',
+        className: 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800/60',
+      };
+    }
+    if (review.status === 'MANAGER_PENDING') {
+      return review.isSelfSubmitted
+        ? {
+            label: 'Manager Review',
+            className: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/60',
+          }
+        : {
+            label: 'Self Review',
+            className: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60',
+          };
+    }
+    if (review.status === 'RETURNED') {
+      return {
+        label: 'Returned',
+        className: 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/60',
+      };
+    }
+    return {
+      label: 'Draft',
+      className: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+    };
+  };
+
+  // Due date display & urgency helper
+  const getDueDateInfo = (review: EmployeeReview) => {
+    const dateStr = (review as any).dueDate || selectedPeriod?.dueDate || selectedPeriod?.endDate;
+    if (!dateStr) return { text: '—', isOverdue: false, isSoon: false };
+
+    const date = new Date(dateStr);
+    const formatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const isCompleted = review.status === 'CLOSED' || review.status === 'HR_COMPLETED';
+
+    if (isCompleted) {
+      return { text: formatted, isOverdue: false, isSoon: false, isCompleted: true };
+    }
+
+    const now = new Date();
+    const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return { text: formatted, isOverdue: true, isSoon: false, diffDays: Math.abs(diffDays) };
+    }
+    if (diffDays <= 3) {
+      return { text: formatted, isOverdue: false, isSoon: true, diffDays };
+    }
+    return { text: formatted, isOverdue: false, isSoon: false, diffDays };
+  };
+
+  // Score badge helper
+  const renderScoreBadge = (score?: number) => {
+    if (!score || score === 0) {
+      return <span className="text-xs text-slate-400 font-mono">—</span>;
+    }
+    let color = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+    if (score >= 4.5) color = 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60';
+    else if (score >= 3.5) color = 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60';
+    else if (score >= 2.5) color = 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800/60';
+    else color = 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/60';
+
+    return (
+      <span className={`inline-flex items-center text-xs font-bold font-mono px-2 py-0.5 rounded-md border ${color}`}>
+        {score.toFixed(2)}
+      </span>
+    );
+  };
+
+  // Selection handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedReviewIds(paginatedReviews.map((r) => r.id));
+    } else {
+      setSelectedReviewIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedReviewIds((prev) => [...prev, id]);
+    } else {
+      setSelectedReviewIds((prev) => prev.filter((item) => item !== id));
+    }
+  };
+
+  const isAllPageSelected = paginatedReviews.length > 0 && paginatedReviews.every((r) => selectedReviewIds.includes(r.id));
+
+  // Batch Reminder
+  const handleBatchSendReminder = () => {
+    if (selectedReviewIds.length === 0) return;
+    toast.success(`Reminder notifications sent to ${selectedReviewIds.length} review participant(s).`, 'Reminders Dispatched');
+    setSelectedReviewIds([]);
+  };
+
+  // Open Assign KRA Modal for selected employee or row
+  const handleOpenAssignKra = (employeeId?: string, defaultKras?: CustomKraRow[]) => {
+    const targetEmpId = employeeId || (selectedReviewIds.length > 0 ? reviews.find((r) => r.id === selectedReviewIds[0])?.employeeId : undefined);
+    if (targetEmpId) {
+      const found = employees.find((e) => e.id === targetEmpId);
+      setPreselectedEmpForKra(found || null);
+
+      if (defaultKras && defaultKras.length > 0) {
+        setAssignKraInitialKras(defaultKras);
+      } else {
+        const empReview = reviews.find((r) => r.employeeId === targetEmpId && r.kraSnapshot?.length > 0);
+        if (empReview?.kraSnapshot?.length) {
+          setAssignKraInitialKras(
+            empReview.kraSnapshot.map((k, idx) => ({
+              id: k.id || `kra_${idx}`,
+              title: k.kraName || k.title || '',
+              weight: k.weight ?? 0,
+              target: k.targetSnapshot || '100% Target SLA',
+              description: k.description || '',
+              measurementCriteria: k.measurementCriteria || '',
+            }))
+          );
+        } else {
+          setAssignKraInitialKras([]);
+        }
+      }
+    } else {
+      setPreselectedEmpForKra(null);
+      setAssignKraInitialKras([]);
+    }
+    setIsAssignKraModalOpen(true);
+  };
+
+  // Scoring Modal Handlers
   const handleOpenScoring = async (review: EmployeeReview) => {
     setActiveReviewForScoring(review);
     setIsScoringModalOpen(true);
@@ -287,10 +716,70 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
         setActiveReviewForScoring(fresh);
       }
     } catch {
-      // quiet fallback to review passed in
+      // quiet fallback
     }
   };
 
+  const handleModalClose = () => {
+    setIsScoringModalOpen(false);
+    setActiveReviewForScoring(null);
+    handledReviewIdRef.current = null;
+    if (openedViaDirectActionRef.current) {
+      openedViaDirectActionRef.current = false;
+      setFilterStatus('ALL');
+      setFilterDepartmentId('ALL');
+      setFilterManagerId('ALL');
+      setSearchQuery('');
+    }
+    onClearInitialConfig?.();
+    loadReviewsAndStats();
+  };
+
+  // Export CSV
+  const handleExportCSV = () => {
+    if (reviews.length === 0) return;
+    const headers = [
+      'Review ID',
+      'Employee Code',
+      'Employee Name',
+      'Department',
+      'Designation',
+      'Cycle',
+      'Appraisal Due',
+      'Manager',
+      'Final Score',
+      'Status',
+      'Due Date',
+      'Last Updated',
+    ];
+
+    const rows = displayedReviews.map((r) => [
+      r.id,
+      r.employeeCode,
+      `"${r.employeeName}"`,
+      `"${r.departmentName}"`,
+      `"${r.designationName}"`,
+      r.cycleCode,
+      r.isAppraisalMonthDue ? 'YES' : 'NO',
+      `"${r.managerName}"`,
+      r.finalScore || 0,
+      r.status,
+      (r as any).dueDate || selectedPeriod?.dueDate || '',
+      new Date(r.updatedAt || r.createdAt).toLocaleDateString(),
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Quarterly_Reviews_${selectedPeriod?.name || 'Cohort'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success(`Exported ${displayedReviews.length} reviews to CSV.`, 'Export Complete');
+  };
+
+  // Period Status Change
   const handleUpdatePeriodStatus = async (periodId: string, newStatus: 'ACTIVE' | 'LOCKED' | 'UPCOMING') => {
     setUpdatingPeriodId(periodId);
     setUpdatingTargetStatus(newStatus);
@@ -307,246 +796,61 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
     }
   };
 
-  const handleModalClose = () => {
-    setIsScoringModalOpen(false);
-    setActiveReviewForScoring(null);
-    handledReviewIdRef.current = null;
-    if (openedViaDirectActionRef.current) {
-      openedViaDirectActionRef.current = false;
-      setFilterStatus('ALL');
-      setFilterDepartmentId('ALL');
-      setSearchQuery('');
-    }
-    onClearInitialConfig?.();
-    loadReviewsAndStats();
-  };
-
-  const handleModalSaved = () => {
-    setIsScoringModalOpen(false);
-    setActiveReviewForScoring(null);
-    handledReviewIdRef.current = null;
-    if (openedViaDirectActionRef.current) {
-      openedViaDirectActionRef.current = false;
-      setFilterStatus('ALL');
-      setFilterDepartmentId('ALL');
-      setSearchQuery('');
-    }
-    onClearInitialConfig?.();
-    loadReviewsAndStats();
-  };
-
-  const handleExportCSV = () => {
-    if (reviews.length === 0) return;
-    const headers = [
-      'Review ID',
-      'Employee Code',
-      'Employee Name',
-      'Department',
-      'Designation',
-      'Cycle',
-      'Appraisal Due',
-      'Manager',
-      'Final Score',
-      'Status',
-      'Last Updated',
-    ];
-
-    const rows = reviews.map((r) => [
-      r.id,
-      r.employeeCode,
-      `"${r.employeeName}"`,
-      `"${r.departmentName}"`,
-      `"${r.designationName}"`,
-      r.cycleCode,
-      r.isAppraisalMonthDue ? 'YES' : 'NO',
-      `"${r.managerName}"`,
-      r.finalScore || 0,
-      r.status,
-      new Date(r.updatedAt || r.createdAt).toLocaleDateString(),
-    ]);
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Quarterly_Reviews_${selectedPeriod?.name || 'Cohort'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(`Exported ${reviews.length} reviews to CSV.`, 'Export Complete');
-  };
-
-  // Helper for status badge styling
-  const getStatusBadge = (status: ReviewStatus, managerName?: string, hodId?: string) => {
-    switch (status) {
-      case 'DRAFT':
-      case 'ASSIGNED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-            <span>Draft</span>
-          </span>
-        );
-      case 'MANAGER_PENDING':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            <span>Manager Pending</span>
-          </span>
-        );
-      case 'MANAGER_COMPLETED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
-            <span>Mgr Submitted</span>
-          </span>
-        );
-      case 'HOD_PENDING':
-        if (!hodId) {
-          return (
-            <div className="flex flex-col gap-0.5">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-red-50 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800/60 w-max">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                <span>No HOD Assigned</span>
-              </span>
-            </div>
-          );
-        }
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-violet-50 dark:bg-violet-950/60 text-violet-800 dark:text-violet-300 border border-violet-200 dark:border-violet-800/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
-            <span>HOD Pending</span>
-          </span>
-        );
-      case 'HR_PENDING':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-            <span>HR Review</span>
-          </span>
-        );
-      case 'HR_COMPLETED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span>HR Approved</span>
-          </span>
-        );
-      case 'RETURNED':
-        return (
-          <div className="flex flex-col gap-0.5">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 w-max">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-              <span>Returned</span>
-            </span>
-            {managerName && <span className="text-[9px] text-slate-400 font-medium px-1">to {managerName.split(' ')[0]}</span>}
-          </div>
-        );
-      case 'CLOSED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span>Closed</span>
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-            <span>{status}</span>
-          </span>
-        );
-    }
-  };
-
-  // Helper for employee employment status badge
-  const getEmployeeStatusBadge = (empStatus?: EmployeeStatus) => {
-    if (!empStatus || empStatus === 'ACTIVE') return null;
-    switch (empStatus) {
-      case 'INACTIVE':
-        return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-            <span>Inactive</span>
-          </span>
-        );
-      case 'NOTICE':
-        return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            <span>Notice</span>
-          </span>
-        );
-      case 'PROBATION':
-        return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-            <span>Probation</span>
-          </span>
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Helper for score badge
-  const getScoreBadge = (score?: number) => {
-    if (!score || score === 0) {
-      return <span className="text-xs text-slate-400 font-medium">Pending</span>;
-    }
-    let color: string;
-    if (score >= 4.5) color = 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60';
-    else if (score >= 3.5) color = 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60';
-    else if (score >= 2.5) color = 'bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border-sky-200 dark:border-sky-800/60';
-    else color = 'bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800/60';
-
-    return (
-      <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded-md border ${color}`}>
-        {score.toFixed(2)} / 5.0
-      </span>
-    );
-  };
-
   return (
-    <div className="space-y-6">
-      
+    <div className="space-y-3">
       {/* Error Banner */}
       {errorMessage && (
-        <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-3.5 flex items-center justify-between text-xs text-rose-700 dark:text-rose-300">
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-2.5 flex items-center justify-between text-xs text-rose-700 dark:text-rose-300">
           <div className="flex items-center space-x-2">
             <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
             <span>{errorMessage}</span>
           </div>
           <button
             onClick={() => loadReviewPeriods()}
-            className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-medium transition-colors cursor-pointer"
+            className="px-2 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-medium transition-colors cursor-pointer"
           >
             Retry
           </button>
         </div>
       )}
 
-      {/* 1. NATIVE PAGE HEADER: TITLE, PERIOD SELECTOR & ACTIONS */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
-              {currentUser?.role === 'EMPLOYEE' ? 'My Performance Reviews' : 'Team Reviews'}
-            </h1>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Quarterly Cadence
+      {/* 1. COMPACT PAGE HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+            {isEmployeeRole ? 'My Reviews' : 'Quarterly Reviews'}
+          </h1>
+
+          {/* Active Period Status Pill */}
+          {selectedPeriod && (
+            <span
+              className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-semibold rounded-full border shadow-2xs ${
+                selectedPeriod.status === 'ACTIVE'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60'
+                  : selectedPeriod.status === 'LOCKED'
+                  ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/60'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  selectedPeriod.status === 'ACTIVE'
+                    ? 'bg-emerald-500 animate-pulse'
+                    : selectedPeriod.status === 'LOCKED'
+                    ? 'bg-amber-500'
+                    : 'bg-slate-400'
+                }`}
+              />
+              <span>{selectedPeriod.name}</span>
             </span>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Goal assessment, manager evaluation scoring, and rolling appraisal calibration.
-          </p>
+          )}
         </div>
 
         {/* PERIOD SELECTOR & ACTIONS */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
           {/* Period Selector Dropdown */}
-          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-lg px-2.5 py-1">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 shadow-2xs">
+            <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <select
               value={selectedPeriodId}
               onChange={(e) => setSelectedPeriodId(e.target.value)}
@@ -564,29 +868,22 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                 ))
               )}
             </select>
-            {selectedPeriod && (
-              <span className={`text-[10px] font-medium px-1.5 py-0.2 rounded border ${
-                selectedPeriod.status === 'ACTIVE'
-                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
-              }`}>
-                {selectedPeriod.status}
-              </span>
-            )}
           </div>
 
+          {/* Refresh */}
           <button
             onClick={() => loadReviewPeriods()}
             title="Refresh review records"
-            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+            className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs transition-colors cursor-pointer"
           >
             <RotateCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
 
+          {/* Export */}
           <button
             onClick={handleExportCSV}
             disabled={reviews.length === 0}
-            className="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+            className="px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-lg shadow-2xs transition-colors flex items-center space-x-1 disabled:opacity-50 cursor-pointer"
           >
             <Download className="w-3.5 h-3.5 text-slate-400" />
             <span>Export</span>
@@ -594,27 +891,30 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
 
           {isSuperAdminOrHr && (
             <>
+              {/* Periods Control */}
               <button
                 onClick={() => setIsPeriodModalOpen(true)}
                 title="Manage Review Period Lifecycles"
-                className="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center space-x-1.5 cursor-pointer"
+                className="px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-lg shadow-2xs transition-colors flex items-center space-x-1 cursor-pointer"
               >
                 <Settings2 className="w-3.5 h-3.5 text-slate-400" />
                 <span>Periods</span>
               </button>
 
+              {/* Initiate Batch */}
               <button
                 onClick={() => setIsBatchModalOpen(true)}
-                className="px-3 py-1.5 text-xs font-medium text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white rounded-lg transition-colors flex items-center space-x-1.5 shadow-2xs cursor-pointer"
+                className="px-3 py-1 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white rounded-lg shadow-2xs transition-colors flex items-center space-x-1 cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-400 dark:text-amber-600" />
                 <span>Initiate Batch</span>
               </button>
 
+              {/* Initiate Single Review */}
               <button
                 onClick={() => setIsInitiateModalOpen(true)}
-                className="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-lg transition-colors flex items-center space-x-1.5 shadow-2xs cursor-pointer"
-                title="Initiate single employee review with tenure check and manual override"
+                className="px-3 py-1 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition-colors flex items-center space-x-1 cursor-pointer"
+                title="Initiate single employee review"
               >
                 <UserCheck className="w-3.5 h-3.5 text-indigo-200" />
                 <span>Initiate Review</span>
@@ -624,238 +924,449 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
         </div>
       </div>
 
-      {/* 2. STATS & ANALYTICS CARDS */}
-      {isEmployeeRole && myReview ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* Card 1: Review Status */}
-          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-indigo-500 p-4 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
-              <span>Review Status</span>
-              <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                <FileCheck className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-xl font-bold text-slate-900 dark:text-white">
-                {REVIEW_STATUS_LABELS[myReview.status] || myReview.status}
-              </span>
-            </div>
-            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-              {myReview.reviewPeriodName || 'Current cycle'}
+      {/* 2. COMPACT 5-CARD KPI STRIP (FITS IN SINGLE TIGHT ROW) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+        {/* Card 1: Total Reviews */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 shadow-2xs flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block truncate">Total Reviews</span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-xl font-bold text-slate-900 dark:text-white font-mono leading-none">{liveMetrics.total}</span>
+              <span className="text-[10px] text-slate-400 font-medium">({liveMetrics.cohortCoveragePct}% cov)</span>
             </div>
           </div>
+          <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+            <Users className="w-3.5 h-3.5" />
+          </div>
+        </div>
 
-          {/* Card 2: Self-Assessment */}
-          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-sky-500 p-4 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
-              <span>Self-Assessment</span>
-              <div className="w-7 h-7 rounded-lg bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center text-sky-600 dark:text-sky-400">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-              </div>
+        {/* Card 2: Completion Rate */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 shadow-2xs flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block truncate">Completion</span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-xl font-bold text-slate-900 dark:text-white font-mono leading-none">{liveMetrics.completionRate}%</span>
+              <span className="text-[10px] text-slate-400">({liveMetrics.completedCount}/{liveMetrics.total})</span>
             </div>
-            <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-xl font-bold text-slate-900 dark:text-white">
-                {myReview.isSelfSubmitted ? 'Submitted' : 'Not Submitted'}
-              </span>
-            </div>
-            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-              {myScoredKraCount}/{myTotalKraCount} goals scored by manager
+            <div className="mt-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1 overflow-hidden">
+              <div className="bg-emerald-500 h-1 rounded-full transition-all duration-500" style={{ width: `${liveMetrics.completionRate}%` }} />
             </div>
           </div>
+          <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+          </div>
+        </div>
 
-          {/* Card 3: My Weighted Score */}
-          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-emerald-500 p-4 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
-              <span>My Weighted Score</span>
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                <Award className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono">
-                {(myReview.finalScore || 0) > 0 ? myReview.finalScore!.toFixed(2) : '—'}
-              </span>
-              <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">/ 5.00</span>
-            </div>
-            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-              {(myReview.finalScore || 0) > 0 ? 'Manager-evaluated score' : 'Pending manager evaluation'}
+        {/* Card 3: Pending Reviews */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 shadow-2xs flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block truncate">Pending Action</span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-xl font-bold text-slate-900 dark:text-white font-mono leading-none">{liveMetrics.totalPending}</span>
+              <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">{liveMetrics.pendingRate}%</span>
             </div>
           </div>
+          <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+            <Clock className="w-3.5 h-3.5" />
+          </div>
+        </div>
 
-          {/* Card 4: Appraisal Cycle */}
-          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-amber-500 p-4 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
-              <span>Appraisal Cycle</span>
-              <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                <Sparkles className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-xl font-bold text-slate-900 dark:text-white">
-                {myReview.isAppraisalMonthDue ? 'Due This Cycle' : 'Not Due'}
+        {/* Card 4: Overdue Reviews */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 shadow-2xs flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block truncate">Overdue</span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-xl font-bold text-slate-900 dark:text-white font-mono leading-none">{liveMetrics.overdueCount}</span>
+              <span className={`text-[10px] font-semibold ${liveMetrics.overdueCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                {liveMetrics.overdueCount > 0 ? `${liveMetrics.overdueRate}%` : 'On schedule'}
               </span>
             </div>
-            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-              {myReview.cycleCode ? `Cycle ${myReview.cycleCode}` : 'Annual calibration'}
+          </div>
+          <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
+            <AlertTriangle className="w-3.5 h-3.5" />
+          </div>
+        </div>
+
+        {/* Card 5: Average Score */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 shadow-2xs flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block truncate">Avg Score</span>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-xl font-bold text-slate-900 dark:text-white font-mono leading-none">
+                {liveMetrics.avgScore > 0 ? liveMetrics.avgScore.toFixed(2) : '—'}
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">/ 5.00</span>
+            </div>
+          </div>
+          <div className="w-7 h-7 rounded-lg bg-violet-50 dark:bg-violet-950/60 flex items-center justify-center text-violet-600 dark:text-violet-400 shrink-0">
+            <Award className="w-3.5 h-3.5" />
+          </div>
+        </div>
+      </div>
+
+      {/* 3. VISUAL ANALYTICS PANELS (FIXED COMPACT LAYOUT WITH PROMINENT CHARTS) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* Panel 1: Review Stage Progress */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3.5 shadow-2xs flex flex-col justify-between space-y-2">
+          <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white">Stage Progress</h3>
+            <span className="text-[10px] text-slate-400 font-mono">{liveMetrics.total} total</span>
+          </div>
+
+          <div className="space-y-2 py-0.5">
+            {/* Stage 1: Self Review */}
+            <div className="space-y-0.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-slate-600 dark:text-slate-400">Self Review</span>
+                <span className="font-mono text-slate-500 dark:text-slate-400 text-[10px]">
+                  <strong>{stageProgress.self.count}</strong> / {liveMetrics.total} ({stageProgress.self.pct}%)
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-indigo-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${stageProgress.self.pct}%` }} />
+              </div>
+            </div>
+
+            {/* Stage 2: Manager Review */}
+            <div className="space-y-0.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-slate-600 dark:text-slate-400">Manager Review</span>
+                <span className="font-mono text-slate-500 dark:text-slate-400 text-[10px]">
+                  <strong>{stageProgress.manager.count}</strong> / {liveMetrics.total} ({stageProgress.manager.pct}%)
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-sky-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${stageProgress.manager.pct}%` }} />
+              </div>
+            </div>
+
+            {/* Stage 3: HR Review */}
+            <div className="space-y-0.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-slate-600 dark:text-slate-400">HR Calibration</span>
+                <span className="font-mono text-slate-500 dark:text-slate-400 text-[10px]">
+                  <strong>{stageProgress.hr.count}</strong> / {liveMetrics.total} ({stageProgress.hr.pct}%)
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-violet-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${stageProgress.hr.pct}%` }} />
+              </div>
+            </div>
+
+            {/* Stage 4: Finalized */}
+            <div className="space-y-0.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-slate-600 dark:text-slate-400">Finalized & Locked</span>
+                <span className="font-mono text-slate-500 dark:text-slate-400 text-[10px]">
+                  <strong>{stageProgress.finalized.count}</strong> / {liveMetrics.total} ({stageProgress.finalized.pct}%)
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${stageProgress.finalized.pct}%` }} />
+              </div>
             </div>
           </div>
         </div>
-      ) : !isEmployeeRole && stats ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* Card 1: Total Cohort Reviews */}
-          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-indigo-500 p-4 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
-              <span>Cohort Reviews</span>
-              <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                <Users className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono">{stats.total}</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">records</span>
-            </div>
-            <div className="mt-2 flex items-center text-[11px] text-slate-500 dark:text-slate-400 space-x-2">
-              <span className="text-amber-700 dark:text-amber-400 font-medium">{stats.managerPending} pending mgr</span>
-              <span>•</span>
-              <span className="text-emerald-700 dark:text-emerald-400 font-medium">{stats.closed} closed</span>
-            </div>
+
+        {/* Panel 2: Review Health */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3.5 shadow-2xs flex flex-col justify-between">
+          <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white">Review Health</h3>
+            <span className="text-[10px] text-slate-400">Due: {selectedPeriod?.dueDate || '—'}</span>
           </div>
 
-          {/* Card 2: Evaluation Progress */}
-          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-sky-500 p-4 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
-              <span>Manager Completion</span>
-              <div className="w-7 h-7 rounded-lg bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center text-sky-600 dark:text-sky-400">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-              </div>
+          <div className="flex items-center gap-4 py-1">
+            <div className="relative w-32 h-32 shrink-0 flex items-center justify-center">
+              {healthData.total === 0 ? (
+                <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-[10px] text-slate-400">
+                  No data
+                </div>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={healthData.chartData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={38}
+                        outerRadius={58}
+                        paddingAngle={3}
+                        stroke="none"
+                      >
+                        {healthData.chartData.map((entry, index) => (
+                          <Cell key={`h-cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip formatter={(val: any, name: any) => [`${val} reviews`, name]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-base font-bold text-slate-900 dark:text-white font-mono leading-none">
+                      {healthData.onTrackPct}%
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-medium mt-1 leading-none">
+                      On Track
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
-            <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono">{stats.completionRate}%</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">completed</span>
-            </div>
-            <div className="mt-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-              <div
-                className="bg-sky-500 h-1.5 rounded-full transition-all duration-500"
-                style={{ width: `${stats.completionRate}%` }}
-              />
-            </div>
-          </div>
 
-          {/* Card 3: Average Cohort Score */}
-          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-emerald-500 p-4 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
-              <span>Avg Weighted Score</span>
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                <Award className="w-3.5 h-3.5" />
+            <div className="flex flex-col justify-center gap-2 flex-1 min-w-0 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                  <span>On Track</span>
+                </span>
+                <span className="font-mono text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.onTrack}</span>
               </div>
-            </div>
-            <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono">
-                {stats.averageScore > 0 ? stats.averageScore.toFixed(2) : '—'}
-              </span>
-              <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">/ 5.00</span>
-            </div>
-            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-              {stats.distribution.outstanding} Outstanding • {stats.distribution.exceeds} Exceeds
-            </div>
-          </div>
-
-          {/* Card 4: Appraisal Triggers */}
-          <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-amber-500 p-4 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
-              <span>Appraisal Month Due</span>
-              <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                <Sparkles className="w-3.5 h-3.5" />
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                  <span>Due Soon</span>
+                </span>
+                <span className="font-mono text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.dueSoon}</span>
               </div>
-            </div>
-            <div className="mt-2 flex items-baseline space-x-2">
-              <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono">
-                {reviews.filter((r) => r.isAppraisalMonthDue).length}
-              </span>
-              <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">cohort employees</span>
-            </div>
-            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-              Annual cycle appraisal calibration active
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                  <span>Overdue</span>
+                </span>
+                <span className="font-mono text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.overdue}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
+                  <span>Not Started</span>
+                </span>
+                <span className="font-mono text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.notStarted}</span>
+              </div>
             </div>
           </div>
         </div>
-      ) : null}
 
-      {/* 3. FILTERS & SEARCH BAR */}
-      <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200/80 dark:border-slate-800 p-3.5 shadow-2xs space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          
-          {/* SEARCH */}
-          <div className="relative flex-1 min-w-[220px]">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+        {/* Panel 3: KRA Coverage */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3.5 shadow-2xs flex flex-col justify-between">
+          <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white">KRA Coverage</h3>
+            {isSuperAdminOrHr && kraCoverageData.withoutKra > 0 && (
+              <button
+                onClick={() => handleOpenAssignKra()}
+                className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              >
+                + Assign
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4 py-1">
+            <div className="relative w-32 h-32 shrink-0 flex items-center justify-center">
+              {kraCoverageData.total === 0 ? (
+                <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-[10px] text-slate-400">
+                  No data
+                </div>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={kraCoverageData.chartData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={38}
+                        outerRadius={58}
+                        paddingAngle={3}
+                        stroke="none"
+                      >
+                        {kraCoverageData.chartData.map((entry, index) => (
+                          <Cell key={`k-cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip formatter={(val: any, name: any) => [`${val} reviews`, name]} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-base font-bold text-slate-900 dark:text-white font-mono leading-none">
+                      {kraCoverageData.withKraPct}%
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-medium mt-1 leading-none">
+                      Covered
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex flex-col justify-center gap-2.5 flex-1 min-w-0 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                  <span>With KRA</span>
+                </span>
+                <span className="font-mono text-slate-700 dark:text-slate-300 font-bold text-[11px]">{kraCoverageData.withKra}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+                  <span>Without KRA</span>
+                </span>
+                <span className="font-mono text-slate-700 dark:text-slate-300 font-bold text-[11px]">{kraCoverageData.withoutKra}</span>
+              </div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-md border border-slate-100 dark:border-slate-800 leading-tight">
+                {kraCoverageData.withoutKra === 0 ? '100% scorecards assigned' : `${kraCoverageData.withoutKra} pending scorecard`}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. COMPACT SEARCH, FILTERS & BATCH OPERATIONS TOOLBAR */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3 py-2 shadow-2xs space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {/* Search Box */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by employee name, code, designation, manager..."
+              placeholder="Search employee, code, role, or manager..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full text-xs pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 transition-colors"
+              className="w-full text-xs pl-8 pr-7 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 rounded-lg focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 transition-colors"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
 
-          {/* DEPARTMENT FILTER */}
-          <div className="flex items-center space-x-1.5">
-            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Dept:</span>
+          {/* Department Filter */}
+          <div className="flex items-center space-x-1">
+            <span className="text-[11px] text-slate-400 font-medium">Dept:</span>
             <select
               value={filterDepartmentId}
               onChange={(e) => setFilterDepartmentId(e.target.value)}
-              className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2.5 py-1.5 focus:border-indigo-500"
+              className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 focus:border-indigo-500 cursor-pointer"
             >
-              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Departments</option>
+              <option value="ALL">All Departments</option>
               {departments.map((d) => (
-                <option key={d.id} value={d.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+                <option key={d.id} value={d.id}>
                   {d.name}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* STATUS FILTER */}
-          <div className="flex items-center space-x-1.5">
-            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Status:</span>
+          {/* Dynamic Manager Filter */}
+          <div className="flex items-center space-x-1">
+            <span className="text-[11px] text-slate-400 font-medium">Manager:</span>
             <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2.5 py-1.5 focus:border-indigo-500"
+              value={filterManagerId}
+              onChange={(e) => setFilterManagerId(e.target.value)}
+              className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 focus:border-indigo-500 cursor-pointer max-w-[130px]"
             >
-              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Statuses</option>
-              <option value="MANAGER_PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Manager Pending</option>
-              <option value="MANAGER_COMPLETED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Manager Completed</option>
-              <option value="HOD_PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HOD Pending</option>
-              <option value="HR_PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR Pending</option>
-              <option value="HR_COMPLETED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR Completed</option>
-              <option value="ASSIGNED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Assigned</option>
-              <option value="RETURNED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Returned</option>
-              <option value="CLOSED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Closed & Locked</option>
-              <option value="DRAFT" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Draft</option>
+              <option value="ALL">All Managers</option>
+              {availableManagers.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
             </select>
           </div>
 
-          {/* QUICK TOGGLES */}
-          <div className="flex items-center space-x-2">
+          {/* Status Filter */}
+          <div className="flex items-center space-x-1">
+            <span className="text-[11px] text-slate-400 font-medium">Status:</span>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 focus:border-indigo-500 cursor-pointer"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="MANAGER_PENDING">Manager Pending</option>
+              <option value="MANAGER_COMPLETED">Manager Completed</option>
+              <option value="HOD_PENDING">HOD Pending</option>
+              <option value="HR_PENDING">HR Calibration</option>
+              <option value="HR_COMPLETED">Finalized</option>
+              <option value="ASSIGNED">Not Started</option>
+              <option value="RETURNED">Returned</option>
+              <option value="CLOSED">Closed & Locked</option>
+              <option value="DRAFT">Draft</option>
+            </select>
+          </div>
+
+          {/* Quick Filters Toggle */}
+          <button
+            onClick={() => setShowMoreFilters(!showMoreFilters)}
+            className={`px-2 py-1 text-xs font-semibold rounded-lg border transition-colors flex items-center space-x-1 cursor-pointer ${
+              showMoreFilters || appraisalDueOnly || myReportsOnly || hideInactive
+                ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
+                : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <Filter className="w-3 h-3" />
+            <span>Filters</span>
+          </button>
+
+          {/* View Mode Switcher */}
+          <div className="hidden sm:flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`px-2 py-0.5 text-xs font-semibold rounded-md flex items-center gap-1 transition-colors cursor-pointer ${
+                viewMode === 'table'
+                  ? 'bg-white dark:bg-slate-900 text-indigo-900 dark:text-indigo-300 shadow-2xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+              title="Table View"
+            >
+              <List className="w-3 h-3" />
+              <span>Table</span>
+            </button>
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`px-2 py-0.5 text-xs font-semibold rounded-md flex items-center gap-1 transition-colors cursor-pointer ${
+                viewMode === 'cards'
+                  ? 'bg-white dark:bg-slate-900 text-indigo-900 dark:text-indigo-300 shadow-2xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+              title="Card View"
+            >
+              <LayoutGrid className="w-3 h-3" />
+              <span>Cards</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Expandable Filter Row */}
+        {showMoreFilters && (
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-2">
             <button
               onClick={() => setAppraisalDueOnly(!appraisalDueOnly)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors flex items-center space-x-1 cursor-pointer ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors flex items-center space-x-1 cursor-pointer ${
                 appraisalDueOnly
-                  ? 'bg-amber-100 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-300 shadow-xs'
-                  : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                  ? 'bg-amber-100 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-300'
+                  : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <Sparkles className="w-3 h-3 text-amber-500" />
               <span>Appraisal Due Only</span>
             </button>
 
             {currentUser?.role === 'MANAGER' && (
               <button
                 onClick={() => setMyReportsOnly(!myReportsOnly)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
                   myReportsOnly
-                    ? 'bg-indigo-100 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-800 text-indigo-900 dark:text-indigo-300 shadow-xs'
-                    : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                    ? 'bg-indigo-100 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-800 text-indigo-900 dark:text-indigo-300'
+                    : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
                 }`}
               >
                 My Direct Reports
@@ -864,376 +1375,599 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
 
             <button
               onClick={() => setHideInactive(!hideInactive)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors flex items-center space-x-1 cursor-pointer ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors flex items-center space-x-1 cursor-pointer ${
                 hideInactive
-                  ? 'bg-slate-200 dark:bg-slate-700 border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                  ? 'bg-slate-200 dark:bg-slate-700 border-slate-400 dark:border-slate-600 text-slate-900 dark:text-white'
+                  : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
               }`}
-              title="Filter out inactive or offboarded employees"
             >
               <span>Hide Inactive</span>
             </button>
-          </div>
-        </div>
 
-        {/* RESULTS COUNT & VIEW TOGGLE */}
-        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-2 flex-wrap gap-2">
-          <div className="flex items-center space-x-2">
-            <span>
-              Showing <strong className="text-slate-800 dark:text-slate-200">{displayedReviews.length}</strong> of{' '}
-              <strong className="text-slate-800 dark:text-slate-200">{reviews.length}</strong> reviews
-            </span>
-            {(filterStatus !== 'ALL' || filterDepartmentId !== 'ALL' || appraisalDueOnly || searchQuery.trim() || myReportsOnly || hideInactive) && (
+            {(filterStatus !== 'ALL' ||
+              filterDepartmentId !== 'ALL' ||
+              filterManagerId !== 'ALL' ||
+              appraisalDueOnly ||
+              searchQuery.trim() ||
+              myReportsOnly ||
+              hideInactive) && (
               <button
                 onClick={() => {
                   setFilterStatus('ALL');
                   setFilterDepartmentId('ALL');
+                  setFilterManagerId('ALL');
                   setAppraisalDueOnly(false);
                   setMyReportsOnly(false);
                   setHideInactive(false);
                   setSearchQuery('');
                 }}
-                className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium underline cursor-pointer"
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold ml-2 cursor-pointer"
               >
-                Reset filters
+                Reset All Filters
               </button>
             )}
-            {appraisalDueOnly && (
-              <span className="text-amber-700 dark:text-amber-400 font-medium ml-2">Filtering for Cycle appraisal due cohort</span>
-            )}
           </div>
+        )}
 
-          {/* View Mode Switcher — hidden on mobile since cards are forced there */}
-          <div className="hidden sm:flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
-                viewMode === 'cards'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-indigo-300 shadow-2xs font-bold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-              title="Card View"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Cards</span>
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer ${
-                viewMode === 'table'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-950 dark:text-indigo-300 shadow-2xs font-bold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-              title="Table View"
-            >
-              <List className="w-3.5 h-3.5" />
-              <span>Table</span>
-            </button>
+        {/* BATCH OPERATIONS BAR (Active when rows selected) */}
+        {selectedReviewIds.length > 0 && (
+          <div className="bg-indigo-50/90 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/80 rounded-lg p-2 flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-bold text-indigo-900 dark:text-indigo-200">
+                {selectedReviewIds.length} review(s) selected
+              </span>
+              <button
+                onClick={() => setSelectedReviewIds([])}
+                className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-medium cursor-pointer"
+              >
+                Deselect All
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {isSuperAdminOrHr && (
+                <button
+                  onClick={() => handleOpenAssignKra()}
+                  className="px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors flex items-center space-x-1 cursor-pointer"
+                >
+                  <UserPlus className="w-3 h-3" />
+                  <span>Assign KRA</span>
+                </button>
+              )}
+
+              <button
+                onClick={handleBatchSendReminder}
+                className="px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 rounded-lg transition-colors flex items-center space-x-1 cursor-pointer"
+              >
+                <Mail className="w-3 h-3 text-slate-500" />
+                <span>Send Reminder</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* 4. REVIEWS DATA TABLE */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+      {/* 5. DATA TABLE & CARDS VIEW (PROMINENTLY DISPLAYED ON LOAD) */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
         {loading && reviews.length === 0 ? (
           <div className="p-4">
             <PageSkeletonLoader variant="table" rowCount={6} />
           </div>
         ) : displayedReviews.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 dark:text-slate-500 flex flex-col items-center justify-center space-y-3">
-            <FileCheck className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+          <div className="p-10 text-center text-slate-400 dark:text-slate-500 flex flex-col items-center justify-center space-y-2.5">
+            <FileCheck className="w-9 h-9 text-slate-300 dark:text-slate-600" />
             <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">No quarterly reviews found</span>
             <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
-              {filterStatus !== 'ALL' || filterDepartmentId !== 'ALL' || appraisalDueOnly || searchQuery.trim() || myReportsOnly || hideInactive
+              {filterStatus !== 'ALL' || filterDepartmentId !== 'ALL' || filterManagerId !== 'ALL' || appraisalDueOnly || searchQuery.trim() || myReportsOnly || hideInactive
                 ? 'No review sheets match your current search or filters for this period.'
-                : 'No review sheets exist for this period. Initiate a new batch for this period to generate reviews.'}
+                : 'No review sheets exist for this period yet. Initiate a new batch for this period to generate reviews from active employee master data.'}
             </p>
-            {(filterStatus !== 'ALL' || filterDepartmentId !== 'ALL' || appraisalDueOnly || searchQuery.trim() || myReportsOnly || hideInactive) && (
-              <button
-                onClick={() => {
-                  setFilterStatus('ALL');
-                  setFilterDepartmentId('ALL');
-                  setAppraisalDueOnly(false);
-                  setMyReportsOnly(false);
-                  setHideInactive(false);
-                  setSearchQuery('');
-                }}
-                className="mt-1 px-3.5 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 rounded-lg shadow-2xs transition-colors cursor-pointer"
-              >
-                Clear All Filters
-              </button>
-            )}
             {isSuperAdminOrHr && !searchQuery && filterStatus === 'ALL' && (
               <button
                 onClick={() => setIsBatchModalOpen(true)}
-                className="mt-2 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm cursor-pointer"
+                className="mt-1 px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs cursor-pointer flex items-center space-x-1.5"
               >
-                Generate Reviews Now
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>Generate Reviews Now</span>
               </button>
             )}
           </div>
         ) : effectiveViewMode === 'cards' ? (
-          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/50 dark:bg-slate-950/40">
-            {displayedReviews.map((r) => {
-              // Checked against the actual manager/HOD relationship on the review, not the
-              // caller's stored account-level role label, so a person holding both capacities
-              // for this employee is flagged for both pending stages.
+          /* Cards View */
+          <div className="p-3.5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 bg-slate-50/50 dark:bg-slate-950/40">
+            {paginatedReviews.map((r) => {
               const isPendingMyAction =
                 (r.status === 'MANAGER_PENDING' && (r.managerId === currentUser?.employeeId || r.managerId === currentUser?.id)) ||
                 (r.status === 'HOD_PENDING' && r.hodId === currentUser?.employeeId);
               const scoredKraCount = r.kraSnapshot?.filter((k) => (k.rating || 0) > 0).length || 0;
+              const totalKras = r.kraSnapshot?.length || 0;
+              const stage = getReviewStage(r);
+              const dueInfo = getDueDateInfo(r);
+
               return (
                 <div
                   key={r.id}
                   onClick={() => handleOpenScoring(r)}
-                  className={`bg-white dark:bg-slate-900 rounded-2xl border p-5 shadow-2xs hover:shadow-md transition-all duration-150 cursor-pointer flex flex-col justify-between space-y-4 group ${
-                    isPendingMyAction ? 'border-indigo-300 dark:border-indigo-600 ring-2 ring-indigo-500/10 dark:ring-indigo-500/20' : 'border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                  className={`bg-white dark:bg-slate-900 rounded-xl border p-3.5 shadow-2xs hover:shadow-md transition-all duration-150 cursor-pointer flex flex-col justify-between space-y-3 group ${
+                    isPendingMyAction
+                      ? 'border-indigo-300 dark:border-indigo-600 ring-2 ring-indigo-500/10'
+                      : 'border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                   }`}
                 >
-                  {/* Top: Identity & Status */}
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5">
                         <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-xs shrink-0"
+                          className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-xs shadow-2xs shrink-0"
                           style={{ backgroundColor: r.cycleColor || '#4f46e5' }}
                         >
                           {r.employeeName.charAt(0)}
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                               {r.employeeName}
                             </h4>
-                            {getEmployeeStatusBadge(r.employeeStatus)}
+                            <EmployeeStatusBadge status={r.employeeStatus} />
                             {r.isAppraisalMonthDue && (
-                              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Appraisal Due this Quarter" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Appraisal Due this Quarter" />
                             )}
                           </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
                             {r.employeeCode} • {r.designationName}
                           </p>
                         </div>
                       </div>
-                      <span className="shrink-0">{getStatusBadge(r.status, r.managerName, r.hodId)}</span>
+
+                      <StatusBadge status={getReviewStatusLabel(r.status)} tone={getReviewStatusTone(r.status)} size="sm" />
                     </div>
 
-                    {/* Department & Cycle */}
-                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
-                      <span className="flex items-center gap-1">
-                        <Building2 className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                        <span>{r.departmentName}</span>
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+                      <span className="flex items-center gap-1 truncate">
+                        <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span className="truncate">{r.departmentName}</span>
                       </span>
                       <CycleBadge code={r.cycleCode} />
                     </div>
 
+                    {/* Stage & Manager */}
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold border ${stage.className}`}>
+                        {stage.label}
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[140px]">
+                        Mgr: <strong className="text-slate-700 dark:text-slate-300">{r.managerName || '—'}</strong>
+                      </span>
+                    </div>
+
                     {/* Scores & Progress */}
-                    <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 border border-slate-100 dark:border-slate-800 space-y-2">
+                    <div className="bg-slate-50 dark:bg-slate-800/60 rounded-lg p-2 border border-slate-100 dark:border-slate-800 space-y-1.5">
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider block">
+                          <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider block">
                             Weighted Score
                           </span>
-                          <div className="mt-0.5">{getScoreBadge(r.finalScore)}</div>
+                          <div className="mt-0.5">{renderScoreBadge(r.finalScore)}</div>
                         </div>
                         <div className="text-right">
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider block">
-                            Scored KRAs
+                          <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider block">
+                            KRAs Scored
                           </span>
-                          <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                            {scoredKraCount} / {r.kraSnapshot?.length || 0}
+                          <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                            <strong>{scoredKraCount}</strong> / {totalKras}
                           </span>
                         </div>
                       </div>
 
-                      {/* Score bar */}
-                      <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                      <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1 overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all duration-300 ${
-                            r.status === 'MANAGER_COMPLETED'
-                              ? 'bg-amber-500'
-                              : 'bg-indigo-500'
-                          }`}
+                          className="h-full rounded-full transition-all duration-300 bg-indigo-500"
                           style={{
-                            width: `${
-                              r.kraSnapshot?.length
-                                ? Math.round((scoredKraCount / r.kraSnapshot.length) * 100)
-                                : 0
-                            }%`,
+                            width: `${totalKras ? Math.round((scoredKraCount / totalKras) * 100) : 0}%`,
                           }}
                         />
                       </div>
                     </div>
+
+                    {/* Due Date Indicator */}
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-slate-400" />
+                        <span>Due: {dueInfo.text}</span>
+                      </span>
+                      {dueInfo.isOverdue && (
+                        <span className="text-rose-600 dark:text-rose-400 font-semibold">Overdue ({dueInfo.diffDays}d)</span>
+                      )}
+                      {dueInfo.isSoon && (
+                        <span className="text-amber-600 dark:text-amber-400 font-semibold">Due in {dueInfo.diffDays}d</span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Action button */}
                   <div onClick={(e) => e.stopPropagation()}>
-                    {r.employeeStatus === 'INACTIVE' ? (
-                      <div className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800/70 text-slate-500 dark:text-slate-400 border border-slate-200/80 dark:border-slate-800 cursor-not-allowed">
-                        <span>Offboarded / Inactive</span>
-                        <button
-                          onClick={() => handleOpenScoring(r)}
-                          className="ml-2 underline text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 text-[11px] cursor-pointer"
-                        >
-                          View History
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleOpenScoring(r)}
-                        className={`w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                          isPendingMyAction
-                            ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
-                        }`}
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>
-                          {currentUser?.role === 'HOD'
-                            ? isPendingMyAction
-                              ? 'Review Now'
-                              : 'View Review'
-                            : isPendingMyAction
-                            ? 'Score Review Now'
-                            : 'Open Review Sheet'}
-                        </span>
-                        <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleOpenScoring(r)}
+                      className={`w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                        isPendingMyAction
+                          ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-2xs'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <Edit3 className="w-3 h-3" />
+                      <span>
+                        {currentUser?.role === 'HOD'
+                          ? isPendingMyAction
+                            ? 'Review Now'
+                            : 'View Review'
+                          : isPendingMyAction
+                          ? 'Score Review'
+                          : 'Open Sheet'}
+                      </span>
+                      <ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                    </button>
                   </div>
                 </div>
               );
             })}
           </div>
         ) : (
+          /* Table View */
           <div className="overflow-x-auto overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
+              <thead className="sticky top-0 z-10 backdrop-blur-md bg-slate-50/95 dark:bg-slate-800/95 text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800 shadow-2xs">
                 <tr>
-                  <th className="py-3 px-4">Employee</th>
-                  <th className="py-3 px-4">Department & Role</th>
-                  <th className="py-3 px-4">Appraisal Cycle</th>
-                  <th className="py-3 px-4">KRA Snapshot</th>
-                  <th className="py-3 px-4">Weighted Score</th>
-                  <th className="py-3 px-4">Review Status</th>
-                  <th className="py-3 px-4">Manager</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-2.5 px-3 w-8">
+                    <input
+                      type="checkbox"
+                      checked={isAllPageSelected}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      aria-label="Select all reviews on page"
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                  </th>
+                  <th className="py-2.5 px-3">Employee</th>
+                  <th className="py-2.5 px-3">Department</th>
+                  <th className="py-2.5 px-3">Manager</th>
+                  <th className="py-2.5 px-3">Review Stage</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3">KRAs</th>
+                  <th className="py-2.5 px-3">Score</th>
+                  <th className="py-2.5 px-3">Due Date</th>
+                  <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {displayedReviews.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="hover:bg-slate-50/60 dark:hover:bg-slate-800/50 transition-colors group cursor-pointer"
-                    onClick={() => handleOpenScoring(r)}
-                  >
-                    {/* Employee Info */}
-                    <td className="py-3 px-4">
-                      <div className="flex items-center space-x-3">
-                        <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-2xs shrink-0"
-                          style={{ backgroundColor: r.cycleColor || '#1e3a8a' }}
-                        >
-                          {r.employeeName.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="flex items-center space-x-1.5 flex-wrap">
-                            <span className="font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                              {r.employeeName}
-                            </span>
-                            {getEmployeeStatusBadge(r.employeeStatus)}
-                            {r.isAppraisalMonthDue && (
-                              <span
-                                title="Appraisal Due this Quarter"
-                                className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"
-                              />
-                            )}
+                {paginatedReviews.map((r) => {
+                  const isPendingMyAction =
+                    (r.status === 'MANAGER_PENDING' && (r.managerId === currentUser?.employeeId || r.managerId === currentUser?.id)) ||
+                    (r.status === 'HOD_PENDING' && r.hodId === currentUser?.employeeId);
+                  const isSelected = selectedReviewIds.includes(r.id);
+                  const stage = getReviewStage(r);
+                  const dueInfo = getDueDateInfo(r);
+                  const totalKras = r.kraSnapshot?.length || 0;
+                  const scoredKraCount = r.kraSnapshot?.filter((k) => (k.rating || 0) > 0).length || 0;
+
+                  return (
+                    <tr
+                      key={r.id}
+                      onClick={() => handleOpenScoring(r)}
+                      className={`hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors group cursor-pointer ${
+                        isSelected ? 'bg-indigo-50/40 dark:bg-indigo-950/20' : ''
+                      }`}
+                    >
+                      {/* Checkbox */}
+                      <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => handleSelectOne(r.id, e.target.checked)}
+                          aria-label={`Select ${r.employeeName}`}
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                      </td>
+
+                      {/* Employee Info */}
+                      <td className="py-2 px-3">
+                        <div className="flex items-center space-x-2">
+                          <div
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-2xs shrink-0"
+                            style={{ backgroundColor: r.cycleColor || '#4f46e5' }}
+                          >
+                            {r.employeeName.charAt(0)}
                           </div>
-                          <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{r.employeeCode}</span>
+                          <div>
+                            <div className="flex items-center space-x-1.5 flex-wrap">
+                              <span className="font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                {r.employeeName}
+                              </span>
+                              <EmployeeStatusBadge status={r.employeeStatus} />
+                              {r.isAppraisalMonthDue && (
+                                <span title="Appraisal Due this Quarter" className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                              {r.employeeCode || '—'}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Department & Designation */}
-                    <td className="py-3 px-4">
-                      <div className="text-slate-800 dark:text-slate-200 font-medium">{r.designationName}</div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">{r.departmentName}</div>
-                    </td>
+                      {/* Department & Role */}
+                      <td className="py-2 px-3">
+                        <div className="text-slate-800 dark:text-slate-200 font-medium truncate max-w-[130px]">
+                          {r.departmentName}
+                        </div>
+                        <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate max-w-[130px]">
+                          {r.designationName}
+                        </div>
+                      </td>
 
-                    {/* Appraisal Cycle */}
-                    <td className="py-3 px-4">
-                      <div className="flex items-center space-x-1.5">
-                        <CycleBadge code={r.cycleCode} />
-                      </div>
-                      {r.isAppraisalMonthDue && (
-                        <span className="inline-block mt-0.5 text-[10px] text-amber-700 dark:text-amber-300 font-semibold bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-800">
-                          Appraisal Due
-                        </span>
-                      )}
-                    </td>
-
-                    {/* KRA Snapshot */}
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center space-x-1 text-slate-700 dark:text-slate-300 font-medium bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
-                        <span>{r.kraSnapshot?.length || 0} KRAs locked</span>
-                      </span>
-                    </td>
-
-                    {/* Final Weighted Score */}
-                    <td className="py-3 px-4">{getScoreBadge(r.finalScore)}</td>
-
-                    {/* Status */}
-                    <td className="py-3 px-4">{getStatusBadge(r.status, r.managerName, r.hodId)}</td>
-
-                    {/* Manager */}
-                    <td className="py-3 px-4">
-                      <span className="text-slate-700 dark:text-slate-300 font-medium">{r.managerName}</span>
-                    </td>
-
-                    {/* Action Button */}
-                    <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      {r.employeeStatus === 'INACTIVE' ? (
-                        <button
-                          onClick={() => handleOpenScoring(r)}
-                          className="px-3 py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors inline-flex items-center space-x-1 cursor-pointer"
-                        >
-                          <span>View History</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleOpenScoring(r)}
-                          className="px-3 py-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 rounded-lg border border-indigo-200 dark:border-indigo-800 transition-colors inline-flex items-center space-x-1 cursor-pointer"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                          <span>
-                            {currentUser?.role === 'HOD'
-                              ? r.status === 'HOD_PENDING' && r.hodId === currentUser?.employeeId
-                                ? 'Review Now'
-                                : 'View Review'
-                              : 'Score / View'}
+                      {/* Manager */}
+                      <td className="py-2 px-3">
+                        <div className="flex items-center space-x-1.5">
+                          <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[9px] font-bold text-slate-600 dark:text-slate-300 shrink-0">
+                            {r.managerName?.charAt(0) || 'M'}
+                          </div>
+                          <span className="text-slate-700 dark:text-slate-300 font-medium truncate max-w-[120px]">
+                            {r.managerName || '—'}
                           </span>
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                        </div>
+                      </td>
+
+                      {/* Review Stage */}
+                      <td className="py-2 px-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${stage.className}`}>
+                          {stage.label}
+                        </span>
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-2 px-3">
+                        <StatusBadge status={getReviewStatusLabel(r.status)} tone={getReviewStatusTone(r.status)} size="sm" />
+                      </td>
+
+                      {/* KRAs */}
+                      <td className="py-2 px-3">
+                        {totalKras === 0 ? (
+                          <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.2 rounded-full border border-amber-200 dark:border-amber-800/60">
+                            0 KRAs
+                          </span>
+                        ) : (
+                          <span className="text-xs font-mono text-slate-700 dark:text-slate-300">
+                            <strong className="text-indigo-600 dark:text-indigo-400 font-bold">{scoredKraCount}</strong> / {totalKras}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Final Weighted Score */}
+                      <td className="py-2 px-3">{renderScoreBadge(r.finalScore)}</td>
+
+                      {/* Due Date */}
+                      <td className="py-2 px-3">
+                        <div className="flex items-center space-x-1">
+                          <Calendar className={`w-3 h-3 ${dueInfo.isOverdue ? 'text-rose-500' : dueInfo.isSoon ? 'text-amber-500' : 'text-slate-400'}`} />
+                          <span className={`font-mono text-xs ${dueInfo.isOverdue ? 'text-rose-600 dark:text-rose-400 font-bold' : dueInfo.isSoon ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-slate-600 dark:text-slate-400'}`}>
+                            {dueInfo.text}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-2 px-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end space-x-1">
+                          {totalKras === 0 && isSuperAdminOrHr ? (
+                            <button
+                              onClick={() => handleOpenAssignKra(r.employeeId)}
+                              className="px-2 py-0.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 rounded-lg border border-indigo-200 dark:border-indigo-800 transition-colors flex items-center space-x-1 cursor-pointer"
+                              title="Assign KRA Scorecard"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Assign</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleOpenScoring(r)}
+                              className={`px-2 py-0.5 text-xs font-semibold rounded-lg border transition-colors flex items-center space-x-1 cursor-pointer ${
+                                isPendingMyAction
+                                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 border-indigo-600 shadow-2xs'
+                                  : 'text-indigo-700 dark:text-indigo-300 bg-indigo-50/70 dark:bg-indigo-950/40 hover:bg-indigo-100 rounded-lg border border-indigo-200 dark:border-indigo-800'
+                              }`}
+                            >
+                              <Edit3 className="w-3 h-3" />
+                              <span>
+                                {currentUser?.role === 'HOD' && r.status === 'HOD_PENDING'
+                                  ? 'Review'
+                                  : isPendingMyAction
+                                  ? 'Score'
+                                  : 'View'}
+                              </span>
+                            </button>
+                          )}
+
+                          {/* 3-dot action button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (menuAnchor?.review.id === r.id) {
+                                setMenuAnchor(null);
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const estimatedHeight = 125;
+                                const fitsBelow = rect.bottom + estimatedHeight + 10 <= window.innerHeight;
+                                const top = fitsBelow ? rect.bottom + 4 : Math.max(10, rect.top - estimatedHeight - 4);
+                                const right = Math.max(12, window.innerWidth - rect.right);
+                                setMenuAnchor({ review: r, top, right });
+                              }
+                            }}
+                            className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                              menuAnchor?.review.id === r.id
+                                ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-100'
+                                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            }`}
+                            title="More options"
+                          >
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
+
+        {/* 6. COMPACT PAGINATION CONTROLS */}
+        {displayedReviews.length > 0 && (
+          <div className="px-3.5 py-2 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+            <div className="flex items-center space-x-2">
+              <span>
+                Showing <strong>{(currentPage - 1) * pageSize + 1}</strong> to{' '}
+                <strong>{Math.min(currentPage * pageSize, displayedReviews.length)}</strong> of{' '}
+                <strong>{displayedReviews.length}</strong> employees
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-3 self-end sm:self-center">
+              <div className="flex items-center space-x-1">
+                <span>Rows:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-0.5 focus:border-indigo-500 cursor-pointer text-xs"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+
+              {/* Page Buttons */}
+              <div className="flex items-center space-x-1">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                  .map((p, idx, arr) => (
+                    <React.Fragment key={p}>
+                      {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-1 text-slate-400">...</span>}
+                      <button
+                        onClick={() => setCurrentPage(p)}
+                        className={`w-6 h-6 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                          currentPage === p
+                            ? 'bg-indigo-600 text-white shadow-2xs'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    </React.Fragment>
+                  ))}
+
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* 5. MODALS */}
+      {/* Floating 3-Dot Options Menu via Portal directly into document.body */}
+      {menuAnchor &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{
+              position: 'fixed',
+              top: `${menuAnchor.top}px`,
+              right: `${menuAnchor.right}px`,
+              zIndex: 99999,
+            }}
+            className="w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl py-1 text-xs text-slate-700 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                const target = menuAnchor.review;
+                setMenuAnchor(null);
+                handleOpenScoring(target);
+              }}
+              className="w-full px-3.5 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700/60 flex items-center space-x-2.5 transition-colors cursor-pointer"
+            >
+              <Edit3 className="w-3.5 h-3.5 text-slate-400" />
+              <span>Open Evaluation</span>
+            </button>
+
+            {isSuperAdminOrHr && (
+              <button
+                type="button"
+                onClick={() => {
+                  const target = menuAnchor.review;
+                  setMenuAnchor(null);
+                  const reviewKras: CustomKraRow[] = (target.kraSnapshot || []).map((k, idx) => ({
+                    id: k.id || `kra_${idx}`,
+                    title: k.kraName || k.title || '',
+                    weight: k.weight ?? 0,
+                    target: k.targetSnapshot || '100% Target SLA',
+                    description: k.description || '',
+                    measurementCriteria: k.measurementCriteria || '',
+                  }));
+                  handleOpenAssignKra(target.employeeId, reviewKras.length > 0 ? reviewKras : undefined);
+                }}
+                className="w-full px-3.5 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700/60 flex items-center space-x-2.5 transition-colors cursor-pointer"
+              >
+                <UserPlus className="w-3.5 h-3.5 text-slate-400" />
+                <span>Assign / Edit KRA</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                const target = menuAnchor.review;
+                setMenuAnchor(null);
+                toast.success(`Reminder sent to ${target.employeeName} and manager.`, 'Reminder Sent');
+              }}
+              className="w-full px-3.5 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700/60 flex items-center space-x-2.5 transition-colors cursor-pointer"
+            >
+              <Mail className="w-3.5 h-3.5 text-slate-400" />
+              <span>Send Reminder</span>
+            </button>
+          </div>,
+          document.body
+        )}
+
+      {/* 7. MODALS */}
+      {/* Scoring Modal */}
       {isScoringModalOpen && activeReviewForScoring && (
         <ReviewScoringModal
           review={activeReviewForScoring}
           currentUser={currentUser}
           isOpen={isScoringModalOpen}
           onClose={handleModalClose}
-          onSaved={handleModalSaved}
+          onSaved={handleModalClose}
         />
       )}
 
+      {/* Batch Generate Reviews Modal */}
       {isBatchModalOpen && (
         <BatchGenerateReviewsModal
           isOpen={isBatchModalOpen}
@@ -1245,10 +1979,10 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
           periods={periods}
           departments={departments}
           cycles={cycles}
-          employees={employees}
         />
       )}
 
+      {/* Initiate Single Review Modal */}
       {isInitiateModalOpen && (
         <InitiateReviewModal
           isOpen={isInitiateModalOpen}
@@ -1263,7 +1997,29 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
         />
       )}
 
-      {/* 6. PERIOD LIFECYCLE MANAGEMENT MODAL (HR / SUPER ADMIN) */}
+      {/* Assign KRA Modal */}
+      {isAssignKraModalOpen && (
+        <AssignKraModal
+          isOpen={isAssignKraModalOpen}
+          onClose={() => {
+            setIsAssignKraModalOpen(false);
+            setPreselectedEmpForKra(null);
+            setAssignKraInitialKras([]);
+          }}
+          employees={employees}
+          cycles={cycles}
+          preselectedEmployee={preselectedEmpForKra}
+          initialKras={assignKraInitialKras}
+          onAssigned={() => {
+            setIsAssignKraModalOpen(false);
+            setPreselectedEmpForKra(null);
+            setAssignKraInitialKras([]);
+            loadReviewsAndStats();
+          }}
+        />
+      )}
+
+      {/* Period Lifecycle Modal */}
       <PeriodLifecycleModal
         isOpen={isPeriodModalOpen}
         onClose={() => setIsPeriodModalOpen(false)}
@@ -1273,7 +2029,6 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
         updatingTargetStatus={updatingTargetStatus}
         handleUpdatePeriodStatus={handleUpdatePeriodStatus}
       />
-
     </div>
   );
 };
@@ -1351,7 +2106,7 @@ const PeriodLifecycleModal: React.FC<PeriodLifecycleModalProps> = ({
                 key={period.id}
                 className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 ${
                   period.status === 'ACTIVE'
-                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/80 shadow-xs'
+                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/80 shadow-2xs'
                     : period.status === 'LOCKED'
                     ? 'bg-amber-50/30 dark:bg-amber-950/10 border-amber-200/80 dark:border-amber-800/40'
                     : 'bg-slate-50 dark:bg-slate-850/50 border-slate-200 dark:border-slate-800'
@@ -1362,13 +2117,15 @@ const PeriodLifecycleModal: React.FC<PeriodLifecycleModalProps> = ({
                     <span className="text-sm font-bold text-slate-900 dark:text-white">
                       {period.name}
                     </span>
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
-                      period.status === 'ACTIVE'
-                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
-                        : period.status === 'LOCKED'
-                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border-amber-300 dark:border-amber-700'
-                        : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-700'
-                    }`}>
+                    <span
+                      className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                        period.status === 'ACTIVE'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                          : period.status === 'LOCKED'
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                          : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+                      }`}
+                    >
                       {period.status}
                     </span>
                     {isCurrentSelected && (
@@ -1452,4 +2209,3 @@ const PeriodLifecycleModal: React.FC<PeriodLifecycleModalProps> = ({
     </div>
   );
 };
-
