@@ -41,17 +41,17 @@ export const DonutChart: React.FC<{
 
   return (
     <div
-      className={`p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs flex flex-col justify-between transition-all duration-700 ease-out hover:border-slate-300 dark:hover:border-slate-700 ${
+      className={`p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl flex flex-col justify-between transition-all duration-700 ease-out hover:border-slate-300 dark:hover:border-slate-700 ${
         isAnimated ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-[0.98]'
       }`}
     >
       <div>
         <div className="flex items-center justify-between gap-2 mb-1">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+          <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
             <PieChartIcon className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
             {title}
           </h3>
-          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+          <span className="text-[11px] tabular-nums font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
             {total} {total === 1 ? 'item' : 'items'}
           </span>
         </div>
@@ -114,22 +114,22 @@ export const DonutChart: React.FC<{
           >
             {hoveredIndex !== null && segments[hoveredIndex] ? (
               <>
-                <span className="text-xl font-extrabold font-mono text-slate-900 dark:text-white leading-tight">
+                <span className="text-xl font-bold tabular-nums text-slate-900 dark:text-white leading-tight">
                   {segments[hoveredIndex].value}
                 </span>
-                <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 max-w-[100px] truncate px-1">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 max-w-[100px] truncate px-1">
                   {segments[hoveredIndex].label}
                 </span>
-                <span className="text-[9px] font-mono text-blue-600 dark:text-blue-400 font-bold">
+                <span className="text-[11px] tabular-nums text-blue-600 dark:text-blue-400 font-bold">
                   {total > 0 ? Math.round((segments[hoveredIndex].value / total) * 100) : 0}%
                 </span>
               </>
             ) : (
               <>
-                <span className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white tracking-tight leading-none">
+                <span className="text-2xl font-bold tabular-nums text-slate-900 dark:text-white tracking-tight leading-none">
                   {total}
                 </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 mt-1">
+                <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 mt-1">
                   {totalLabel}
                 </span>
               </>
@@ -170,9 +170,9 @@ export const DonutChart: React.FC<{
                     {seg.label}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0 font-mono text-[11px]">
+                <div className="flex items-center gap-2 shrink-0 tabular-nums text-[11px]">
                   <span className="font-bold text-slate-900 dark:text-white">{seg.value}</span>
-                  <span className="text-slate-400 dark:text-slate-500 text-[10px] w-9 text-right">({pct}%)</span>
+                  <span className="text-slate-400 dark:text-slate-500 text-[11px] w-9 text-right">({pct}%)</span>
                 </div>
               </div>
             );
@@ -216,17 +216,17 @@ export const HorizontalBarChart: React.FC<{
 
   return (
     <div
-      className={`p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs flex flex-col justify-between transition-all duration-700 ease-out hover:border-slate-300 dark:hover:border-slate-700 ${
+      className={`p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl flex flex-col justify-between transition-all duration-700 ease-out hover:border-slate-300 dark:hover:border-slate-700 ${
         isAnimated ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-[0.98]'
       }`}
     >
       <div>
         <div className="flex items-center justify-between gap-2 mb-1">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+          <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
             <BarChart2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
             {title}
           </h3>
-          <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
+          <span className="text-[11px] tabular-nums text-slate-400 dark:text-slate-500">
             Top {displayItems.length}
           </span>
         </div>
@@ -255,13 +255,13 @@ export const HorizontalBarChart: React.FC<{
                   <span className="font-semibold text-slate-800 dark:text-slate-200 text-[11px] truncate max-w-[190px]">
                     {item.label}
                   </span>
-                  <div className="flex items-center gap-2 font-mono text-[11px]">
+                  <div className="flex items-center gap-2 tabular-nums text-[11px]">
                     <span className="font-bold text-slate-900 dark:text-white">
                       {typeof item.value === 'number' && item.value % 1 !== 0 ? item.value.toFixed(2) : item.value}
                       {valueUnit}
                     </span>
                     {item.secondaryValue !== undefined && (
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500">({item.secondaryValue})</span>
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500">({item.secondaryValue})</span>
                     )}
                   </div>
                 </div>
@@ -316,6 +316,7 @@ export const RatingTierChart: React.FC<RatingDistributionProps> = ({
     {
       id: 'outstanding',
       label: 'Outstanding',
+      shortLabel: 'Outstanding',
       range: '4.5 - 5.0',
       count: outstanding,
       color: '#10b981', // emerald
@@ -324,6 +325,7 @@ export const RatingTierChart: React.FC<RatingDistributionProps> = ({
     {
       id: 'exceeds',
       label: 'Exceeds Expectations',
+      shortLabel: 'Exceeds',
       range: '3.8 - 4.49',
       count: exceeds,
       color: '#3b82f6', // blue
@@ -332,6 +334,7 @@ export const RatingTierChart: React.FC<RatingDistributionProps> = ({
     {
       id: 'meets',
       label: 'Meets Expectations',
+      shortLabel: 'Meets',
       range: '2.8 - 3.79',
       count: meets,
       color: '#6366f1', // indigo
@@ -340,6 +343,7 @@ export const RatingTierChart: React.FC<RatingDistributionProps> = ({
     {
       id: 'needsImp',
       label: 'Needs Improvement',
+      shortLabel: 'Needs Imp.',
       range: '< 2.8',
       count: needsImprovement,
       color: '#f59e0b', // amber
@@ -351,26 +355,26 @@ export const RatingTierChart: React.FC<RatingDistributionProps> = ({
 
   return (
     <div
-      className={`p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs flex flex-col justify-between transition-all duration-700 ease-out hover:border-slate-300 dark:hover:border-slate-700 ${
+      className={`p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl flex flex-col justify-between transition-all duration-700 ease-out hover:border-slate-300 dark:hover:border-slate-700 min-w-0 ${
         isAnimated ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-[0.98]'
       }`}
     >
       <div>
         <div className="flex items-center justify-between gap-2 mb-1">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-            <Award className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            Rating Distribution Curve
+          <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 truncate">
+            <Award className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+            <span className="truncate">Rating distribution curve</span>
           </h3>
-          <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
+          <span className="text-[11px] tabular-nums text-slate-400 dark:text-slate-500 shrink-0">
             {calculatedTotal} evaluated
           </span>
         </div>
-        <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-4">
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-3 sm:mb-4 line-clamp-1">
           Cohort performance categorization across standard grading tiers
         </p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 pt-1 sm:pt-2 w-full min-w-0">
         {tiers.map((tier, idx) => {
           const pct = calculatedTotal > 0 ? Math.round((tier.count / calculatedTotal) * 100) : 0;
           const barHeightPct = Math.min(100, Math.max(12, (tier.count / maxCount) * 100));
@@ -381,19 +385,25 @@ export const RatingTierChart: React.FC<RatingDistributionProps> = ({
               style={{
                 transitionDelay: `${idx * 80}ms`,
               }}
-              className={`p-3 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60 rounded-xl flex flex-col items-center justify-between text-center space-y-2 hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition-all duration-500 ${
+              className={`p-2 sm:p-2.5 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60 rounded-xl flex flex-col items-center justify-between text-center space-y-2 hover:bg-slate-100/70 dark:hover:bg-slate-800/70 transition-all duration-500 min-w-0 w-full overflow-hidden ${
                 isAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
               }`}
             >
-              <div className="space-y-0.5">
-                <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 block truncate max-w-[120px]">
-                  {tier.label}
+              <div className="space-y-0.5 w-full min-w-0">
+                <span
+                  className="text-[10.5px] sm:text-[11px] font-bold text-slate-800 dark:text-slate-200 block truncate w-full px-0.5 leading-tight"
+                  title={tier.label}
+                >
+                  <span className="hidden xl:inline">{tier.label}</span>
+                  <span className="xl:hidden">{tier.shortLabel}</span>
                 </span>
-                <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">{tier.range}</span>
+                <span className="text-[9.5px] sm:text-[11px] tabular-nums text-slate-400 dark:text-slate-500 block truncate w-full">
+                  {tier.range}
+                </span>
               </div>
 
               {/* Animated vertical bar */}
-              <div className="h-16 w-10 bg-slate-200/60 dark:bg-slate-700/40 rounded-lg flex items-end justify-center p-1">
+              <div className="h-14 sm:h-16 w-8 sm:w-10 bg-slate-200/60 dark:bg-slate-700/40 rounded-lg flex items-end justify-center p-1 shrink-0">
                 <div
                   className="w-full rounded"
                   style={{
@@ -404,11 +414,11 @@ export const RatingTierChart: React.FC<RatingDistributionProps> = ({
                 />
               </div>
 
-              <div className="space-y-0.5">
-                <div className="text-base font-bold font-mono text-slate-900 dark:text-white leading-tight">
+              <div className="space-y-0.5 w-full min-w-0">
+                <div className="text-sm sm:text-base font-bold tabular-nums text-slate-900 dark:text-white leading-tight">
                   {tier.count}
                 </div>
-                <span className="text-[10px] font-mono font-semibold text-slate-500 dark:text-slate-400">
+                <span className="text-[9.5px] sm:text-[11px] tabular-nums font-semibold text-slate-500 dark:text-slate-400 block">
                   {pct}%
                 </span>
               </div>
@@ -481,22 +491,22 @@ export const TrendLineChart: React.FC<{
 
   return (
     <div
-      className={`p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs flex flex-col justify-between transition-all duration-700 ease-out hover:border-slate-300 dark:hover:border-slate-700 ${
+      className={`p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl flex flex-col justify-between transition-all duration-700 ease-out hover:border-slate-300 dark:hover:border-slate-700 ${
         isAnimated ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-[0.98]'
       }`}
     >
       <div>
         <div className="flex items-center justify-between gap-2 mb-1">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+          <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
             <TrendingUp className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
             {title}
           </h3>
           {hoveredPoint ? (
-            <span className="text-[11px] font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+            <span className="text-[11px] tabular-nums font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
               {hoveredPoint.label}: {hoveredPoint.value.toFixed(2)} {unit}
             </span>
           ) : (
-            <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
+            <span className="text-[11px] tabular-nums text-slate-400 dark:text-slate-500">
               Scale {yMin} - {yMax}
             </span>
           )}
@@ -532,7 +542,7 @@ export const TrendLineChart: React.FC<{
                   x={paddingX - 8}
                   y={y + 3}
                   textAnchor="end"
-                  className="text-[9px] fill-slate-400 dark:fill-slate-600 font-mono"
+                  className="text-[11px] fill-slate-400 dark:fill-slate-600 tabular-nums"
                 >
                   {val}
                 </text>
@@ -597,7 +607,7 @@ export const TrendLineChart: React.FC<{
                   x={c.x}
                   y={height - 6}
                   textAnchor="middle"
-                  className="text-[10px] font-semibold fill-slate-600 dark:fill-slate-400"
+                  className="text-[11px] font-semibold fill-slate-600 dark:fill-slate-400"
                 >
                   {p.label}
                 </text>

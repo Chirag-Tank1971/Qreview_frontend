@@ -77,7 +77,7 @@ export const ReportVisualSection: React.FC<ReportVisualSectionProps> = ({
       .sort((a, b) => b.value - a.value);
 
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
         <DonutChart
           title="Review Pipeline Breakdown"
           subtitle="Proportion of completed vs pending review stages"
@@ -93,12 +93,14 @@ export const ReportVisualSection: React.FC<ReportVisualSectionProps> = ({
           total={outstanding + exceeds + meets + needsImp}
         />
 
-        <HorizontalBarChart
-          title="Department Review Volume"
-          subtitle="Top departments by total review count and completion"
-          items={deptItems}
-          valueUnit=" reviews"
-        />
+        <div className="md:col-span-2 xl:col-span-1 min-w-0">
+          <HorizontalBarChart
+            title="Department Review Volume"
+            subtitle="Top departments by total review count and completion"
+            items={deptItems}
+            valueUnit=" reviews"
+          />
+        </div>
       </div>
     );
   }
@@ -205,7 +207,6 @@ export const ReportVisualSection: React.FC<ReportVisualSectionProps> = ({
   // 4. MANAGER COMPLETION REPORT
   // =========================================================================
   if (activeReport === 'manager-completion') {
-    let totalAssigned = 0;
     let totalSubmitted = 0;
     let totalClosed = 0;
     let totalReturned = 0;
@@ -215,7 +216,6 @@ export const ReportVisualSection: React.FC<ReportVisualSectionProps> = ({
 
     if (Array.isArray(data.reportData)) {
       data.reportData.forEach((row: any) => {
-        totalAssigned += row.totalAssigned || 0;
         totalSubmitted += row.submittedCount || 0;
         totalClosed += row.closedCount || 0;
         totalReturned += row.returnedCount || 0;
@@ -393,10 +393,10 @@ export const ReportVisualSection: React.FC<ReportVisualSectionProps> = ({
           maxItems={8}
         />
 
-        <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xs flex flex-col justify-between">
+        <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl flex flex-col justify-between">
           <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 mb-1">
-              Competency Evaluation Insights
+            <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
+              Competency evaluation insights
             </h3>
             <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-4">
               Observations based on {kraScores.length} unique organizational KRA metrics
@@ -406,7 +406,7 @@ export const ReportVisualSection: React.FC<ReportVisualSectionProps> = ({
           <div className="space-y-3 pt-2">
             <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/60 rounded-xl text-xs">
               <span className="font-bold text-emerald-800 dark:text-emerald-300 block mb-0.5">
-                Top Performing Competency
+                Top performing competency
               </span>
               <p className="text-emerald-700 dark:text-emerald-400 text-[11px]">
                 {kraScores[0] ? `${kraScores[0].label} (${kraScores[0].value.toFixed(2)} / 5.0)` : 'N/A'}
@@ -415,7 +415,7 @@ export const ReportVisualSection: React.FC<ReportVisualSectionProps> = ({
 
             <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 rounded-xl text-xs">
               <span className="font-bold text-amber-800 dark:text-amber-300 block mb-0.5">
-                Area with Development Opportunity
+                Area with development opportunity
               </span>
               <p className="text-amber-700 dark:text-amber-400 text-[11px]">
                 {kraScores.length > 1

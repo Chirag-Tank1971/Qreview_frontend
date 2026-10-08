@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useNotifications } from '../context/NotificationsContext';
@@ -14,7 +14,6 @@ import {
   Sparkles,
   Bell,
   LogIn,
-  User as UserIcon,
   Check,
   Sun,
   Moon,
@@ -27,7 +26,9 @@ import {
   LayoutDashboard,
 } from 'lucide-react';
 import { NAV_ITEMS, getNavLabel, getHomeView } from '../config/navigation';
+import { cn } from '../utils/cn';
 
+import { AppLogo } from './ui/AppLogo';
 interface HeaderProps {
   currentView?: string;
   onSelectView?: (view: any) => void;
@@ -48,12 +49,46 @@ export const Header: React.FC<HeaderProps> = ({
   const { unreadCount: unreadNotifCount } = useNotifications();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isPersonaMenuOpen, setIsPersonaMenuOpen] = useState(false);
-  const [, setIsAdminOpen] =useState(false);
   const [isSwitchingRole, setIsSwitchingRole] = useState(false);
 
   const personaDropdownRef = useRef<HTMLDivElement>(null);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
-  const adminDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Notification bell: rings once when there's something new, never on its own timer
+  const [isBellRinging, setIsBellRinging] = useState(false);
+  const ringTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const prevCountRef = useRef<number>(unreadNotifCount);
+
+  const triggerBellRing = useCallback(() => {
+    setIsBellRinging(true);
+    if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
+    ringTimeoutRef.current = setTimeout(() => {
+      setIsBellRinging(false);
+    }, 1200);
+  }, []);
+
+  // 1. Ring upon login / initial load if unread messages exist
+  useEffect(() => {
+    if (unreadNotifCount > 0) {
+      const loginTimer = setTimeout(() => {
+        triggerBellRing();
+      }, 700);
+      return () => clearTimeout(loginTimer);
+    }
+  }, [user?.id, user?.email]);
+
+  // 2. Ring immediately when unread count increases (new notification received)
+  useEffect(() => {
+    if (unreadNotifCount > prevCountRef.current && unreadNotifCount > 0) {
+      triggerBellRing();
+    }
+    prevCountRef.current = unreadNotifCount;
+  }, [unreadNotifCount, triggerBellRing]);
+
+  // Clear a pending ring reset when the header unmounts
+  useEffect(() => () => {
+    if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
+  }, []);
 
   // Close dropdowns on outside click or Escape key
   useEffect(() => {
@@ -64,15 +99,11 @@ export const Header: React.FC<HeaderProps> = ({
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
         setIsProfileMenuOpen(false);
       }
-      if (adminDropdownRef.current && !adminDropdownRef.current.contains(event.target as Node)) {
-        setIsAdminOpen(false);
-      }
     }
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setIsPersonaMenuOpen(false);
         setIsProfileMenuOpen(false);
-        setIsAdminOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -120,7 +151,6 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const homeView = getHomeView(user?.role);
-  const isDashboardHome = homeView === 'dashboard';
 
   const handleSelectTab = (viewId: string) => {
     if (onSelectView) {
@@ -144,7 +174,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border-b border-slate-200/80 dark:border-slate-800/80 text-slate-800 dark:text-slate-200 sticky top-0 z-40 transition-colors duration-200 shadow-2xs">
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 sticky top-0 z-40">
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
             {/* Left: Brand + Location Breadcrumbs */}
@@ -154,7 +184,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={onOpenMobileMenu}
                 className="p-1.5 -ml-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors md:hidden cursor-pointer"
                 aria-label="Open navigation menu"
-                title="Open Navigation"
+                title="Open menu"
               >
                 <Menu className="w-5 h-5" />
               </button>
@@ -162,20 +192,16 @@ export const Header: React.FC<HeaderProps> = ({
               {/* Brand Logo & Title */}
               <button
                 onClick={() => handleSelectTab(homeView)}
-                className="flex items-center gap-2.5 shrink-0 cursor-pointer text-left group"
+                className="flex items-center gap-2.5 shrink-0 cursor-pointer text-left rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
               >
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center font-bold shrink-0 shadow-xs shadow-indigo-500/20 group-hover:from-indigo-500 group-hover:to-indigo-400 transition-all">
-                  <Layers className="w-4 h-4" />
-                </div>
-                <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
-                  MintReview System
-                </span>
+                <AppLogo className="w-7 h-7" />
+                <span className="text-sm font-semibold text-slate-900 dark:text-white">MintReview</span>
               </button>
 
               {/* Enterprise Location Breadcrumbs */}
               {currentView && viewTitles[currentView] && (
                 <div className="hidden sm:flex items-center gap-2 pl-4 border-l border-slate-200/80 dark:border-slate-800 text-xs">
-                  <span className="text-slate-400 font-medium">{viewTitles[currentView].group}</span>
+                  <span className="text-slate-500 dark:text-slate-400">{viewTitles[currentView].group}</span>
                   <span className="text-slate-300 dark:text-slate-600 font-normal">/</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">{viewTitles[currentView].label}</span>
                 </div>
@@ -193,7 +219,7 @@ export const Header: React.FC<HeaderProps> = ({
                         onClick={() => setIsPersonaMenuOpen(!isPersonaMenuOpen)}
                         disabled={isSwitchingRole || isLoading}
                         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100/80 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 hover:bg-white dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 shadow-2xs transition-all cursor-pointer"
-                        title="Switch Persona Role"
+                        title="Switch role"
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
                         <span className="text-slate-500 dark:text-slate-400 hidden xs:inline">Role:</span>
@@ -202,9 +228,9 @@ export const Header: React.FC<HeaderProps> = ({
                       </button>
 
                       {isPersonaMenuOpen && (
-                        <div className="absolute right-0 mt-1.5 w-64 bg-white dark:bg-slate-900 rounded-xl shadow-dropdown border border-slate-200/80 dark:border-slate-800 p-1.5 z-50 animate-in fade-in duration-120">
-                          <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                            Switch Role
+                        <div className="absolute right-0 mt-1.5 w-64 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 p-1.5 z-50 animate-in fade-in duration-120">
+                          <div className="px-2 py-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                            Switch role
                           </div>
                           <div className="space-y-0.5 mt-0.5">
                             {quickPersonas.map((p) => {
@@ -223,7 +249,7 @@ export const Header: React.FC<HeaderProps> = ({
                                     <IconComponent className="w-3.5 h-3.5 text-slate-500" />
                                     <div className="text-left">
                                       <div className="font-medium text-slate-900 dark:text-slate-100">{p.name}</div>
-                                      <div className="text-[10px] text-slate-400">{p.title}</div>
+                                      <div className="text-xs text-slate-500 dark:text-slate-400">{p.title}</div>
                                     </div>
                                   </div>
                                   {isCurrent && <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />}
@@ -250,8 +276,8 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={toggleTheme}
                     id="theme-toggle-btn"
                     className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
-                    title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-                    aria-label="Toggle Theme"
+                    title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                    aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
                   >
                     {isDark ? (
                       <Sun className="w-4 h-4 text-amber-500" />
@@ -263,15 +289,28 @@ export const Header: React.FC<HeaderProps> = ({
                   {/* Workflow Notifications Bell Button */}
                   <button
                     onClick={() => onNavigate?.('notifications')}
+                    onMouseEnter={() => {
+                      if (unreadNotifCount > 0 && !isBellRinging) triggerBellRing();
+                    }}
                     id="workflow-notifications-btn"
                     className="relative p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
                     title={unreadNotifCount > 0 ? `${unreadNotifCount} unread notification${unreadNotifCount === 1 ? '' : 's'}` : 'Notifications'}
                     aria-label={`Notifications${unreadNotifCount > 0 ? ` (${unreadNotifCount} unread)` : ''}`}
                   >
-                    <Bell className="w-4 h-4" />
+                    <Bell
+                      className={cn(
+                        'w-4 h-4 transition-transform origin-top',
+                        isBellRinging && 'animate-bell-ring text-indigo-600 dark:text-indigo-400'
+                      )}
+                    />
                     {unreadNotifCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center bg-rose-600 text-white text-[10px] font-semibold rounded-full leading-none tabular-nums shadow-xs">
-                        {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                      <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center pointer-events-none">
+                        {isBellRinging && (
+                          <span className="absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75 animate-ping" />
+                        )}
+                        <span className="relative min-w-[16px] h-4 px-1 flex items-center justify-center bg-rose-600 text-white text-[10px] font-semibold rounded-full leading-none tabular-nums shadow-xs">
+                          {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                        </span>
                       </span>
                     )}
                   </button>
@@ -284,7 +323,7 @@ export const Header: React.FC<HeaderProps> = ({
                       id="user-profile-menu-btn"
                       className="flex items-center gap-2 p-1 pl-1.5 pr-2 rounded-lg hover:bg-slate-100/80 dark:hover:bg-slate-800/80 border border-transparent hover:border-slate-200/80 dark:hover:border-slate-700/80 transition-all text-xs font-medium cursor-pointer"
                     >
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white flex items-center justify-center font-semibold text-[11px] shadow-2xs">
+                      <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center font-semibold text-xs">
                         {user.name.charAt(0).toUpperCase()}
                       </div>
                       <span className="font-medium text-slate-900 dark:text-white hidden lg:inline max-w-[120px] truncate">
@@ -293,17 +332,17 @@ export const Header: React.FC<HeaderProps> = ({
                     </button>
 
                     {isProfileMenuOpen && (
-                      <div className="absolute right-0 mt-1.5 w-72 bg-white dark:bg-slate-900 rounded-[6px] shadow-dropdown border border-slate-200 dark:border-slate-800 py-1 z-50 animate-in fade-in duration-120">
+                      <div className="absolute right-0 mt-1.5 w-72 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 py-1 z-50 animate-in fade-in duration-120">
                         {/* User Identity */}
                         <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/80">
                           <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{user.name}</p>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
                           <div className="mt-1.5 flex items-center gap-1.5">
-                            <span className="text-[10px] font-medium px-1.5 py-0.2 rounded-[4px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                               {currentRoleConfig.label}
                             </span>
                             {employeeProfile?.cycleCode && (
-                              <span className="text-[10px] font-medium px-1.5 py-0.2 rounded-[4px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                              <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                                 Cycle {employeeProfile.cycleCode}
                               </span>
                             )}
@@ -333,12 +372,12 @@ export const Header: React.FC<HeaderProps> = ({
                           <button
                             onClick={() => {
                               setIsProfileMenuOpen(false);
-                              handleSelectTab('portal');
+                              handleSelectTab('dashboard');
                             }}
                             className="w-full text-left px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg flex items-center gap-2 cursor-pointer"
                           >
-                            <UserIcon className="w-3.5 h-3.5 text-slate-400" />
-                            <span>My Space</span>
+                            <LayoutDashboard className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Dashboard</span>
                           </button>
                           <button
                             onClick={() => {
@@ -361,7 +400,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                         {/* Theme Mode Selector */}
                         <div className="border-t border-slate-100 dark:border-slate-800 px-3 py-2">
-                          <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">
+                          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
                             Appearance
                           </div>
                           <div className="grid grid-cols-3 gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-[11px]">
@@ -412,7 +451,7 @@ export const Header: React.FC<HeaderProps> = ({
                             className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 font-medium cursor-pointer"
                           >
                             <LogOut className="w-3.5 h-3.5" />
-                            <span>Sign Out</span>
+                            <span>Sign out</span>
                           </button>
                         </div>
                       </div>
@@ -426,7 +465,7 @@ export const Header: React.FC<HeaderProps> = ({
                   className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
                 >
                   <LogIn className="w-3.5 h-3.5" />
-                  <span>Sign In</span>
+                  <span>Sign in</span>
                 </button>
               )}
             </div>
@@ -439,16 +478,16 @@ export const Header: React.FC<HeaderProps> = ({
       {user && (
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-2 py-1.5 transition-colors duration-150">
           <div className="flex items-center justify-around max-w-md mx-auto">
-            {/* Tab 1: Home (Dashboard where the role has one, otherwise My Space) */}
+            {/* Tab 1: Home (Dashboard) */}
             <button
-              onClick={() => handleSelectTab(isDashboardHome ? 'dashboard' : 'portal')}
-              className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-colors cursor-pointer ${currentView === (isDashboardHome ? 'dashboard' : 'portal')
+              onClick={() => handleSelectTab('dashboard')}
+              className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg transition-colors cursor-pointer ${currentView === 'dashboard'
                   ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
                   : 'text-slate-500 dark:text-slate-400'
                 }`}
             >
-              {isDashboardHome ? <LayoutDashboard className="w-4 h-4" /> : <UserIcon className="w-4 h-4" />}
-              <span className="text-[10px]">{isDashboardHome ? 'Dashboard' : 'My Space'}</span>
+              <LayoutDashboard className="w-4 h-4" />
+              <span className="text-[11px]">Dashboard</span>
             </button>
 
             {/* Tab 2: Reviews */}
@@ -460,7 +499,7 @@ export const Header: React.FC<HeaderProps> = ({
                 }`}
             >
               <Award className="w-4 h-4" />
-              <span className="text-[10px]">Reviews</span>
+              <span className="text-[11px]">Reviews</span>
             </button>
 
             {/* Tab 3: Appraisals / Analytics */}
@@ -473,7 +512,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }`}
               >
                 <TrendingUp className="w-4 h-4" />
-                <span className="text-[10px]">Appraisals</span>
+                <span className="text-[11px]">Appraisals</span>
               </button>
             ) : user.role === 'HOD' ? (
               <button
@@ -484,7 +523,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }`}
               >
                 <BarChart3 className="w-4 h-4" />
-                <span className="text-[10px]">Analytics</span>
+                <span className="text-[11px]">Reports</span>
               </button>
             ) : null}
 
@@ -498,7 +537,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }`}
               >
                 <BarChart3 className="w-4 h-4" />
-                <span className="text-[10px]">Analytics</span>
+                <span className="text-[11px]">Reports</span>
               </button>
             )}
 
@@ -511,7 +550,7 @@ export const Header: React.FC<HeaderProps> = ({
                 }`}
             >
               <Grid className="w-4 h-4" />
-              <span className="text-[10px]">Menu</span>
+              <span className="text-[11px]">Menu</span>
               {isCurrentViewAdmin && (
                 <span className="absolute top-1 right-2.5 w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></span>
               )}

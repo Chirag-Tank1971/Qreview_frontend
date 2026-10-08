@@ -1,176 +1,203 @@
-import React from 'react';
-import { Award, CheckCircle2 } from 'lucide-react';
-import { ReviewKraSnapshot } from '../../../types';
-
-export const RATING_RUBRIC = [
-  { value: 1, label: 'Needs Improvement', desc: 'Consistently below expectations / targets not achieved', color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800' },
-  { value: 2, label: 'Developing', desc: 'Partially meets expectations; inconsistent target achievement', color: 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800' },
-  { value: 3, label: 'Meets Expectations', desc: 'Consistently achieves targets and meets key milestones', color: 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800' },
-  { value: 4, label: 'Exceeds Expectations', desc: 'Exceeds targets with high quality, speed, and ownership', color: 'text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800' },
-  { value: 5, label: 'Outstanding', desc: 'Significantly outperforms, sets benchmarks, and displays leadership', color: 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800' },
-];
+import React, { useState } from 'react';
+import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { KraReturnFlag, ReviewKraSnapshot } from '../../../types';
+import { RatingJustificationInput } from '../RatingJustificationInput';
+import { ReturnedKraPanel } from './ReturnedKraPanel';
+import { RatingScale } from './RatingScale';
+import { CardStatus, KraCardHeader, LockedKraRow, LockedStatus, QuotedNote } from './KraCardParts';
+import { TEXTAREA_CLASS } from '../../ui/formStyles';
 
 interface Step2ManagerSectionProps {
   snapshots: ReviewKraSnapshot[];
   canEdit: boolean;
   onKraChange: (index: number, field: keyof ReviewKraSnapshot, value: any) => void;
+  onReturnFlagChange?: (index: number, patch: Partial<KraReturnFlag>) => void;
 }
 
 export const Step2ManagerSection: React.FC<Step2ManagerSectionProps> = ({
   snapshots,
   canEdit,
   onKraChange,
+  onReturnFlagChange,
 }) => {
+  // While a return to the Manager is open, only the returned KRAs are editable; the rest are
+  // locked (and collapsed) so unrelated ratings can't change silently.
+  const hasOpenReturn = snapshots.some((k) => k.returnFlag?.target === 'MANAGER');
+  const [expandedLocked, setExpandedLocked] = useState<Set<string>>(new Set());
+  const ratedCount = snapshots.filter((k) => (k.rating || 0) > 0).length;
+
   return (
     <div className="space-y-5">
-      {/* Banner */}
-      <div className="bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 rounded-2xl p-4 flex items-start gap-3">
-        <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-          <Award className="w-4 h-4" />
-        </div>
-        <div>
-          <h3 className="text-sm font-bold text-indigo-950 dark:text-indigo-200">
-            Step 2: Score Key Result Areas (1 to 5 Scale)
-          </h3>
-          <p className="text-xs text-indigo-800/80 dark:text-indigo-300/80 mt-0.5">
-            Rate each goal based on target delivery and achievement metrics. The final score updates dynamically.
+      {/* Intro */}
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-1">
+        <div className="max-w-prose">
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">Score each key result area</h3>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+            Rate every KRA from 1 to 5 against its target. Scores of 1, 2 or 5 need a short justification.
           </p>
         </div>
+        <p className="text-xs text-slate-600 dark:text-slate-400 tabular-nums">
+          <span className="font-bold text-slate-900 dark:text-white">{ratedCount}</span> of {snapshots.length} rated
+        </p>
       </div>
 
-
-      {/* Snapshot Cards */}
-      <div className="space-y-4">
+      {/* KRA Cards */}
+      <div className="space-y-3">
         {snapshots.map((item, idx) => {
-          const itemContribution = ((item.rating || 0) * (item.weight || 0)) / 100;
+          const rating = item.rating || 0;
+          const itemContribution = (rating * (item.weight || 0)) / 100;
+          const kraDomId = item.id || (item as any).kraId || String(idx);
+          const title = item.kraName || item.title;
+          const isReturnedToMe = item.returnFlag?.target === 'MANAGER';
+          const isLocked = hasOpenReturn && !isReturnedToMe;
+          const cardEditable = canEdit && !isLocked;
+          const isMissingJustification =
+            cardEditable &&
+            [1, 2, 5].includes(rating) &&
+            (!item.ratingJustification || item.ratingJustification.trim().length < 15);
+
+          if (isLocked && !expandedLocked.has(item.id)) {
+            return (
+              <LockedKraRow
+                key={item.id || idx}
+                id={`mgr-kra-card-${kraDomId}`}
+                title={title}
+                summary={`${rating ? `Rated ${rating}` : 'Not rated'}, ${item.weight}% weight`}
+                onExpand={() => setExpandedLocked((prev) => new Set(prev).add(item.id))}
+              />
+            );
+          }
+
           return (
-            <div
+            <section
               key={item.id || idx}
-              className="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700/80 p-5 shadow-2xs space-y-4 transition-all hover:border-slate-300 dark:hover:border-slate-600"
+              id={`mgr-kra-card-${kraDomId}`}
+              aria-labelledby={`mgr-kra-title-${kraDomId}`}
+              className={`rounded-2xl border bg-white dark:bg-slate-800/90 p-5 space-y-4 ${
+                isReturnedToMe || isMissingJustification
+                  ? 'border-amber-400 dark:border-amber-600/80'
+                  : 'border-slate-200 dark:border-slate-700/80'
+              }`}
             >
-              {/* Card Header */}
-              <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-700/60 pb-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-400 dark:text-slate-500">#{idx + 1}</span>
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">{item.kraName || item.title}</h4>
-                    <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
-                      Weight: {item.weight}%
-                    </span>
-                    {item.selfRating && (
-                      <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/60">
-                        Self-Rated: {item.selfRating} ★
-                      </span>
-                    )}
-                    {(!item.rating || item.rating === 0) ? (
-                      <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-750 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
-                        Not Yet Evaluated
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/60">
-                        Rated: {item.rating} ★
-                      </span>
-                    )}
-                  </div>
-                  {item.description && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{item.description}</p>
-                  )}
-                </div>
+              <KraCardHeader
+                index={idx}
+                titleId={`mgr-kra-title-${kraDomId}`}
+                title={title}
+                description={item.description}
+                rating={rating}
+                contribution={itemContribution}
+                weight={item.weight}
+              >
+                {isReturnedToMe ? (
+                  <CardStatus icon={RotateCcw} tone="warning">Sent back to you for re-evaluation</CardStatus>
+                ) : isMissingJustification ? (
+                  <CardStatus icon={AlertTriangle} tone="warning">Add a justification to keep this score</CardStatus>
+                ) : null}
+                {isLocked && (
+                  <LockedStatus
+                    onCollapse={() =>
+                      setExpandedLocked((prev) => {
+                        const next = new Set(prev);
+                        next.delete(item.id);
+                        return next;
+                      })
+                    }
+                  />
+                )}
+              </KraCardHeader>
 
-                <div className="text-right">
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider block">
-                    Score Contribution
-                  </span>
-                  <div className="text-base font-bold text-slate-900 dark:text-white font-mono mt-0.5">
-                    {(!item.rating || item.rating === 0) ? (
-                      <span className="text-xs font-normal text-slate-400 italic">Pending</span>
-                    ) : (
-                      `+${itemContribution.toFixed(2)} pts`
-                    )}
-                  </div>
-                </div>
-              </div>
+              {/* Target & measurement */}
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                <dt className="text-slate-500 dark:text-slate-400">Target</dt>
+                <dd className="text-slate-800 dark:text-slate-200">{item.targetSnapshot || 'Quality execution within SLA'}</dd>
+                <dt className="text-slate-500 dark:text-slate-400">Measured by</dt>
+                <dd className="text-slate-800 dark:text-slate-200">
+                  {item.measurementCriteria || '1: Below SLA | 3: Meets SLA | 5: Exceeds SLA'}
+                </dd>
+              </dl>
 
-              {/* SLA & Rubric */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl text-xs border border-slate-100 dark:border-slate-800">
-                <div>
-                  <span className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[10px] block">
-                    Target Expectation SLA
-                  </span>
-                  <p className="text-slate-800 dark:text-slate-200 mt-0.5">{item.targetSnapshot || 'Quality execution within SLA'}</p>
-                </div>
-                <div>
-                  <span className="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider text-[10px] block">
-                    Measurement Criteria / Rubric
-                  </span>
-                  <p className="text-slate-700 dark:text-slate-300 mt-0.5 font-mono text-[11px]">
-                    {item.measurementCriteria || '1: Below SLA | 3: Meets SLA | 5: Exceeds SLA'}
+              {isReturnedToMe && (
+                <ReturnedKraPanel
+                  item={item}
+                  target="MANAGER"
+                  canEdit={canEdit}
+                  onFlagChange={(patch) => onReturnFlagChange?.(idx, patch)}
+                />
+              )}
+
+              <RatingScale
+                name={`mgr-kra-rating-${kraDomId}`}
+                label="Your rating"
+                rating={rating}
+                markers={[{ label: 'Employee', value: item.selfRating, tone: 'employee' }]}
+                disabled={!cardEditable}
+                onSelect={(value) => onKraChange(idx, 'rating', value)}
+              />
+
+              {/* Mandatory justification (renders only for ratings 1, 2 and 5) */}
+              <RatingJustificationInput
+                rating={rating}
+                value={item.ratingJustification || ''}
+                onChange={(val) => onKraChange(idx, 'ratingJustification', val)}
+                disabled={!cardEditable}
+                roleLabel="Manager"
+                minChars={15}
+              />
+
+              {/* Large gap: employee self-rated 5 but manager rates 1 or 2 */}
+              {item.selfRating === 5 && (rating === 1 || rating === 2) && (
+                <div className="rounded-xl border border-amber-300 dark:border-amber-800/80 bg-amber-50/60 dark:bg-amber-950/20 p-3.5 space-y-2.5 animate-in fade-in">
+                  <p className="text-xs font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+                    The employee rated this 5 and you rated it {rating}, a gap of {5 - rating} points
                   </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <QuotedNote
+                      label="Employee's reasoning"
+                      text={item.selfJustification || item.selfAchievement || 'No reasoning given.'}
+                    />
+                    <QuotedNote
+                      label="Your reasoning"
+                      text={item.ratingJustification || 'Explain the difference in the justification above.'}
+                      accent="border-amber-400 dark:border-amber-600"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* 1-5 Rubric Rating Buttons */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Manager Performance Rating (1 to 5 Scale)
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
-                  {RATING_RUBRIC.map((rubric) => {
-                    const isSelected = item.rating === rubric.value;
-                    return (
-                      <button
-                        type="button"
-                        key={rubric.value}
-                        disabled={!canEdit}
-                        onClick={() => onKraChange(idx, 'rating', rubric.value)}
-                        className={`text-left p-3 rounded-xl border text-xs transition-all flex flex-col justify-between cursor-pointer ${
-                          isSelected
-                            ? `${rubric.color} ring-2 ring-indigo-500 font-bold shadow-xs`
-                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750'
-                        } ${!canEdit ? 'cursor-not-allowed opacity-80' : ''}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold">{rubric.value} ★</span>
-                          {isSelected && <CheckCircle2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
-                        </div>
-                        <div className="text-[11px] font-semibold mt-1 leading-tight">{rubric.label}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Remarks & Deliverables */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+              {/* Results & notes */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Key Deliverables / Quantifiable Achievements
+                  <label htmlFor={`mgr-kra-achievement-${kraDomId}`} className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Results delivered
                   </label>
                   <textarea
+                    id={`mgr-kra-achievement-${kraDomId}`}
                     rows={2}
-                    disabled={!canEdit}
+                    disabled={!cardEditable}
                     value={item.achievement || ''}
                     onChange={(e) => onKraChange(idx, 'achievement', e.target.value)}
-                    placeholder="Specific milestones completed, code releases, or metrics achieved..."
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 dark:disabled:bg-slate-850"
+                    placeholder="Milestones, releases or metrics achieved"
+                    className={TEXTAREA_CLASS}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Manager Notes & Qualitative Feedback
+                  <label htmlFor={`mgr-kra-comments-${kraDomId}`} className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Your notes
                   </label>
                   <textarea
+                    id={`mgr-kra-comments-${kraDomId}`}
                     rows={2}
-                    disabled={!canEdit}
+                    disabled={!cardEditable}
                     value={item.comments || ''}
                     onChange={(e) => onKraChange(idx, 'comments', e.target.value)}
-                    placeholder="Observations on velocity, code hygiene, and collaboration..."
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 dark:disabled:bg-slate-850"
+                    placeholder="What went well and what to work on"
+                    className={TEXTAREA_CLASS}
                   />
                 </div>
               </div>
-            </div>
+            </section>
           );
         })}
       </div>

@@ -27,6 +27,7 @@ import { api } from '../services/api';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 import { EmptyState } from './ui/EmptyState';
 import { useModalAnimation } from '../hooks/useModalAnimation';
+import { PageHeader } from './ui/PageHeader';
 
 interface NotificationsCenterViewProps {
   currentUser: User | null;
@@ -339,10 +340,10 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
       case 'LETTER_RELEASED':
         if (currentUser?.role === 'EMPLOYEE') {
           return {
-            tab: 'portal',
+            tab: 'dashboard',
             label: 'Employee Appraisal Letter',
             badgeColor: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800',
-            config: { subTab: 'appraisal', openLetter: true, ...meta },
+            config: { openLetter: true, ...meta },
           };
         }
         return {
@@ -353,28 +354,28 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
         };
       case 'APPRAISAL_DUE':
         return {
-          tab: currentUser?.role === 'EMPLOYEE' ? 'portal' : 'appraisals',
+          tab: currentUser?.role === 'EMPLOYEE' ? 'dashboard' : 'appraisals',
           label: 'Annual Appraisal Rollup',
           badgeColor: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800',
-          config: { subTab: 'appraisal', ...meta },
+          config: { openLetter: true, ...meta },
         };
       case 'REVIEW_ASSIGNED':
       case 'DUE_SOON':
       case 'OVERDUE':
         return {
-          tab: currentUser?.role === 'EMPLOYEE' ? 'portal' : 'reviews',
+          tab: 'reviews',
           label: 'Quarterly Review & Scoring',
           badgeColor: 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200/80 dark:border-blue-800',
-          config: { subTab: 'reviews', ...meta, ...(meta.reviewId ? { status: 'ALL' } : {}) },
+          config: { ...meta, ...(meta.reviewId ? { status: 'ALL' } : {}) },
         };
       case 'MANAGER_SUBMITTED':
       case 'RETURNED':
       case 'HR_COMPLETED':
         return {
-          tab: currentUser?.role === 'EMPLOYEE' ? 'portal' : 'reviews',
+          tab: 'reviews',
           label: 'Quarterly Review Action',
           badgeColor: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800',
-          config: { subTab: 'reviews', ...meta, ...(meta.reviewId ? { status: 'ALL' } : {}) },
+          config: { ...meta, ...(meta.reviewId ? { status: 'ALL' } : {}) },
         };
       case 'HOD_PENDING':
         return {
@@ -411,8 +412,8 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
         };
       default:
         return {
-          tab: 'portal',
-          label: 'General Workspace',
+          tab: 'dashboard',
+          label: 'Dashboard',
           badgeColor: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
           config: {},
         };
@@ -497,66 +498,61 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Notifications"
+        description="Tasks waiting for you, updates on reviews and appraisals, and the emails MintReview has sent."
+      />
+
       {/* Top Metrics Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Total Alerts</span>
-            <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
-              <Bell className="w-4 h-4" />
-            </div>
+            <span className="text-xs font-semibold">Total alerts</span>
+            <Bell className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white">{stats.total}</div>
+          <div className="text-2xl font-bold text-slate-900 dark:text-white">{stats.total}</div>
           <span className="text-[11px] text-slate-400 mt-1">Active stream items</span>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
           <div className="flex items-center justify-between text-rose-600 dark:text-rose-400 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Unread</span>
-            <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-              <Sparkles className="w-4 h-4" />
-            </div>
+            <span className="text-xs font-semibold">Unread</span>
+            <Sparkles className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
           </div>
-          <div className="text-2xl font-black text-rose-600 dark:text-rose-400">{stats.unread}</div>
+          <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">{stats.unread}</div>
           <span className="text-[11px] text-slate-400 mt-1">Requires your attention</span>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
           <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Urgent Action</span>
-            <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
+            <span className="text-xs font-semibold">Urgent action</span>
+            <AlertTriangle className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
           </div>
-          <div className="text-2xl font-black text-amber-600 dark:text-amber-400">{stats.urgent}</div>
+          <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.urgent}</div>
           <span className="text-[11px] text-slate-400 mt-1">High priority tasks</span>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
           <div className="flex items-center justify-between text-indigo-600 dark:text-indigo-400 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Reviews</span>
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-              <Award className="w-4 h-4" />
-            </div>
+            <span className="text-xs font-semibold">Reviews</span>
+            <Award className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
           </div>
-          <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{stats.reviews}</div>
+          <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{stats.reviews}</div>
           <span className="text-[11px] text-slate-400 mt-1">Quarterly evaluations</span>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between col-span-2 sm:col-span-1">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between col-span-2 sm:col-span-1">
           <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Appraisals</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <DollarSign className="w-4 h-4" />
-            </div>
+            <span className="text-xs font-semibold">Appraisals</span>
+            <DollarSign className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
           </div>
-          <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{stats.appraisals}</div>
+          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats.appraisals}</div>
           <span className="text-[11px] text-slate-400 mt-1">Compensation & letters</span>
         </div>
       </div>
 
       {/* Main Workspace Tabs & Filter Bar */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-hidden">
         <div className="p-4 sm:p-5 border-b border-slate-200/80 dark:border-slate-800 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-slate-50/60 dark:bg-slate-950/40">
           {/* Main Navigation Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto w-full lg:w-auto scrollbar-none">
@@ -564,13 +560,13 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
               onClick={() => setActiveTab('all')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
                 activeTab === 'all'
-                  ? 'bg-indigo-600 text-white shadow-xs'
+                  ? 'bg-indigo-600 text-white'
                   : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-800'
               }`}
             >
               <Bell className="w-3.5 h-3.5" />
-              <span>All Alerts</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+              <span>All alerts</span>
+              <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
                 {stats.total}
               </span>
             </button>
@@ -579,14 +575,14 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
               onClick={() => setActiveTab('unread')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
                 activeTab === 'unread'
-                  ? 'bg-indigo-600 text-white shadow-xs'
+                  ? 'bg-indigo-600 text-white'
                   : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-800'
               }`}
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>Unread</span>
               {stats.unread > 0 && (
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'unread' ? 'bg-rose-500 text-white' : 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'}`}>
+                <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'unread' ? 'bg-rose-500 text-white' : 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'}`}>
                   {stats.unread}
                 </span>
               )}
@@ -596,13 +592,13 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
               onClick={() => setActiveTab('reviews')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
                 activeTab === 'reviews'
-                  ? 'bg-indigo-600 text-white shadow-xs'
+                  ? 'bg-indigo-600 text-white'
                   : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-800'
               }`}
             >
               <Award className="w-3.5 h-3.5" />
               <span>Reviews</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'reviews' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+              <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'reviews' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
                 {stats.reviews}
               </span>
             </button>
@@ -611,13 +607,13 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
               onClick={() => setActiveTab('appraisals')}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
                 activeTab === 'appraisals'
-                  ? 'bg-indigo-600 text-white shadow-xs'
+                  ? 'bg-indigo-600 text-white'
                   : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-800'
               }`}
             >
               <DollarSign className="w-3.5 h-3.5" />
               <span>Appraisals</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'appraisals' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+              <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'appraisals' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
                 {stats.appraisals}
               </span>
             </button>
@@ -627,13 +623,13 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
                 onClick={() => setActiveTab('emails')}
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
                   activeTab === 'emails'
-                    ? 'bg-indigo-600 text-white shadow-xs'
+                    ? 'bg-indigo-600 text-white'
                     : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-800'
                 }`}
               >
                 <Mail className="w-3.5 h-3.5" />
-                <span>Email Audit Logs</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'emails' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+                <span>Email audit logs</span>
+                <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${activeTab === 'emails' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
                   {emailLogs.length}
                 </span>
               </button>
@@ -658,7 +654,7 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
                 className="inline-flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-200 font-bold px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
               >
                 <Send className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                <span>Test Email Dispatch</span>
+                <span>Test email dispatch</span>
               </button>
             )}
 
@@ -707,10 +703,10 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
                 onChange={(e: any) => setPriorityFilter(e.target.value)}
                 className="text-xs py-1.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
               >
-                <option value="ALL">All Priorities</option>
-                <option value="HIGH">Action Required (High)</option>
-                <option value="MEDIUM">Alerts (Medium)</option>
-                <option value="LOW">Information (Low)</option>
+                <option value="ALL">All priorities</option>
+                <option value="HIGH">Action required (high)</option>
+                <option value="MEDIUM">Alerts (medium)</option>
+                <option value="LOW">Information (low)</option>
               </select>
             </div>
           </div>
@@ -723,13 +719,13 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Database Email Transmission Logs
+                  Database email transmission logs
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Audit trail of all transactional emails dispatched via SMTP / Ethereal Email
+                  Audit trail of all transactional emails dispatched via SMTP / ethereal email
                 </p>
               </div>
-              <span className="text-xs font-mono px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 rounded-lg border border-indigo-200/80 dark:border-indigo-800">
+              <span className="text-xs tabular-nums px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 rounded-lg border border-indigo-200/80 dark:border-indigo-800">
                 {emailLogs.length} Records Logged
               </span>
             </div>
@@ -746,14 +742,14 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
                 <p className="text-xs text-slate-400">Dispatch a test email using the button above to test the SMTP relay.</p>
               </div>
             ) : (
-              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto shadow-2xs">
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto">
                 <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-                  <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-[11px] uppercase tracking-wider text-slate-500 font-bold">
+                  <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-500 font-bold">
                     <tr>
                       <th className="px-4 py-3">Status</th>
                       <th className="px-4 py-3">Recipient</th>
-                      <th className="px-4 py-3">Subject & Type</th>
-                      <th className="px-4 py-3">Date & Time</th>
+                      <th className="px-4 py-3">Subject & type</th>
+                      <th className="px-4 py-3">Date & time</th>
                       <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -762,30 +758,30 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
                       <tr key={log.id || log._id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="px-4 py-3 shrink-0">
                           {log.status === 'SENT' ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                               SENT
                             </span>
                           ) : log.status === 'FAILED' ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800">
                               <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                               FAILED
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                               {log.status}
                             </span>
                           )}
                         </td>
                         <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
                           <div>{log.recipientName || 'Employee'}</div>
-                          <div className="text-[11px] text-slate-400 font-mono">{log.recipientEmail}</div>
+                          <div className="text-[11px] text-slate-400 tabular-nums">{log.recipientEmail}</div>
                         </td>
                         <td className="px-4 py-3">
                           <div className="font-semibold text-slate-900 dark:text-slate-100">{log.subject}</div>
-                          <div className="text-[10px] uppercase text-indigo-600 dark:text-indigo-400 font-bold">{log.templateType}</div>
+                          <div className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold">{log.templateType}</div>
                         </td>
-                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-mono text-[11px]">
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 tabular-nums text-[11px]">
                           {new Date(log.createdAt).toLocaleString()}
                         </td>
                         <td className="px-4 py-3 text-right">
@@ -833,17 +829,17 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
               return (
                 <div
                   key={`${notif.id || (notif as any)._id || 'notif'}_${idx}`}
-                    className={`p-4 sm:p-5 rounded-2xl transition-all border ${
+                    className={`p-4 sm:p-5 rounded-xl transition-all border ${
                       notif.isRead
-                        ? 'bg-white dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700 shadow-2xs'
-                        : 'bg-indigo-50/40 dark:bg-indigo-950/30 border-indigo-200/80 dark:border-indigo-900/60 text-slate-900 dark:text-white shadow-xs hover:border-indigo-300 dark:hover:border-indigo-700'
+                        ? 'bg-white dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700'
+                        : 'bg-indigo-50/40 dark:bg-indigo-950/30 border-indigo-200/80 dark:border-indigo-900/60 text-slate-900 dark:text-white hover:border-indigo-300 dark:hover:border-indigo-700'
                     }`}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
                       {/* Main Notification Details */}
                       <div className="flex items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
                         <div className="relative shrink-0 mt-0.5">
-                          <div className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs">
+                          <div className="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                             {getIconForType(notif.type)}
                           </div>
                           {!notif.isRead && (
@@ -857,17 +853,17 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
                               {notif.title}
                             </h4>
                             {notif.priority === 'HIGH' && (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800 uppercase tracking-wider">
-                                Action Required
+                              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800">
+                                Action required
                               </span>
                             )}
                             {notif.priority === 'MEDIUM' && (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800">
+                              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800">
                                 Alert
                               </span>
                             )}
                             {!notif.isRead && (
-                              <span className="text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
+                              <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
                                 • NEW
                               </span>
                             )}
@@ -878,7 +874,7 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
                           </p>
 
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-[11px] text-slate-400 dark:text-slate-500">
-                            <span className="flex items-center gap-1 font-mono shrink-0">
+                            <span className="flex items-center gap-1 tabular-nums shrink-0">
                               <Clock className="w-3.5 h-3.5 text-slate-400" />
                               {new Date(notif.createdAt).toLocaleDateString(undefined, {
                                 month: 'short',
@@ -905,7 +901,7 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
                           {!notif.isRead && (
                             <button
                               onClick={(e) => handleMarkAsRead(notif.id, e)}
-                              className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 font-semibold px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800 rounded-xl shadow-2xs hover:bg-indigo-50 dark:hover:bg-indigo-950/60 cursor-pointer transition-colors"
+                              className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 font-semibold px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/60 cursor-pointer transition-colors"
                               title="Mark as read"
                             >
                               Mark read
@@ -914,16 +910,16 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
 
                           <button
                             onClick={() => handleOpenWorkflow(notif)}
-                            className="inline-flex items-center gap-1 text-xs text-white font-bold px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-xs hover:shadow-indigo-500/20 transition-all shrink-0 cursor-pointer"
+                            className="inline-flex items-center gap-1 text-xs text-white font-bold px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 transition-all shrink-0 cursor-pointer"
                           >
-                            <span>Take Action</span>
+                            <span>Take action</span>
                             <ChevronRight className="w-4 h-4" />
                           </button>
                         </div>
 
                         <button
                           onClick={(e) => handleRemoveNotification(notif.id, e)}
-                          className="p-1.5 text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/80 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 rounded-xl border border-rose-200/60 dark:border-rose-800/60 transition-colors cursor-pointer shadow-2xs shrink-0"
+                          className="p-1.5 text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/80 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 rounded-xl border border-rose-200/60 dark:border-rose-800/60 transition-colors cursor-pointer shrink-0"
                           title="Delete notification"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -968,18 +964,16 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
           onClick={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
         >
-          <div className="bg-slate-900/95 dark:bg-slate-950/95 text-white rounded-2xl px-4 py-3 shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-slate-700/80 backdrop-blur-md flex items-center justify-between gap-3 ring-2 ring-indigo-500/40">
+          <div className="bg-slate-900/95 dark:bg-slate-950/95 text-white rounded-xl px-4 py-3 shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-slate-700/80 backdrop-blur-md flex items-center justify-between gap-3 ring-2 ring-indigo-500/40">
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/30">
-                <Trash2 className="w-4 h-4" />
-              </div>
+              <Trash2 className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
 
               <div className="flex flex-col min-w-0 flex-1 pr-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-white truncate">
                     Notification removed
                   </span>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold bg-slate-800 text-indigo-400 border border-slate-700 shrink-0">
+                  <span className="text-[11px] px-1.5 py-0.2 rounded-full tabular-nums font-bold bg-slate-800 text-indigo-400 border border-slate-700 shrink-0">
                     {pendingDeletion.secondsRemaining}s
                   </span>
                 </div>
@@ -993,7 +987,7 @@ export const NotificationsCenterView: React.FC<NotificationsCenterViewProps> = (
               <button
                 type="button"
                 onClick={handleUndoDelete}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-xs font-extrabold shadow-md transition-all cursor-pointer transform active:scale-95 touch-manipulation select-none"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-xs font-bold transition-all cursor-pointer transform touch-manipulation select-none"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Undo</span>
@@ -1039,7 +1033,7 @@ const TestEmailModal: React.FC<TestEmailModalProps> = ({
   isSendingTest,
   handleSendTestEmail,
 }) => {
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+  const { isMounted, handleClose, backdropClass, cardClass } = useModalAnimation({
     isOpen,
     onClose,
   });
@@ -1058,13 +1052,12 @@ const TestEmailModal: React.FC<TestEmailModalProps> = ({
   return (
     <div
       className={`fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm ${backdropClass}`}
-      onClick={handleBackdropClick}
     >
-      <div className={`bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 ${cardClass}`}>
+      <div className={`bg-white dark:bg-slate-900 rounded-xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 ${cardClass}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
             <Send className="w-5 h-5" />
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">Send SMTP Verification Email</h3>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Send SMTP verification email</h3>
           </div>
           <button
             onClick={handleClose}
@@ -1075,13 +1068,13 @@ const TestEmailModal: React.FC<TestEmailModalProps> = ({
         </div>
 
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Triggers a test email through Nodemailer. If no custom SMTP credentials exist in .env, it outputs an Ethereal sandbox link.
+          Triggers a test email through nodemailer. If no custom SMTP credentials exist in .env, it outputs an ethereal sandbox link.
         </p>
 
         <form onSubmit={handleSendTestEmail} className="space-y-3">
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Recipient Name
+              Recipient name
             </label>
             <input
               type="text"
@@ -1094,7 +1087,7 @@ const TestEmailModal: React.FC<TestEmailModalProps> = ({
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Recipient Email
+              Recipient email
             </label>
             <input
               type="email"
@@ -1122,7 +1115,7 @@ const TestEmailModal: React.FC<TestEmailModalProps> = ({
             <button
               type="submit"
               disabled={isSendingTest}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer"
             >
               {isSendingTest && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
               <span>{isSendingTest ? 'Sending...' : 'Dispatch Email'}</span>

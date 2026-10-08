@@ -3,7 +3,6 @@ import type { UserRole } from '../types';
 
 export type AppView =
   | 'dashboard'
-  | 'portal'
   | 'management'
   | 'ai_performance'
   | 'appraisals'
@@ -46,10 +45,11 @@ export function isViewPermitted(view: AppView, role?: string): boolean {
 
 function getInitialView(): AppView {
   const hash = window.location.hash.replace(/^#\/?/, '').trim();
+  if (hash === 'portal') return 'dashboard';
   if (VALID_VIEWS.includes(hash as AppView)) {
     return hash as AppView;
   }
-  return 'portal';
+  return 'dashboard';
 }
 
 export function useUrlHashView() {
@@ -79,10 +79,12 @@ export function useUrlHashView() {
     const handleHashChange = () => {
       const hash = window.location.hash.replace(/^#\/?/, '').trim();
       startTransition(() => {
-        if (VALID_VIEWS.includes(hash as AppView)) {
+        if (hash === 'portal') {
+          setCurrentViewState('dashboard');
+        } else if (VALID_VIEWS.includes(hash as AppView)) {
           setCurrentViewState(hash as AppView);
         } else {
-          setCurrentViewState('portal');
+          setCurrentViewState('dashboard');
         }
       });
     };

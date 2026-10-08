@@ -42,7 +42,7 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+  const { isMounted, handleClose, backdropClass, cardClass } =
     useModalAnimation({ isOpen, onClose });
 
   // Accurate eligible-employee count, sourced from the same filtering the backend actually
@@ -65,15 +65,14 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
     };
   }, [isMounted, handleClose]);
 
-  if (!isOpen) return null;
-
   // Default to active period
   useEffect(() => {
+    if (!isMounted) return;
     if (periods.length > 0) {
       const active = periods.find((p) => p.status === 'ACTIVE') || periods[0];
-      setSelectedPeriodId(active.id);
+      setSelectedPeriodId((prev) => prev || active.id);
     }
-  }, [periods]);
+  }, [periods, isMounted]);
 
   // Accurate eligible count from the backend — mirrors the exact same status/department/
   // cycle/existing-review/tenure filtering the generate-batch route uses, so this number
@@ -81,7 +80,7 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
   // filter previously overcounted employees who already had a review for this period, or
   // who fail the minimum-tenure check).
   useEffect(() => {
-    if (!selectedPeriodId) {
+    if (!isMounted || !selectedPeriodId) {
       setEligiblePreview(null);
       return;
     }
@@ -106,9 +105,11 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
     return () => {
       cancelled = true;
     };
-  }, [selectedPeriodId, selectedDepartmentId, selectedCycleId, overrideExisting]);
+  }, [selectedPeriodId, selectedDepartmentId, selectedCycleId, overrideExisting, isMounted]);
 
   const eligibleCount = eligiblePreview?.eligibleCount ?? 0;
+
+  if (!isMounted) return null;
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,18 +150,15 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
   return createPortal(
     <div
       className={`fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/50 dark:bg-black/70 backdrop-blur-xs p-4 ${backdropClass}`}
-      onClick={handleBackdropClick}
     >
       <div className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-xl overflow-hidden ${cardClass}`}>
         
         {/* HEADER */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-800/80">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-              <Sparkles className="w-5 h-5" />
-            </div>
+            <Sparkles className="w-5 h-5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">Initiate Quarterly Reviews</h2>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Initiate quarterly reviews</h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">Generate review sheets & freeze immutable KRA snapshots</p>
             </div>
           </div>
@@ -192,7 +190,7 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
             <div className="bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 p-3.5 rounded-lg flex items-start space-x-3 text-xs text-indigo-900 dark:text-indigo-200">
               <ShieldCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
               <p className="leading-relaxed">
-                <strong className="font-semibold">Immutable KRA Snapshot Engine:</strong> Generating reviews takes a frozen snapshot of each employee's designated KRA template at this point in time. Subsequent template edits will not distort ongoing or past quarterly reviews.
+                <strong className="font-semibold">KRA snapshot:</strong> Generating reviews takes a frozen snapshot of each employee's designated KRA template at this point in time. Subsequent template edits will not distort ongoing or past quarterly reviews.
               </p>
             </div>
 
@@ -200,7 +198,7 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center space-x-1.5">
                 <Calendar className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                <span>Target Review Period *</span>
+                <span>Target review period *</span>
               </label>
               <select
                 required
@@ -221,14 +219,14 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center space-x-1.5">
                   <Building2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                  <span>Target Department</span>
+                  <span>Target department</span>
                 </label>
                 <select
                   value={selectedDepartmentId}
                   onChange={(e) => setSelectedDepartmentId(e.target.value)}
                   className="w-full text-xs p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-indigo-500 font-medium"
                 >
-                  <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All Departments (Entire Company)</option>
+                  <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All departments (entire company)</option>
                   {departments.map((d) => (
                     <option key={d.id} value={d.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                       {d.name}
@@ -240,14 +238,14 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center space-x-1.5">
                   <Layers className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                  <span>Appraisal Cycle Cohort</span>
+                  <span>Appraisal cycle cohort</span>
                 </label>
                 <select
                   value={selectedCycleId}
                   onChange={(e) => setSelectedCycleId(e.target.value)}
                   className="w-full text-xs p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-indigo-500 font-medium"
                 >
-                  <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All Cycles</option>
+                  <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All cycles</option>
                   {cycles.filter((c) => c.active !== false).map((c) => (
                     <option key={c.id} value={c.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                       {c.name}
@@ -278,12 +276,12 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
             <div className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg p-3 flex items-center justify-between">
               <div className="flex items-center space-x-2.5">
                 <Users className="w-4 h-4 text-slate-600 dark:text-slate-400" />
-                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Eligible Employees in Scope:</span>
+                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Eligible employees in scope:</span>
               </div>
               {previewLoading ? (
                 <RotateCw className="w-3.5 h-3.5 text-slate-400 animate-spin" />
               ) : (
-                <span className="text-sm font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-800 px-2.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-700 shadow-2xs">
+                <span className="text-sm font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-800 px-2.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
                   {eligibleCount} employees
                 </span>
               )}
@@ -311,7 +309,7 @@ export const BatchGenerateReviewsModal: React.FC<BatchGenerateReviewsModalProps>
             <button
               type="submit"
               disabled={loading || previewLoading || eligibleCount === 0}
-              className="px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+              className="px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <>

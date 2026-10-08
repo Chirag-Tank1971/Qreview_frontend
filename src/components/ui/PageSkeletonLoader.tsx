@@ -1,6 +1,6 @@
 import React from 'react';
 
-type PageSkeletonVariant = 'dashboard' | 'portal' | 'table' | 'hierarchy' | 'generic';
+type PageSkeletonVariant = 'dashboard' | 'table' | 'hierarchy' | 'generic';
 
 interface PageSkeletonLoaderProps {
   variant?: PageSkeletonVariant;
@@ -68,59 +68,6 @@ export const PageSkeletonLoader: React.FC<PageSkeletonLoaderProps> = ({
                   <div className="h-3 w-8 bg-slate-100 dark:bg-slate-800 rounded" />
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (variant === 'portal') {
-    return (
-      <div className={`space-y-6 w-full animate-page-enter ${className}`}>
-        {/* Header Skeleton */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="h-6 w-32 bg-slate-200 dark:bg-slate-800 rounded-lg shimmer-effect" />
-              <div className="h-5 w-28 bg-slate-100 dark:bg-slate-800 rounded-full shimmer-effect" />
-            </div>
-            <div className="h-3.5 w-72 bg-slate-100 dark:bg-slate-800/60 rounded shimmer-effect" />
-          </div>
-        </div>
-
-        {/* Employee Profile Hero Card Skeleton */}
-        <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-2xs shimmer-effect">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-            <div className="w-16 h-16 rounded-2xl bg-slate-200 dark:bg-slate-800 shrink-0" />
-            <div className="space-y-2 flex-1">
-              <div className="h-5 w-48 bg-slate-200 dark:bg-slate-800 rounded" />
-              <div className="h-3.5 w-64 bg-slate-100 dark:bg-slate-800/60 rounded" />
-              <div className="flex gap-2 pt-1">
-                <div className="h-5 w-20 bg-slate-100 dark:bg-slate-800 rounded-md" />
-                <div className="h-5 w-24 bg-slate-100 dark:bg-slate-800 rounded-md" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs Bar Skeleton */}
-        <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-8 w-28 bg-slate-200 dark:bg-slate-800 rounded-lg shimmer-effect" />
-          ))}
-        </div>
-
-        {/* 3 Metric Summary Cards Skeleton */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs shimmer-effect space-y-3"
-            >
-              <div className="h-4 w-32 bg-slate-200 dark:bg-slate-800 rounded" />
-              <div className="h-8 w-24 bg-slate-200 dark:bg-slate-800 rounded-lg" />
-              <div className="h-3 w-40 bg-slate-100 dark:bg-slate-800/60 rounded" />
             </div>
           ))}
         </div>

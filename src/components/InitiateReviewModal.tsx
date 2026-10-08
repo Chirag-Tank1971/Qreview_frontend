@@ -102,7 +102,7 @@ export const InitiateReviewModal: React.FC<InitiateReviewModalProps> = ({
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string>('');
 
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+  const { isMounted, handleClose, backdropClass, cardClass } =
     useModalAnimation({ isOpen, onClose });
 
   // Lock body scroll and handle Escape key
@@ -226,18 +226,15 @@ export const InitiateReviewModal: React.FC<InitiateReviewModalProps> = ({
   return createPortal(
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs ${backdropClass}`}
-      onClick={handleBackdropClick}
     >
-      <div className={`relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col ${cardClass}`}>
+      <div className={`relative w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col ${cardClass}`}>
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-              <UserCheck className="w-4 h-4" />
-            </div>
+            <UserCheck className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                Initiate Review
+                Initiate review
               </h3>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 Start a quarterly review for an employee with tenure verification
@@ -266,7 +263,7 @@ export const InitiateReviewModal: React.FC<InitiateReviewModalProps> = ({
           <div className="space-y-1">
             <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center space-x-1.5">
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
-              <span>Review Period</span>
+              <span>Review period</span>
             </label>
             <select
               value={selectedPeriodId}
@@ -362,7 +359,7 @@ export const InitiateReviewModal: React.FC<InitiateReviewModalProps> = ({
                     <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 flex items-start space-x-2 text-rose-800 dark:text-rose-300 text-xs">
                       <XCircle className="w-4 h-4 shrink-0 text-rose-500 mt-0.5" />
                       <div>
-                        <strong className="block font-semibold">Review Already Exists</strong>
+                        <strong className="block font-semibold">Review already exists</strong>
                         A review record already exists for {eligibilityData.employee.name} in {eligibilityData.period.name}.
                       </div>
                     </div>
@@ -373,7 +370,7 @@ export const InitiateReviewModal: React.FC<InitiateReviewModalProps> = ({
                     <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 flex items-start space-x-2 text-rose-800 dark:text-rose-300 text-xs">
                       <XCircle className="w-4 h-4 shrink-0 text-rose-500 mt-0.5" />
                       <div>
-                        <strong className="block font-semibold">Cannot Initiate Review</strong>
+                        <strong className="block font-semibold">Cannot initiate review</strong>
                         {eligibilityData.reason || 'Core requirements are not satisfied.'}
                       </div>
                     </div>
@@ -459,7 +456,7 @@ export const InitiateReviewModal: React.FC<InitiateReviewModalProps> = ({
               !eligibilityData?.canInitiateManually ||
               (eligibilityData?.requiresManualOverride && !overrideReason.trim())
             }
-            className={`px-4 py-1.5 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition-all shadow-xs ${
+            className={`px-4 py-1.5 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition-all ${
               submitting ||
               checkingEligibility ||
               !eligibilityData?.canInitiateManually ||
@@ -476,7 +473,7 @@ export const InitiateReviewModal: React.FC<InitiateReviewModalProps> = ({
             ) : (
               <>
                 <UserCheck className="w-3.5 h-3.5" />
-                <span>Initiate Review</span>
+                <span>Initiate review</span>
               </>
             )}
           </button>

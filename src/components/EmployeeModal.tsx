@@ -99,7 +99,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   allEmployees,
   kraTemplates = [],
 }) => {
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+  const { isMounted, handleClose, backdropClass, cardClass } = useModalAnimation({
     isOpen,
     onClose,
   });
@@ -975,24 +975,21 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
   return createPortal(
     <div
       className={`fixed inset-0 z-[9990] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto ${backdropClass}`}
-      onClick={(e) => {
-        if (!createdResponse) handleBackdropClick(e);
-      }}
     >
       {/* 1. ONBOARDING CREDENTIALS SUCCESS CARD */}
       {createdResponse && createdResponse.provisionedUser ? (
-        <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden p-6 sm:p-8 text-slate-800 dark:text-slate-200 ${cardClass}`}>
+        <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-lg shadow-2xl overflow-hidden p-6 sm:p-8 text-slate-800 dark:text-slate-200 ${cardClass}`}>
           <div className="text-center">
             <div className="w-14 h-14 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
               <CheckCircle2 className="w-7 h-7" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Employee Created & Access Provisioned!</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Employee created & access provisioned!</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               The employee profile and login account were created successfully. Share these initial credentials with the employee.
             </p>
           </div>
 
-          <div className="mt-5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl p-4 space-y-2.5 font-mono text-xs">
+          <div className="mt-5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 rounded-xl p-4 space-y-2.5 tabular-nums text-xs">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700/60">
               <span className="text-slate-500 dark:text-slate-400 font-sans">Employee:</span>
               <span className="font-semibold text-slate-900 dark:text-white font-sans">
@@ -1000,17 +997,17 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
               </span>
             </div>
             <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700/60">
-              <span className="text-slate-500 dark:text-slate-400 font-sans">Corporate Email:</span>
+              <span className="text-slate-500 dark:text-slate-400 font-sans">Corporate email:</span>
               <span className="font-semibold text-slate-900 dark:text-white">{createdResponse.provisionedUser.email}</span>
             </div>
             <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-700/60">
-              <span className="text-slate-500 dark:text-slate-400 font-sans">System Access Role:</span>
+              <span className="text-slate-500 dark:text-slate-400 font-sans">System access role:</span>
               <span className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800 font-sans text-[11px]">
                 {createdResponse.provisionedUser.role}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-slate-500 dark:text-slate-400 font-sans">Temporary Password:</span>
+              <span className="text-slate-500 dark:text-slate-400 font-sans">Temporary password:</span>
               <span className="font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/60">
                 {createdResponse.provisionedUser.temporaryPassword}
               </span>
@@ -1025,7 +1022,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
           <div className="mt-5 flex items-center gap-3">
             <button
               onClick={handleCopyCredentials}
-              className="flex-1 py-2.5 px-4 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2 shadow-2xs transition-all cursor-pointer"
+              className="flex-1 py-2.5 px-4 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               {copied ? (
                 <>
@@ -1035,13 +1032,13 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
               ) : (
                 <>
                   <Copy className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-                  <span>Copy Login Details</span>
+                  <span>Copy login details</span>
                 </>
               )}
             </button>
             <button
               onClick={handleClose}
-              className="py-2.5 px-6 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+              className="py-2.5 px-6 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
             >
               Done
             </button>
@@ -1049,11 +1046,11 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         </div>
       ) : (
         /* 2. SIMPLE ONE-PAGE EMPLOYEE FORM MODAL */
-        <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden text-slate-800 dark:text-slate-200 flex flex-col max-h-[92vh] ${cardClass}`}>
+        <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-3xl shadow-2xl overflow-hidden text-slate-800 dark:text-slate-200 flex flex-col max-h-[92vh] ${cardClass}`}>
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/80 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold shadow-2xs">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
                 {isRehiring ? <UserCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> : isEditing ? <Briefcase className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
               </div>
               <div>
@@ -1077,7 +1074,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
           {/* Single Unified Scrollable Form */}
           <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6 flex-1 bg-white dark:bg-slate-900">
             {error && (
-              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-2xl text-xs text-rose-700 dark:text-rose-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in duration-150">
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl text-xs text-rose-700 dark:text-rose-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in fade-in duration-150">
                 <div className="flex items-start space-x-2.5">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
                   <span>{error}</span>
@@ -1086,7 +1083,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                   <button
                     type="button"
                     onClick={() => handleStartRehire(emailConflict)}
-                    className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold shrink-0 transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
+                    className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold shrink-0 transition-colors flex items-center gap-1 cursor-pointer"
                   >
                     <UserCheck className="w-3 h-3" />
                     Rehire {emailConflict.name}
@@ -1097,11 +1094,11 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
 
             {/* Rehiring Mode Active Banner */}
             {isRehiring && (
-              <div className="p-3.5 bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-2xl flex items-start gap-3 text-xs text-emerald-900 dark:text-emerald-200 animate-in fade-in duration-150 shadow-2xs">
+              <div className="p-3.5 bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-xl flex items-start gap-3 text-xs text-emerald-900 dark:text-emerald-200 animate-in fade-in duration-150">
                 <UserCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                 <div className="space-y-0.5 flex-1">
                   <span className="font-bold text-emerald-950 dark:text-emerald-100 block text-xs">
-                    Rehiring Mode Active — Reactivating Employee Record
+                    Rehiring mode active — reactivating employee record
                   </span>
                   <p className="text-emerald-800 dark:text-emerald-300/90 leading-relaxed text-[11px]">
                     You are rehiring <strong>{name}</strong> ({employeeCode}). Past appraisals and reviews remain securely preserved and immutable. A new employment tenure begins on <strong>{joiningDate || 'today'}</strong>. All profile, organization, compensation, and portal credential fields are now unlocked.
@@ -1112,7 +1109,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
 
             {/* Inactive / Past Employee Audit Lock Notice */}
             {isInactive && (
-              <div className="p-3.5 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-900 dark:text-amber-200 animate-in fade-in duration-150 shadow-2xs">
+              <div className="p-3.5 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-900 dark:text-amber-200 animate-in fade-in duration-150">
                 <div className="flex items-start gap-3">
                   <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                   <div className="space-y-0.5">
@@ -1120,7 +1117,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       {wasPastEmployee ? 'Archived Past Employee — Profile Details Inactive' : 'Employee Marked as Inactive — Profile Details Locked'}
                     </span>
                     <p className="text-amber-800 dark:text-amber-300/90 leading-relaxed text-[11px]">
-                      This employee record is marked inactive / relieved. Only the official Relieving / Exit Date can be updated, or you can rehire them to begin a new tenure.
+                      This employee record is marked inactive / relieved. Only the official relieving / exit date can be updated, or you can rehire them to begin a new tenure.
                     </p>
                   </div>
                 </div>
@@ -1134,10 +1131,10 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       setProvisionLogin(true);
                       setInitialPassword(`Welcome@${new Date().getFullYear()}`);
                     }}
-                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+                    className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
                   >
                     <UserCheck className="w-3.5 h-3.5" />
-                    Rehire Employee
+                    Rehire employee
                   </button>
                 )}
               </div>
@@ -1148,12 +1145,12 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
               <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">
                     1. Personal & Contact Details
                   </h3>
                 </div>
                 {isInactive && (
-                  <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                  <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1">
                     <Lock className="w-2.5 h-2.5" /> Locked
                   </span>
                 )}
@@ -1163,7 +1160,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {/* Employee Code */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Employee Code <span className="text-rose-500">*</span>
+                    Employee code <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <Hash className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
@@ -1174,7 +1171,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       value={employeeCode}
                       onChange={(e) => setEmployeeCode(e.target.value.toUpperCase())}
                       placeholder="MS0001"
-                      className="w-full border rounded-xl pl-9 pr-3 py-2 text-xs font-mono bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-slate-200 dark:border-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
+                      className="w-full border rounded-xl pl-9 pr-3 py-2 text-xs tabular-nums bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-slate-200 dark:border-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                     />
                   </div>
                 </div>
@@ -1182,7 +1179,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {/* Full Name */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Full Name <span className="text-rose-500">*</span>
+                    Full name <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1198,7 +1195,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {/* Corporate Email */}
                 <div className={emailConflict ? 'sm:col-span-2' : ''}>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Corporate Email <span className="text-rose-500">*</span>
+                    Corporate email <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
@@ -1226,7 +1223,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                   {emailConflict && (
                     <div className="mt-2.5">
                       {isConflictPastEmployee ? (
-                        <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/80 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-blue-900 dark:text-blue-200 shadow-2xs animate-in fade-in duration-150">
+                        <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/80 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-blue-900 dark:text-blue-200 animate-in fade-in duration-150">
                           <div className="flex items-start gap-2.5">
                             <RotateCcw className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                             <div className="space-y-0.5">
@@ -1241,10 +1238,10 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                           <button
                             type="button"
                             onClick={() => handleStartRehire(emailConflict)}
-                            className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+                            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
                           >
                             <UserCheck className="w-3.5 h-3.5" />
-                            Rehire This Employee
+                            Rehire this employee
                           </button>
                         </div>
                       ) : (
@@ -1260,7 +1257,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {/* Phone Number */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Official Mobile / Contact
+                    Official mobile / contact
                   </label>
                   <div className="relative">
                     <Phone className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
@@ -1299,10 +1296,10 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 <div className="relative" ref={locationPickerRef}>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Base Office / Work Location
+                      Base office / work location
                     </label>
                     {location && location !== 'Other' && (
-                      <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                         {getEmployeeCountForLocation(location).count} active emp(s)
                       </span>
                     )}
@@ -1326,7 +1323,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         {location && location !== 'Other' && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-semibold">
+                          <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-semibold">
                             {getEmployeeCountForLocation(location).count} emps
                           </span>
                         )}
@@ -1337,7 +1334,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
 
                   {/* Dropdown Menu Popover */}
                   {locationDropdownOpen && (
-                    <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                    <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                       {/* Search Bar */}
                       <div className="p-2 border-b border-slate-100 dark:border-slate-750 bg-slate-50/80 dark:bg-slate-800/80">
                         <div className="relative">
@@ -1380,7 +1377,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                               <div className="flex items-center gap-1.5 shrink-0">
                                 {/* Employee Count Badge */}
                                 <span
-                                  className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${
+                                  className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold ${
                                     count > 0
                                       ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
                                       : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'
@@ -1454,7 +1451,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {/* Joining Date */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Joining Date <span className="text-rose-500">*</span>
+                    Joining date <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <Calendar className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
@@ -1481,7 +1478,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {/* Confirmation Date */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Confirmation Date
+                    Confirmation date
                   </label>
                   <div className="relative">
                     <Calendar className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
@@ -1502,12 +1499,12 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
               <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                  <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">
                     2. Department & Employment Role
                   </h3>
                 </div>
                 {isInactive && (
-                  <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                  <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1">
                     <Lock className="w-2.5 h-2.5" /> Locked
                   </span>
                 )}
@@ -1535,7 +1532,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                     >
                       <option value="" disabled>
-                        Select Department
+                        Select department
                       </option>
                       {departments.map((d) => (
                         <option key={d.id} value={d.id}>
@@ -1567,7 +1564,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                     >
                       <option value="" disabled>
-                        Select Designation
+                        Select designation
                       </option>
                       {filteredDesignations.map((d) => (
                         <option key={d.id} value={d.id}>
@@ -1582,10 +1579,10 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Appraisal Cycle <span className="text-rose-500">*</span>
+                      Appraisal cycle <span className="text-rose-500">*</span>
                     </label>
                     {joiningDate && (
-                      <span className="text-[10px] font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-900/50">
+                      <span className="text-[11px] font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-900/50">
                         {new Date(joiningDate).getMonth() + 1 >= 1 && new Date(joiningDate).getMonth() + 1 <= 7
                           ? 'Jan–Jul: June Cycle'
                           : 'Aug–Dec: Sept Cycle'}
@@ -1605,7 +1602,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                     >
                       <option value="" disabled>
-                        Select Appraisal Cycle *
+                        Select appraisal cycle *
                       </option>
                       {activeCycles.map((c) => (
                         <option key={c.id} value={c.id}>
@@ -1619,7 +1616,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {/* Starting Review Period Assignment */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Starting Review Period <span className="text-rose-500">*</span>
+                    Starting review period <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <Calendar className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
@@ -1631,7 +1628,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                     >
                       <option value="" disabled>
-                        Select Starting Review Period *
+                        Select starting review period *
                       </option>
                       {assignableReviewPeriods.map((p) => (
                         <option key={p.id} value={p.id}>
@@ -1640,7 +1637,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       ))}
                     </select>
                   </div>
-                  <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                  <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                     Quarterly reviews will only be generated from this period onward.
                   </p>
                 </div>
@@ -1648,7 +1645,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {/* Employment Type */}
                 <div className={status === 'PROBATION' ? 'sm:col-span-1' : 'sm:col-span-2'}>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Employment Type
+                    Employment type
                   </label>
                   <div className="relative">
                     <Briefcase className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
@@ -1677,7 +1674,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {status === 'PROBATION' && (
                   <div className="animate-in fade-in duration-200">
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Probation Period (Days)
+                      Probation period (days)
                     </label>
                     <div className="relative">
                       <Clock className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
@@ -1697,7 +1694,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {/* Company / Legal Entity */}
                 <div className="sm:col-span-3">
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Company / Legal Entity
+                    Company / legal entity
                   </label>
                   <div className="relative">
                     <Building2 className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-2.5" />
@@ -1716,19 +1713,19 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 <div className="sm:col-span-3">
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Employment Status
+                      Employment status
                     </label>
                     {wasPastEmployee && (
-                      <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                      <span className={`text-[11px] font-bold flex items-center gap-1 ${
                         isRehiring ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
                       }`}>
                         {isRehiring ? (
                           <>
-                            <UserCheck className="w-2.5 h-2.5" /> Rehire Active
+                            <UserCheck className="w-2.5 h-2.5" /> Rehire active
                           </>
                         ) : (
                           <>
-                            <Lock className="w-2.5 h-2.5" /> Inactive Record
+                            <Lock className="w-2.5 h-2.5" /> Inactive record
                           </>
                         )}
                       </span>
@@ -1780,14 +1777,14 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
 
                 {/* Relieving / Exit Date Field */}
                 {isInactive && (
-                  <div className="sm:col-span-3 bg-rose-50/70 dark:bg-rose-950/30 border-2 border-rose-300 dark:border-rose-800/80 rounded-2xl p-4 space-y-2.5 animate-in fade-in duration-200 shadow-2xs">
+                  <div className="sm:col-span-3 bg-rose-50/70 dark:bg-rose-950/30 border-2 border-rose-300 dark:border-rose-800/80 rounded-xl p-4 space-y-2.5 animate-in fade-in duration-200">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-rose-900 dark:text-rose-200 flex items-center gap-1.5">
                         <Calendar className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                        Official Relieving / Exit Date <span className="text-rose-600">*</span>
+                        Official relieving / exit date <span className="text-rose-600">*</span>
                       </label>
-                      <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-rose-200/80 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200">
-                        <Edit2 className="w-2.5 h-2.5" /> Editable Field
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-200/80 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200">
+                        <Edit2 className="w-2.5 h-2.5" /> Editable field
                       </span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
@@ -1798,7 +1795,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                           required
                           value={relievingDate}
                           onChange={(e) => setRelievingDate(e.target.value)}
-                          className="w-full bg-white dark:bg-slate-800 border-2 border-rose-300 dark:border-rose-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/30 font-semibold shadow-xs"
+                          className="w-full bg-white dark:bg-slate-800 border-2 border-rose-300 dark:border-rose-700 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500/30 font-semibold"
                         />
                       </div>
                       <p className="text-[11px] text-rose-800 dark:text-rose-300 leading-relaxed font-medium">
@@ -1815,12 +1812,12 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
               <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">
                     3. Hierarchy & Performance Alignment
                   </h3>
                 </div>
                 {isInactive && (
-                  <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                  <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1">
                     <Lock className="w-2.5 h-2.5" /> Locked
                   </span>
                 )}
@@ -1870,7 +1867,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       const isOfficial = emp.id === selectedDeptObj?.hodId || emp.employeeCode === 'MS0016';
                       return (
                         <option key={emp.id} value={emp.id}>
-                          {emp.name} ({emp.designationName || 'HOD'}{emp.departmentName ? ` • ${emp.departmentName}` : ''}){isOfficial ? ' ★ Official HOD' : ''}
+                          {emp.name} ({emp.designationName || 'HOD'}{emp.departmentName ? ` • ${emp.departmentName}` : ''}){isOfficial ? ' (official HOD)' : ''}
                         </option>
                       );
                     })}
@@ -1879,13 +1876,13 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
               </div>
 
               {/* KRA / Performance Scorecard Section */}
-              <div className="bg-slate-50/80 dark:bg-slate-850/60 border border-slate-200 dark:border-slate-750 rounded-2xl p-3.5 space-y-3">
+              <div className="bg-slate-50/80 dark:bg-slate-850/60 border border-slate-200 dark:border-slate-750 rounded-xl p-3.5 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
                   <div>
                     <div className="flex items-center gap-1.5">
                       <Target className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                      <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                        Key Result Areas (KRAs)
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">
+                        Key result areas (KRAs)
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
@@ -1893,7 +1890,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                     </p>
                   </div>
 
-                  <div className="inline-flex p-0.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <div className="inline-flex p-0.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                     <button
                       type="button"
                       disabled={isInactive}
@@ -1903,12 +1900,12 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       }}
                       className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                         kraAssignmentMode === 'CUSTOM'
-                          ? 'bg-indigo-600 text-white shadow-xs'
+                          ? 'bg-indigo-600 text-white'
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       <Target className="w-3.5 h-3.5" />
-                      Custom Scorecard
+                      Custom scorecard
                     </button>
                     <button
                       type="button"
@@ -1916,12 +1913,12 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       onClick={() => setKraAssignmentMode('TEMPLATE')}
                       className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                         kraAssignmentMode === 'TEMPLATE'
-                          ? 'bg-indigo-600 text-white shadow-xs'
+                          ? 'bg-indigo-600 text-white'
                           : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       <Layers className="w-3.5 h-3.5" />
-                      Template Library
+                      Template library
                     </button>
                   </div>
                 </div>
@@ -1929,7 +1926,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {kraAssignmentMode === 'TEMPLATE' ? (
                   <div className="py-1">
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Choose Standard KRA Template
+                      Choose standard KRA template
                     </label>
                     <select
                       disabled={isInactive}
@@ -1937,7 +1934,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       onChange={(e) => setCurrentKraTemplateId(e.target.value)}
                       className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-medium disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                     >
-                      <option value="">Auto-Assign / Default Template</option>
+                      <option value="">Auto-assign / default template</option>
                       {availableTemplates.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.title || t.name} ({t.departmentName || 'General'})
@@ -1991,12 +1988,12 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
               <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white">
                     4. Compensation & Portal Access
                   </h3>
                 </div>
                 {isInactive && (
-                  <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                  <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1">
                     <Lock className="w-2.5 h-2.5" /> Locked
                   </span>
                 )}
@@ -2006,7 +2003,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 {/* Starting Annual CTC */}
                 <div className="sm:col-span-1">
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Starting Annual CTC <span className="text-rose-500">*</span>
+                    Starting annual CTC <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative flex items-center">
                     <select
@@ -2031,7 +2028,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       value={currentCtc}
                       onChange={(e) => setCurrentCtc(e.target.value)}
                       placeholder="1800000"
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-16 pr-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 font-mono disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-16 pr-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 tabular-nums disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                     />
                   </div>
                 </div>
@@ -2041,7 +2038,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <Key className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                      <span className="text-xs font-bold text-slate-900 dark:text-white">Enable Portal Login Access</span>
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">Enable portal login access</span>
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">
                       Create user account with corporate email credentials
@@ -2062,11 +2059,11 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
 
               {/* Login Credentials Inputs (Visible when login enabled) */}
               {provisionLogin && (
-                <div className="p-3.5 bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-3.5 animate-in fade-in duration-150">
+                <div className="p-3.5 bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-3.5 animate-in fade-in duration-150">
                   {/* System Access Role */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      System Access Role <span className="text-rose-500">*</span>
+                      System access role <span className="text-rose-500">*</span>
                     </label>
                     <select
                       required
@@ -2078,11 +2075,11 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                       }}
                       className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                     >
-                      <option value="EMPLOYEE">EMPLOYEE (Self-Assessment & KRA Tracker)</option>
-                      <option value="MANAGER">MANAGER (Reviewer & Scoring)</option>
-                      <option value="HOD">HOD (Department Secondary Calibration)</option>
-                      <option value="HR">HR (People Operations & Approvals)</option>
-                      <option value="SUPER_ADMIN">SUPER_ADMIN (System Administrator)</option>
+                      <option value="EMPLOYEE">EMPLOYEE (self-assessment & KRA tracker)</option>
+                      <option value="MANAGER">MANAGER (reviewer & scoring)</option>
+                      <option value="HOD">HOD (department secondary calibration)</option>
+                      <option value="HR">HR (people operations & approvals)</option>
+                      <option value="SUPER_ADMIN">SUPER_ADMIN (system administrator)</option>
                     </select>
                   </div>
 
@@ -2096,7 +2093,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                         type="button"
                         disabled={isInactive}
                         onClick={generateRandomPassword}
-                        className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 flex items-center gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 flex items-center gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Sparkles className="w-3 h-3" />
                         Generate
@@ -2109,7 +2106,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                         value={initialPassword}
                         onChange={(e) => setInitialPassword(e.target.value)}
                         placeholder={isEditing ? 'Leave blank to keep current' : 'Min 6 characters'}
-                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-3 pr-9 py-2 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-3 pr-9 py-2 text-xs tabular-nums text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800/60"
                       />
                       <button
                         type="button"
@@ -2130,7 +2127,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
               <span className="text-[11px] text-slate-400 dark:text-slate-500">
                 {isInactive ? (
                   <span className="text-amber-600 dark:text-amber-400 font-medium">
-                    Profile locked for past employee • Relieving date editable
+                    Profile locked for past employee • relieving date editable
                   </span>
                 ) : (
                   <>
@@ -2143,14 +2140,14 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors shadow-2xs cursor-pointer"
+                  className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-5 py-2 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   {loading ? (
                     <>
@@ -2160,7 +2157,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                   ) : isRehiring ? (
                     <>
                       <UserCheck className="w-3.5 h-3.5" />
-                      Save & Rehire Employee
+                      Save & rehire employee
                     </>
                   ) : isInactive ? (
                     wasPastEmployee ? (
@@ -2173,7 +2170,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                   ) : (
                     <>
                       <Sparkles className="w-3.5 h-3.5" />
-                      Save & Provision Employee
+                      Save & provision employee
                     </>
                   )}
                 </button>
@@ -2198,6 +2195,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         managerName={allEmployees.find((e) => e.id === managerId)?.name}
         hodName={allEmployees.find((e) => e.id === hodId)?.name}
         cycleName={cycles.find((c) => c.id === cycleId)?.name}
+        templates={kraTemplates}
       />
 
       {/* Reusable Custom Location Deletion Confirmation Modal */}

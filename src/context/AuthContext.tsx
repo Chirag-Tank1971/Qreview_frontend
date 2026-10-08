@@ -71,7 +71,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(null);
         setEmployeeProfile(null);
         setPermissions([]);
-        toast.warning('Your session has expired or was revoked. Please sign in again.', 'Session Expired');
+        toast.warning('Your session has expired or was revoked. Please sign in again.', 'Session expired');
       }
     }, delay);
   };
@@ -115,7 +115,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(null);
       setEmployeeProfile(null);
       setPermissions([]);
-      toast.warning('Your session has expired or was revoked. Please sign in again.', 'Session Expired');
+      toast.warning('Your session has expired or was revoked. Please sign in again.', 'Session expired');
     };
 
     window.addEventListener('auth:session_expired', handleSessionExpired);
@@ -140,9 +140,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setEmployeeProfile(data.employeeProfile || null);
       setPermissions(data.permissions || []);
       scheduleRefresh(data.token);
-      toast.success(`Welcome back, ${data.user.name}!`, 'Signed In Successfully');
+      toast.success(`Welcome back, ${data.user.name}!`, 'Signed in successfully');
     } catch (err: any) {
-      toast.error(err.message || 'Login failed. Please verify your credentials.', 'Authentication Failed');
+      toast.error(err.message || 'Login failed. Please verify your credentials.', 'Authentication failed');
       throw err;
     } finally {
       setIsLoading(false);
@@ -160,9 +160,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setEmployeeProfile(data.employeeProfile || null);
       setPermissions(data.permissions || []);
       scheduleRefresh(data.token);
-      toast.info(`Switched persona to ${data.user.role} (${data.user.name})`, 'Persona Active');
+      toast.info(`Switched persona to ${data.user.role} (${data.user.name})`, 'Persona active');
     } catch (err: any) {
-      toast.error(err.message || 'Failed to switch role.', 'Role Switch Error');
+      toast.error(err.message || 'Failed to switch role.', 'Role switch error');
       throw err;
     } finally {
       setIsLoading(false);
@@ -182,7 +182,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setToken(null);
       // Cleanly clear previous view hash so next logged in persona lands on their own default workspace
       window.location.hash = '';
-      toast.info('You have logged out successfully.', 'Session Closed');
+      toast.info('You have logged out successfully.', 'Session closed');
     } catch (err: any) {
       toast.error(err.message || 'Logout encountered an issue.');
     } finally {
@@ -197,7 +197,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setToken(data.token);
     setUser(data.user);
     scheduleRefresh(data.token);
-    toast.success('Password updated successfully. Welcome!', 'Password Changed');
+    toast.success('Password updated successfully. Welcome!', 'Password changed');
   };
 
   return (

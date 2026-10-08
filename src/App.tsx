@@ -1,4 +1,5 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
+import { LazyMotion, domAnimation } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -19,7 +20,6 @@ import { KraTemplate, Employee } from './types';
 import type { CustomKraRow } from './components/CustomKraScorecardModal';
 import { ReviewViewConfig } from './components/QuarterlyReviewView';
 import { AppraisalViewConfig } from './components/AppraisalManagementView';
-import { EmployeePortalConfig } from './components/EmployeePortalView';
 import { ReportsViewConfig } from './components/ReportsCenterView';
 import { PageLoadingProgress } from './components/ui/PageLoadingProgress';
 import { PageTransition } from './components/ui/PageTransition';
@@ -27,9 +27,6 @@ import { PageTransition } from './components/ui/PageTransition';
 // Route-level code splitting: Lazy load heavy domain views
 const DashboardView = lazy(() =>
   import('./components/dashboard/DashboardView').then((m) => ({ default: m.DashboardView }))
-);
-const EmployeePortalView = lazy(() =>
-  import('./components/EmployeePortalView').then((m) => ({ default: m.EmployeePortalView }))
 );
 const QuarterlyReviewView = lazy(() =>
   import('./components/QuarterlyReviewView').then((m) => ({ default: m.QuarterlyReviewView }))
@@ -94,10 +91,10 @@ function AppContent() {
   const { currentView, setView, isPending: isViewPending } = useUrlHashView();
 
   // View-specific configurations for direct workflow navigation
+  const [dashboardConfig, setDashboardConfig] = useState<{ openLetter?: boolean } | null>(null);
   const [appraisalConfig, setAppraisalConfig] = useState<AppraisalViewConfig | null>(null);
   const [reviewConfig, setReviewConfig] = useState<ReviewViewConfig | null>(null);
   const [reportsConfig, setReportsConfig] = useState<ReportsViewConfig | null>(null);
-  const [portalConfig, setPortalConfig] = useState<EmployeePortalConfig | null>(null);
   const [pipConfig, setPipConfig] = useState<{ pipId?: string } | null>(null);
 
   const homeView = getHomeView(user?.role);
@@ -139,20 +136,34 @@ function AppContent() {
   const canManageKras = user?.role === 'SUPER_ADMIN' || user?.role === 'HR';
 
   const handleNavigate = (tab: string, options?: any) => {
+    if (tab === 'portal') {
+      if (options?.subTab === 'reviews' || options?.openSelfAssess) {
+        setReviewConfig({ openSelfAssess: true, reviewId: options?.reviewId });
+        setView('reviews');
+        return;
+      }
+      if (options?.subTab === 'appraisal' || options?.openLetter) {
+        setDashboardConfig({ openLetter: true });
+        setView('dashboard');
+        return;
+      }
+      setView('dashboard');
+      return;
+    }
+    setDashboardConfig(tab === 'dashboard' ? options || null : null);
     setAppraisalConfig(tab === 'appraisals' ? options || null : null);
     setReviewConfig(tab === 'reviews' ? options || null : null);
     setReportsConfig(tab === 'reports' ? options || null : null);
-    setPortalConfig(tab === 'portal' ? options || null : null);
     setPipConfig(tab === 'pip' ? options || null : null);
     setView(tab as AppView);
   };
 
   // Proactive Role-Based Access Control (RBAC) Guard for Views
   useEffect(() => {
+    setDashboardConfig(null);
     setReviewConfig(null);
     setAppraisalConfig(null);
     setReportsConfig(null);
-    setPortalConfig(null);
     setPipConfig(null);
 
     // If current view is not permitted for the user's role, automatically redirect to their home view
@@ -165,11 +176,9 @@ function AppContent() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
         <div className="flex flex-col items-center space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 dark:bg-indigo-400/10 flex items-center justify-center border border-indigo-500/20">
-            <Loader2 className="w-6 h-6 animate-spin text-indigo-600 dark:text-indigo-400" />
-          </div>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 animate-pulse">
-            Initializing Session & Security Tokens...
+          <Loader2 className="w-6 h-6 animate-spin text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+          <p role="status" className="text-sm text-slate-600 dark:text-slate-400">
+            Signing you in…
           </p>
         </div>
       </div>
@@ -198,7 +207,6 @@ function AppContent() {
           setReviewConfig(null);
           setAppraisalConfig(null);
           setReportsConfig(null);
-          setPortalConfig(null);
           setView(v as AppView);
         }}
         onNavigate={handleNavigate}
@@ -229,11 +237,11 @@ function AppContent() {
             <div className="mb-4">
               <button
                 onClick={() => handleNavigate(homeView)}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 transition-colors shadow-2xs cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-700 dark:hover:text-indigo-300 px-3 py-1.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer"
                 title="Back"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back to {homeView === 'dashboard' ? 'Dashboard' : homeView === 'management' ? 'Executive Analytics' : 'Workspace'}</span>
+                <span>Back to {homeView === 'dashboard' ? 'Dashboard' : homeView === 'management' ? 'Organization overview' : 'Workspace'}</span>
               </button>
             </div>
           )}
@@ -243,11 +251,12 @@ function AppContent() {
             <Suspense fallback={<ViewSkeletonFallback />}>
               <PageTransition viewKey={currentView}>
                 {currentView === 'dashboard' && user?.role !== 'MANAGEMENT' ? (
-                  <DashboardView onNavigate={(view, params) => handleNavigate(view, params)} />
+                  <DashboardView
+                    onNavigate={(view, params) => handleNavigate(view, params)}
+                    initialConfig={dashboardConfig}
+                  />
                 ) : currentView === 'management' && user?.role === 'MANAGEMENT' ? (
                   <ManagementDashboardView departments={departments} />
-                ) : currentView === 'portal' ? (
-                  <EmployeePortalView initialConfig={portalConfig} />
                 ) : currentView === 'ai_performance' && user?.role === 'SUPER_ADMIN' ? (
                   <AiPerformanceHub currentUser={user} />
                 ) : currentView === 'appraisals' && ['SUPER_ADMIN', 'HR', 'MANAGEMENT', 'HOD', 'REPORTING_MANAGER', 'MANAGER'].includes(user?.role || '') ? (
@@ -300,6 +309,10 @@ function AppContent() {
                     departments={departments}
                     employees={employees}
                     canManage={canManageKras}
+                    onOpenCreateBlueprint={() => {
+                      setEditingTemplate(null);
+                      setIsTemplateBuilderOpen(true);
+                    }}
                     onOpenCreateTemplate={() => {
                       // New scorecards are always employee-owned now — open the
                       // employee-picker + Custom Scorecard builder instead of the old
@@ -349,7 +362,6 @@ function AppContent() {
                     onNavigateToAppraisals={(opts) => handleNavigate('appraisals', opts)}
                     onNavigateToReviews={(opts) => handleNavigate('reviews', opts)}
                     onNavigateToHierarchy={() => handleNavigate('hierarchy')}
-                    initialConfig={portalConfig}
                     employees={employees}
                   />
                 ) : currentView === 'hierarchy' && ['SUPER_ADMIN', 'HR', 'HOD', 'MANAGEMENT'].includes(user?.role || '') ? (
@@ -385,7 +397,10 @@ function AppContent() {
                     </Suspense>
                   </div>
                 ) : (
-                  <EmployeePortalView initialConfig={portalConfig} />
+                  <DashboardView
+                    onNavigate={(view, params) => handleNavigate(view, params)}
+                    initialConfig={dashboardConfig}
+                  />
                 )}
               </PageTransition>
             </Suspense>
@@ -394,16 +409,8 @@ function AppContent() {
 
         {/* Footer */}
         <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-3 mt-auto mb-16 md:mb-0">
-          <div className="w-full px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span className="font-semibold text-slate-700 dark:text-slate-300">MintReview System</span>
-              <span className="text-slate-400">•</span>
-              <span>Enterprise Edition</span>
-            </div>
-            <div>
-              <span>Quarterly Cycles • Calibration • Audit Governance</span>
-            </div>
+          <div className="w-full px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-500 dark:text-slate-400 flex items-center">
+            <span>MintReview</span>
           </div>
         </footer>
         </div>
@@ -448,6 +455,8 @@ function AppContent() {
             }}
             employees={employees}
             cycles={cycles}
+            templates={templates}
+            kraLibrary={kras}
             preselectedEmployee={assignKraTargetEmployee}
             initialKras={assignKraInitialRows}
             onAssigned={refreshMasterData}
@@ -464,7 +473,9 @@ export default function App() {
       <ToastProvider>
         <AuthProvider>
           <NotificationsProvider>
-            <AppContent />
+            <LazyMotion features={domAnimation} strict={false}>
+              <AppContent />
+            </LazyMotion>
           </NotificationsProvider>
         </AuthProvider>
       </ToastProvider>

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  ShieldCheck,
   History,
   FileCheck,
   Search,
@@ -33,6 +32,8 @@ import {
   exportAuditLogsToCsv,
 } from '../utils/auditExport';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
+import { PageHeader } from './ui/PageHeader';
+import { Button } from './ui/Button';
 
 interface AuditComplianceExplorerProps {
   currentUser?: UserType | null;
@@ -189,101 +190,66 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
 
   return (
     <div className="space-y-6 pb-16">
-      {/* Header & Role-tailored Banner */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 rounded-lg border border-emerald-200/80 dark:border-emerald-800/60">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-                {isHr ? 'Employee Appraisal Lifecycle' : 'Appraisal Lifecycle & Master Audit Trail'}
-              </h1>
-              <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-100/70 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                {isHr ? 'HR Verified' : 'System Admin Ledger'}
-              </span>
-            </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-3xl">
-              {isHr
-                ? 'Chronological evolution of quarterly reviews, score history, manager evaluations, HR approvals, and employee letter acknowledgements.'
-                : 'Immutable chronological record of appraisal lifecycle events, system audit logs, manager submissions, and digital letter receipts.'}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <button
-              onClick={loadData}
-              disabled={isRefreshing}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors border border-slate-300/80 dark:border-slate-700 cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`} />
-              <span>Refresh Ledger</span>
-            </button>
-
+      <PageHeader
+        title={isHr ? 'Appraisal history' : 'Audit trail'}
+        description={
+          isHr
+            ? "How each employee's reviews, scores, approvals and letter acknowledgements changed over time."
+            : 'A permanent record of review and appraisal events, system changes and letter receipts.'
+        }
+        actions={
+          <>
+            <Button icon={RefreshCw} iconSpin={isRefreshing} onClick={loadData} disabled={isRefreshing}>
+              Refresh
+            </Button>
             {isSuperAdmin && (
-              <button
-                onClick={() => handleExportData('xlsx')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors border border-slate-300 dark:border-slate-700 shadow-2xs cursor-pointer"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Export Audit Excel</span>
-              </button>
+              <Button icon={FileSpreadsheet} onClick={() => handleExportData('xlsx')}>
+                Export to Excel
+              </Button>
             )}
-          </div>
-        </div>
+          </>
+        }
+      />
 
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4">
         {/* Clean Operational Metric Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
           <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
             <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium mb-1">
-              <span>{isHr ? 'Monitored Employees' : 'Total Audit Events'}</span>
+              <span>{isHr ? 'Employees monitored' : 'Audit events'}</span>
               <History className="w-3.5 h-3.5 text-slate-400" />
             </div>
-            <div className="text-xl font-bold text-slate-900 dark:text-white">
+            <div className="text-xl font-bold text-slate-900 dark:text-white tabular-nums">
               {isHr ? employees.length : metrics?.totalLogs || auditLogs.length}
             </div>
             <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              {isHr ? 'Active personnel' : 'Immutable audit ledger'}
+              {isHr ? 'Active employees' : 'Recorded actions'}
             </div>
           </div>
 
-          <div className="p-3.5 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/50">
-            <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400 text-xs font-medium mb-1">
-              <span>Signed Letters</span>
-              <FileCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+          <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium mb-1">
+              <span>Signed letters</span>
+              <FileCheck className="w-3.5 h-3.5 text-slate-400" />
             </div>
-            <div className="text-xl font-bold text-emerald-900 dark:text-emerald-200">
+            <div className="text-xl font-bold text-slate-900 dark:text-white tabular-nums">
               {metrics?.letterAcknowledgementsCount || 0}
             </div>
-            <div className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80 mt-0.5">
-              Digitally acknowledged
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Acknowledged by employees
             </div>
           </div>
 
-          <div className="p-3.5 rounded-lg bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-800/50">
-            <div className="flex items-center justify-between text-indigo-700 dark:text-indigo-400 text-xs font-medium mb-1">
-              <span>Lifecycle Stages</span>
-              <Layers className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+          <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium mb-1">
+              <span>Lifecycle stages</span>
+              <Layers className="w-3.5 h-3.5 text-slate-400" />
             </div>
-            <div className="text-xl font-bold text-indigo-900 dark:text-indigo-200">
-              {timelineData?.timeline?.length || 9}
+            <div className="text-xl font-bold text-slate-900 dark:text-white tabular-nums">
+              {timelineData?.timeline?.length ?? 0}
             </div>
-            <div className="text-[11px] text-indigo-700/80 dark:text-indigo-400/80 mt-0.5">
-              Traceable cycle checkpoints
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-lg bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200/60 dark:border-teal-800/50">
-            <div className="flex items-center justify-between text-teal-700 dark:text-teal-400 text-xs font-medium mb-1">
-              <span>Appraisal Tracking</span>
-              <ShieldCheck className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-            </div>
-            <div className="text-xl font-bold text-teal-900 dark:text-teal-200">
-              100%
-            </div>
-            <div className="text-[11px] text-teal-700/80 dark:text-teal-400/80 mt-0.5">
-              Audit trail verified
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Checkpoints in the cycle
             </div>
           </div>
         </div>
@@ -301,9 +267,9 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
             }`}
           >
             <History className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Appraisal Lifecycle Timeline</span>
-            <span className="px-1.5 py-0.2 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded text-[10px]">
-              Decision Trail
+            <span>Appraisal lifecycle timeline</span>
+            <span className="px-1.5 py-0.2 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded text-[11px]">
+              Decision trail
             </span>
           </button>
 
@@ -316,8 +282,8 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
             }`}
           >
             <Fingerprint className="w-4 h-4 text-slate-700 dark:text-slate-300" />
-            <span>Master Audit Event Stream</span>
-            <span className="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[10px]">
+            <span>Master audit event stream</span>
+            <span className="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[11px]">
               {auditLogs.length}
             </span>
           </button>
@@ -330,11 +296,11 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
       {activeTab === 'timeline' && (
         <div className="space-y-6">
           {/* Employee Selector Bar */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-xs flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div className="flex-1 min-w-0 space-y-2">
               <label htmlFor="select-audit-employee" className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 whitespace-nowrap">
                 <User className="w-3.5 h-3.5 text-slate-500" />
-                <span>Select Employee for Lifecycle Trail</span>
+                <span>Select employee for lifecycle trail</span>
               </label>
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <div className="relative w-full sm:w-60 shrink-0">
@@ -390,11 +356,11 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
           </div>
 
           {/* Chronological Step Journey */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6">
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
               <div className="space-y-0.5">
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Chronological Appraisal Evolution & Decision Trail
+                  Chronological appraisal evolution & decision trail
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   Live, dynamic appraisal stages for {timelineData?.employee?.name || 'Selected Employee'} ({timelineData?.employee?.code || selectedEmployeeId}).
@@ -402,7 +368,7 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
               </div>
               <span className="text-xs px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 rounded-lg border border-emerald-200 dark:border-emerald-800 font-medium flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>Live Audit Data</span>
+                <span>Live audit data</span>
               </span>
             </div>
 
@@ -450,7 +416,7 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                       <div
                         className={`rounded-xl border p-4 transition-all ${
                           isOverridden
-                            ? 'bg-amber-50/40 dark:bg-amber-950/30 border-amber-200/80 dark:border-amber-800/50 shadow-xs'
+                            ? 'bg-amber-50/40 dark:bg-amber-950/30 border-amber-200/80 dark:border-amber-800/50'
                             : isNotApplicable
                             ? 'bg-slate-50/40 dark:bg-slate-900/30 border-slate-200/60 dark:border-slate-800/60 opacity-80'
                             : isPending
@@ -462,7 +428,7 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs font-bold text-slate-900 dark:text-white">{event.stageName}</span>
                             <span
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                              className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                                 isOverridden
                                   ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
                                   : isNotApplicable
@@ -505,11 +471,11 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
 
                         {/* Score Differential Panel if scores exist */}
                         {event.scoreAfter !== undefined && (
-                          <div className="mt-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/90 dark:border-slate-700/80 shadow-2xs space-y-2">
-                            <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                          <div className="mt-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/90 dark:border-slate-700/80 space-y-2">
+                            <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                               <span className="flex items-center gap-1.5">
                                 <Scale className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                                <span>Evaluated Score Outcome</span>
+                                <span>Evaluated score outcome</span>
                               </span>
                               <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300">
                                 {event.scoreAfter.toFixed(2)} / 5.00
@@ -522,7 +488,7 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                         {event.details && (
                           <div className="mt-3 flex items-center gap-4 text-[11px] text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800 flex-wrap">
                             {event.details.documentHash && (
-                              <span className="flex items-center gap-1 font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-700 dark:text-slate-300">
+                              <span className="flex items-center gap-1 tabular-nums bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-700 dark:text-slate-300">
                                 <Fingerprint className="w-3 h-3 text-slate-400" />
                                 <span>Hash: {event.details.documentHash}</span>
                               </span>
@@ -563,7 +529,7 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
           TAB 2: MASTER AUDIT EVENT STREAM (Super Admin only)
           ========================================== */}
       {isSuperAdmin && activeTab === 'logs' && (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs p-6 space-y-5">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-6 space-y-5">
           {/* Filter Bar */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
             <div className="flex-1 relative">
@@ -584,14 +550,14 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                 onChange={(e) => setSelectedModule(e.target.value as any)}
                 className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-2 text-slate-700 dark:text-slate-200 font-medium"
               >
-                <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Modules</option>
-                <option value="KRA_MANAGEMENT" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">KRA Management</option>
-                <option value="QUARTERLY_REVIEW" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Quarterly Reviews</option>
+                <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All modules</option>
+                <option value="KRA_MANAGEMENT" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">KRA management</option>
+                <option value="QUARTERLY_REVIEW" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Quarterly reviews</option>
                 <option value="CALIBRATION" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Calibration</option>
-                <option value="BUDGET_INCREMENT" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Budget & Increment</option>
-                <option value="LETTERS" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Digital Letters</option>
-                <option value="BULK_IMPORT" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Bulk Import</option>
-                <option value="CYCLE_ADMIN" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Cycle Admin</option>
+                <option value="BUDGET_INCREMENT" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Budget & increment</option>
+                <option value="LETTERS" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Digital letters</option>
+                <option value="BULK_IMPORT" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Bulk import</option>
+                <option value="CYCLE_ADMIN" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Cycle admin</option>
               </select>
 
               <select
@@ -599,7 +565,7 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                 onChange={(e) => setSelectedSeverity(e.target.value as any)}
                 className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-2 text-slate-700 dark:text-slate-200 font-medium"
               >
-                <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Severities</option>
+                <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All severities</option>
                 <option value="CRITICAL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Critical</option>
                 <option value="WARNING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Warning</option>
                 <option value="NOTICE" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Notice</option>
@@ -613,12 +579,12 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                   onChange={(e) => setIsFlaggedOnly(e.target.checked)}
                   className="rounded text-emerald-600 focus:ring-emerald-500"
                 />
-                <span className="font-semibold text-amber-700 dark:text-amber-400">Flagged Only</span>
+                <span className="font-semibold text-amber-700 dark:text-amber-400">Flagged only</span>
               </label>
 
               <button
                 onClick={handleApplyLogFilters}
-                className="px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition-colors shadow-2xs dark:border dark:border-slate-700 cursor-pointer"
+                className="px-3.5 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition-colors dark:border dark:border-slate-700 cursor-pointer"
               >
                 Filter
               </button>
@@ -628,13 +594,13 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
           {/* Master Event Table */}
           <div className="overflow-x-auto border border-slate-200/80 dark:border-slate-800 rounded-lg">
             <table className="w-full text-left border-collapse text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+              <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-[11px]">
                 <tr>
                   <th className="py-3 px-3.5">Timestamp (UTC)</th>
-                  <th className="py-3 px-3.5">Module & Action</th>
+                  <th className="py-3 px-3.5">Module & action</th>
                   <th className="py-3 px-3.5">Actor</th>
-                  <th className="py-3 px-3.5">Target Employee / Cohort</th>
-                  <th className="py-3 px-3.5">Audit Summary & Diff</th>
+                  <th className="py-3 px-3.5">Target employee / cohort</th>
+                  <th className="py-3 px-3.5">Audit summary & diff</th>
                   <th className="py-3 px-3.5">Severity</th>
                   <th className="py-3 px-3.5 text-right">Details</th>
                 </tr>
@@ -646,34 +612,34 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                   return (
                     <React.Fragment key={log.id}>
                       <tr className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors ${log.isFlaggedCompliance ? 'bg-amber-50/20 dark:bg-amber-950/20' : ''}`}>
-                        <td className="py-3 px-3.5 font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                          {new Date(log.timestamp).toLocaleString('en-US', {
+                        <td className="py-3 px-3.5 tabular-nums text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                          {log.timestamp ? new Date(log.timestamp).toLocaleString('en-US', {
                             month: 'short',
                             day: 'numeric',
                             hour: '2-digit',
                             minute: '2-digit',
                             second: '2-digit',
-                          })}
+                          }) : '—'}
                         </td>
 
                         <td className="py-3 px-3.5">
                           <div className="font-semibold text-slate-900 dark:text-white">{log.actionType}</div>
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{log.module}</span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">{log.module}</span>
                         </td>
 
                         <td className="py-3 px-3.5">
                           <div className="font-semibold text-slate-800 dark:text-slate-200">{log.actorName}</div>
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400">Role: {log.actorRole}</span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">Role: {log.actorRole}</span>
                         </td>
 
                         <td className="py-3 px-3.5">
                           {log.targetEmployeeName ? (
                             <div>
                               <div className="font-semibold text-slate-800 dark:text-slate-200">{log.targetEmployeeName}</div>
-                              <span className="text-[10px] text-slate-500 dark:text-slate-400">{log.targetDepartment}</span>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400">{log.targetDepartment}</span>
                             </div>
                           ) : (
-                            <span className="text-slate-400 dark:text-slate-500">System Level</span>
+                            <span className="text-slate-400 dark:text-slate-500">System level</span>
                           )}
                         </td>
 
@@ -686,7 +652,7 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                           </div>
                           {log.diffSummary && (
                             <div
-                              className="text-[10px] text-emerald-700 dark:text-emerald-400 font-mono mt-0.5 truncate"
+                              className="text-[11px] text-emerald-700 dark:text-emerald-400 tabular-nums mt-0.5 truncate"
                               title={typeof log.diffSummary === 'object' ? JSON.stringify(log.diffSummary) : String(log.diffSummary)}
                             >
                               {typeof log.diffSummary === 'object' ? JSON.stringify(log.diffSummary) : String(log.diffSummary)}
@@ -696,7 +662,7 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
 
                         <td className="py-3 px-3.5">
                           <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                               log.severity === 'CRITICAL'
                                 ? 'bg-rose-100 dark:bg-rose-950/50 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
                                 : log.severity === 'WARNING'
@@ -726,10 +692,10 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                           <td colSpan={7} className="p-4 space-y-3">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-750 space-y-1.5">
-                                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                                  Previous State Payload
+                                <div className="text-[11px] font-bold text-slate-400">
+                                  Previous state payload
                                 </div>
-                                <pre className="text-[11px] font-mono bg-slate-50 dark:bg-slate-950 p-2.5 rounded border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 overflow-x-auto">
+                                <pre className="text-[11px] tabular-nums bg-slate-50 dark:bg-slate-950 p-2.5 rounded border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 overflow-x-auto">
                                   {log.previousValue
                                     ? JSON.stringify(log.previousValue, null, 2)
                                     : 'No previous state (Initial creation)'}
@@ -737,16 +703,16 @@ export const AuditComplianceExplorer: React.FC<AuditComplianceExplorerProps> = (
                               </div>
 
                               <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-750 space-y-1.5">
-                                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                                  Committed State Payload
+                                <div className="text-[11px] font-bold text-slate-400">
+                                  Committed state payload
                                 </div>
-                                <pre className="text-[11px] font-mono bg-slate-50 dark:bg-slate-950 p-2.5 rounded border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 overflow-x-auto">
+                                <pre className="text-[11px] tabular-nums bg-slate-50 dark:bg-slate-950 p-2.5 rounded border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 overflow-x-auto">
                                   {log.newValue ? JSON.stringify(log.newValue, null, 2) : 'N/A'}
                                 </pre>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-4 text-[11px] text-slate-500 dark:text-slate-400 pt-1 font-mono">
+                            <div className="flex items-center gap-4 text-[11px] text-slate-500 dark:text-slate-400 pt-1 tabular-nums">
                               <span>IP: {log.ipAddress || '127.0.0.1'}</span>
                               <span>•</span>
                               <span>User-Agent: {log.userAgent || 'Chrome/128'}</span>

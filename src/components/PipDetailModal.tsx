@@ -58,7 +58,7 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
   const [failureNotes, setFailureNotes] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
 
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+  const { isMounted, handleClose, backdropClass, cardClass } =
     useModalAnimation({ onClose });
 
   useEffect(() => {
@@ -74,8 +74,6 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isMounted, busy, handleClose]);
-
-  if (!isMounted) return null;
 
   const role = currentUser?.role;
   const myEmployeeId = currentUser?.employeeId;
@@ -109,14 +107,16 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
   const canPublish = plan.status === 'DRAFT' && isHrOrAdmin;
   const canResolveFailure = plan.status === 'FAILED' && !plan.failureResolution && isHrOrAdmin;
 
+  if (!isMounted) return null;
+
   const handlePublish = async () => {
     setBusy('publish');
     try {
       const updated = await api.publishPip(plan.id);
-      toast.success(`Plan published for ${plan.employeeName}.`, 'Plan Published');
+      toast.success(`Plan published for ${plan.employeeName}.`, 'Plan published');
       onChanged(updated);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to publish plan.', 'Publish Failed');
+      toast.error(err.message || 'Failed to publish plan.', 'Publish failed');
     } finally {
       setBusy(null);
     }
@@ -124,7 +124,7 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
 
   const handleAddCheckIn = async () => {
     if (checkInNote.trim().length < 3) {
-      toast.warning('Check-in notes must be at least 3 characters.', 'Validation Error');
+      toast.warning('Check-in notes must be at least 3 characters.', 'Validation error');
       return;
     }
     setBusy('checkin');
@@ -133,10 +133,10 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
       const updated = await api.addPipCheckIn(plan.id, checkInNote.trim(), goalRatings.length > 0 ? goalRatings : undefined);
       setCheckInNote('');
       setCheckInRatings({});
-      toast.success('Check-in logged.', 'Check-In Added');
+      toast.success('Check-in logged.', 'Check-in added');
       onChanged(updated);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to add check-in.', 'Check-In Failed');
+      toast.error(err.message || 'Failed to add check-in.', 'Check-in failed');
     } finally {
       setBusy(null);
     }
@@ -149,7 +149,7 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
       toast.success('You have acknowledged this plan.', 'Acknowledged');
       onChanged(updated);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to acknowledge plan.', 'Acknowledgement Failed');
+      toast.error(err.message || 'Failed to acknowledge plan.', 'Acknowledgement failed');
     } finally {
       setBusy(null);
     }
@@ -157,11 +157,11 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
 
   const handleRecordOutcome = async () => {
     if (!outcomeDecision) {
-      toast.warning('Please select an outcome.', 'Validation Error');
+      toast.warning('Please select an outcome.', 'Validation error');
       return;
     }
     if (outcomeDecision === 'EXTENDED' && (extendDays === '' || Number(extendDays) <= 0)) {
-      toast.warning('Please provide the number of additional days.', 'Validation Error');
+      toast.warning('Please provide the number of additional days.', 'Validation error');
       return;
     }
     setBusy('outcome');
@@ -171,12 +171,12 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
         notes: outcomeNotes.trim() || undefined,
         additionalDays: outcomeDecision === 'EXTENDED' ? Number(extendDays) : undefined,
       });
-      toast.success(`Outcome recorded: ${outcomeDecision}.`, 'Outcome Recorded');
+      toast.success(`Outcome recorded: ${outcomeDecision}.`, 'Outcome recorded');
       setOutcomeDecision('');
       setOutcomeNotes('');
       onChanged(updated);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to record outcome.', 'Outcome Failed');
+      toast.error(err.message || 'Failed to record outcome.', 'Outcome failed');
     } finally {
       setBusy(null);
     }
@@ -184,7 +184,7 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
 
   const handleResolveFailure = async () => {
     if (!failureAction) {
-      toast.warning('Please select what happened next.', 'Validation Error');
+      toast.warning('Please select what happened next.', 'Validation error');
       return;
     }
     setBusy('resolve-failure');
@@ -206,13 +206,13 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
 
   const handleCancel = async () => {
     if (cancelReason.trim().length < 3) {
-      toast.warning('A cancellation reason is required.', 'Validation Error');
+      toast.warning('A cancellation reason is required.', 'Validation error');
       return;
     }
     setBusy('cancel');
     try {
       const updated = await api.cancelPip(plan.id, cancelReason.trim());
-      toast.success('Plan cancelled.', 'Plan Cancelled');
+      toast.success('Plan cancelled.', 'Plan cancelled');
       setShowCancelForm(false);
       onChanged(updated);
     } catch (err: any) {
@@ -225,16 +225,11 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
   return createPortal(
     <div
       className={`fixed inset-0 z-[9995] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 ${backdropClass}`}
-      onClick={(e) => {
-        if (!busy) handleBackdropClick(e);
-      }}
     >
-      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col ${cardClass}`}>
+      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col ${cardClass}`}>
         <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center shrink-0">
-              <ClipboardList className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-            </div>
+            <ClipboardList className="w-5 h-5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
             <div className="min-w-0">
               <h2 className="text-base font-bold text-slate-900 dark:text-white truncate">{plan.employeeName}'s Improvement Plan</h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{plan.employeeCode}</p>
@@ -271,10 +266,10 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
           </div>
 
           <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
-            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Reason</p>
+            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Reason</p>
             <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed">{plan.reason}</p>
             {plan.category && (
-              <span className="inline-block mt-2 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+              <span className="inline-block mt-2 px-2 py-0.5 text-[11px] font-semibold rounded-md bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                 {plan.category}
               </span>
             )}
@@ -322,7 +317,7 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
             <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-300 dark:border-rose-800 rounded-xl space-y-2.5">
               <p className="text-xs font-bold text-rose-800 dark:text-rose-200 flex items-center gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5" />
-                Record Next-Step Decision
+                Record next-step decision
               </p>
               <p className="text-[11px] text-rose-700 dark:text-rose-400">
                 This clears the "Not Successful" alert from {plan.employeeName}'s dashboard once recorded.
@@ -375,7 +370,7 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
           <div>
             <p className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-2">
               <Target className="w-3.5 h-3.5" />
-              Improvement Goals
+              Improvement goals
             </p>
             <div className="space-y-1.5">
               {plan.goals.map((g, idx) => {
@@ -385,7 +380,7 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
                     <span className="text-slate-400 dark:text-slate-500 font-bold shrink-0">{idx + 1}.</span>
                     <div className="flex-1">
                       <p className="text-slate-800 dark:text-slate-100">{g.description}</p>
-                      <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+                      <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400 dark:text-slate-500">
                         {g.targetMetric && <span>{g.targetMetric}</span>}
                         {g.dueDate && (
                           <span className="flex items-center gap-0.5">
@@ -398,7 +393,7 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
                     {latest && (
                       <span
                         title={`Rated by ${latest.byName} on ${new Date(latest.date).toLocaleDateString()}`}
-                        className={`shrink-0 px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                        className={`shrink-0 px-2 py-0.5 text-[11px] font-bold rounded-full ${
                           latest.rating >= 5
                             ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
                             : latest.rating >= 3
@@ -429,7 +424,7 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
                   <div key={c.id} className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-100 dark:border-slate-800 text-xs">
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-semibold text-slate-700 dark:text-slate-200">{c.byName}</span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500">{new Date(c.date).toLocaleString()}</span>
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500">{new Date(c.date).toLocaleString()}</span>
                     </div>
                     <p className="text-slate-600 dark:text-slate-300 leading-relaxed">{c.notes}</p>
                     {c.goalRatings && c.goalRatings.length > 0 && (
@@ -439,7 +434,7 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
                           return (
                             <span
                               key={r.goalId}
-                              className="px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400"
+                              className="px-1.5 py-0.5 text-[11px] font-medium rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400"
                             >
                               {goal ? goal.description.slice(0, 24) + (goal.description.length > 24 ? '…' : '') : 'Goal'}: {PIP_GOAL_RATING_LABELS[r.rating]}
                             </span>
@@ -455,8 +450,8 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
               <div className="mt-2 space-y-2">
                 {canRateGoals && (
                   <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800 space-y-2">
-                    <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                      Rate Goal Progress (optional)
+                    <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      Rate goal progress (optional)
                     </p>
                     {plan.goals.map((g) => (
                       <div key={g.id} className="flex items-center justify-between gap-2">
@@ -478,7 +473,7 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
                                   return next;
                                 })
                               }
-                              className={`w-6 h-6 text-[10px] font-bold rounded-md border transition-colors cursor-pointer ${
+                              className={`w-6 h-6 text-[11px] font-bold rounded-md border transition-colors cursor-pointer ${
                                 checkInRatings[g.id] === val
                                   ? 'bg-indigo-600 text-white border-indigo-600'
                                   : 'bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700 hover:border-indigo-300'
@@ -541,11 +536,11 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
           {/* HR/Admin outcome recording */}
           {canRecordOutcome && (
             <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2.5">
-              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Record Outcome</p>
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Record outcome</p>
               {latestGoalRatings.size > 0 && (
                 <div className="p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 space-y-1">
-                  <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                    Latest Manager/HOD Goal Ratings (informational — decision is yours)
+                  <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                    Latest manager/HOD goal ratings (informational — decision is yours)
                   </p>
                   {plan.goals.map((g) => {
                     const latest = latestGoalRatings.get(g.id);
@@ -587,7 +582,7 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
               </div>
               {outcomeDecision === 'EXTENDED' && (
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">Additional Days</label>
+                  <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">Additional days</label>
                   <input
                     type="number"
                     min={1}
@@ -645,7 +640,7 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
                   onClick={() => setShowCancelForm(true)}
                   className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
                 >
-                  Cancel Plan
+                  Cancel plan
                 </button>
               ))}
           </div>
@@ -662,7 +657,7 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
                 type="button"
                 onClick={handlePublish}
                 disabled={!!busy}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-1.5"
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-1.5"
               >
                 {busy === 'publish' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 Publish & Notify Employee

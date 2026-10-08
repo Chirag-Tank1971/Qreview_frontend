@@ -25,7 +25,7 @@ export const ReviewLetterModal: React.FC<ReviewLetterModalProps> = ({ review, is
   const [downloadPdfSuccess, setDownloadPdfSuccess] = useState(false);
   const [downloadHtmlSuccess, setDownloadHtmlSuccess] = useState(false);
 
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+  const { isMounted, handleClose, backdropClass, cardClass } =
     useModalAnimation({ isOpen, onClose });
 
   const htmlContent = useMemo(() => generateReviewLetterHtml(review, DEFAULT_LETTER_SETTINGS), [review]);
@@ -95,18 +95,17 @@ export const ReviewLetterModal: React.FC<ReviewLetterModalProps> = ({ review, is
   return createPortal(
     <div
       className={`fixed inset-0 z-[9997] overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 ${backdropClass}`}
-      onClick={handleBackdropClick}
     >
-      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 my-auto flex flex-col max-h-[92vh] ${cardClass}`}>
+      <div className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 my-auto flex flex-col max-h-[92vh] ${cardClass}`}>
         {/* Toolbar */}
-        <div className="px-6 py-3.5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 shadow-md shrink-0">
+        <div className="px-6 py-3.5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 shadow-md shrink-0">
           <div className="flex items-center gap-2">
             <div className="p-1.5 bg-indigo-500/20 rounded-lg border border-indigo-400/30 text-indigo-300">
               <Award className="w-4 h-4" />
             </div>
             <div>
               <span className="text-xs font-bold block text-white">Quarterly Review Letter</span>
-              <span className="text-[10px] text-slate-300">{review.employeeName} • {review.reviewPeriodName}</span>
+              <span className="text-[11px] text-slate-300">{review.employeeName} • {review.reviewPeriodName}</span>
             </div>
           </div>
 
@@ -115,7 +114,7 @@ export const ReviewLetterModal: React.FC<ReviewLetterModalProps> = ({ review, is
               type="button"
               disabled={isDownloadingPdf}
               onClick={handleDownloadPdf}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-all shadow-xs cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-all cursor-pointer disabled:opacity-50"
               title="Download crisp vector PDF (.pdf)"
             >
               {isDownloadingPdf ? (

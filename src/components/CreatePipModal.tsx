@@ -46,7 +46,7 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
   const [goals, setGoals] = useState<GoalRow[]>([blankGoal(), blankGoal()]);
   const [isSubmitting, setIsSubmitting] = useState<'draft' | 'publish' | null>(null);
 
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+  const { isMounted, handleClose, backdropClass, cardClass } =
     useModalAnimation({ isOpen, onClose });
 
   useEffect(() => {
@@ -62,8 +62,6 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isMounted, isSubmitting, handleClose]);
-
-  if (!isMounted) return null;
 
   const employeesOnActivePip = useMemo(
     () => new Set(existingPlans.filter((p) => ACTIVE_STATUSES.includes(p.status)).map((p) => p.employeeId)),
@@ -90,6 +88,8 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
     setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, [field]: value } : g)));
   };
 
+  if (!isMounted) return null;
+
   const validate = (): string | null => {
     if (!selectedEmployee) return 'Please select an employee.';
     if (!reason.trim() || reason.trim().length < 10) return 'Reason must be at least 10 characters.';
@@ -104,7 +104,7 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
   const handleSubmit = async (publish: boolean) => {
     const error = validate();
     if (error) {
-      toast.warning(error, 'Validation Error');
+      toast.warning(error, 'Validation error');
       return;
     }
 
@@ -127,12 +127,12 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
       });
       toast.success(
         publish ? 'Performance improvement plan published and employee notified.' : 'Plan saved as draft.',
-        publish ? 'PIP Published' : 'Draft Saved'
+        publish ? 'PIP published' : 'Draft saved'
       );
       handleClose();
       onCreated();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to create performance improvement plan.', 'Creation Failed');
+      toast.error(err.message || 'Failed to create performance improvement plan.', 'Creation failed');
     } finally {
       setIsSubmitting(null);
     }
@@ -141,18 +141,13 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
   return createPortal(
     <div
       className={`fixed inset-0 z-[9994] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 ${backdropClass}`}
-      onClick={(e) => {
-        if (!isSubmitting) handleBackdropClick(e);
-      }}
     >
-      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col ${cardClass}`}>
+      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col ${cardClass}`}>
         <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center">
-              <ClipboardList className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-            </div>
+            <ClipboardList className="w-5 h-5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">Start Performance Improvement Plan</h2>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Start performance improvement plan</h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 While active, the employee is not eligible for annual appraisal processing.
               </p>
@@ -224,7 +219,7 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
           )}
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Reason for Plan</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Reason for plan</label>
             <textarea
               rows={3}
               value={reason}
@@ -246,7 +241,7 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Start Date</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Start date</label>
               <input
                 type="date"
                 value={startDate}
@@ -275,14 +270,14 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Improvement Goals</label>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Improvement goals</label>
               <button
                 type="button"
                 onClick={handleAddGoal}
                 className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
               >
                 <Plus className="w-3 h-3" />
-                Add Goal
+                Add goal
               </button>
             </div>
             <div className="space-y-2">
@@ -350,7 +345,7 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
             type="button"
             onClick={() => handleSubmit(true)}
             disabled={!!isSubmitting}
-            className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-1.5"
+            className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-60 flex items-center gap-1.5"
           >
             {isSubmitting === 'publish' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
             Publish & Notify Employee

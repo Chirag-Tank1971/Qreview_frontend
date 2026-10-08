@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { History, X } from 'lucide-react';
-import { EmployeeReview } from '../../../types';
+import { History, X, ArrowRight } from 'lucide-react';
+import { EmployeeReview, KraRevisionChange, RETURN_REASON_TEMPLATES } from '../../../types';
 import { useModalAnimation } from '../../../hooks/useModalAnimation';
 
 interface AuditTrailDrawerProps {
@@ -10,12 +10,45 @@ interface AuditTrailDrawerProps {
   review: EmployeeReview;
 }
 
+const KraChangeList: React.FC<{ changes: KraRevisionChange[] }> = ({ changes }) => (
+  <div className="mt-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/50 dark:bg-indigo-950/20 divide-y divide-indigo-100 dark:divide-indigo-900/50">
+    {changes.map((c) => {
+      const ratingChanged = c.before !== c.after;
+      return (
+        <div key={c.kraId} className="px-2.5 py-1.5 text-[11px] space-y-0.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-semibold text-slate-800 dark:text-slate-200">{c.kraName}</span>
+            <span className="text-[11px] text-slate-400">{c.field === 'hodRating' ? 'HOD' : 'Manager'}</span>
+            {ratingChanged ? (
+              <span className="inline-flex items-center gap-1 tabular-nums font-bold text-indigo-700 dark:text-indigo-300">
+                {c.before || '–'} <ArrowRight className="w-3 h-3" /> {c.after}
+              </span>
+            ) : c.kept ? (
+              <span className="font-semibold text-amber-700 dark:text-amber-300">kept {c.after}</span>
+            ) : (
+              <span className="text-slate-500">{c.after} unchanged</span>
+            )}
+            {c.justificationChanged && (
+              <span className="px-1.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">justification updated</span>
+            )}
+            {c.achievementChanged && (
+              <span className="px-1.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">achievement updated</span>
+            )}
+          </div>
+          {c.keepReason && <p className="text-slate-600 dark:text-slate-400 italic">Kept because: {c.keepReason}</p>}
+          {c.reply && <p className="text-slate-600 dark:text-slate-400 italic">Reply: {c.reply}</p>}
+        </div>
+      );
+    })}
+  </div>
+);
+
 export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
   isOpen,
   onClose,
   review,
 }) => {
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+  const { isMounted, handleClose, backdropClass, cardClass } =
     useModalAnimation({ isOpen, onClose });
 
   useEffect(() => {
@@ -32,19 +65,16 @@ export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
   return createPortal(
     <div
       className={`fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 ${backdropClass}`}
-      onClick={handleBackdropClick}
     >
-      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden ${cardClass}`}>
+      <div className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-xl w-full max-h-[85vh] flex flex-col overflow-hidden ${cardClass}`}>
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-850">
           <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200 dark:border-indigo-800/60">
-              <History className="w-4 h-4" />
-            </div>
+            <History className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
             <div>
               <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <span>Review Lifecycle & Audit Trail</span>
-                <span className="font-mono text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700">
+                <span>Review lifecycle & audit trail</span>
+                <span className="tabular-nums text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700">
                   {review.actionHistory?.length || 0} events
                 </span>
               </h4>
@@ -73,13 +103,24 @@ export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
               {review.actionHistory.map((action, idx) => {
                 const isReturned = action.action === 'RETURNED' || action.action === 'HOD_RETURNED';
                 const isApproved = action.action === 'APPROVED' || action.action === 'HOD_APPROVED';
+                const returnRequest = action.returnRequestId
+                  ? review.returnRequests?.find((r) => r.id === action.returnRequestId)
+                  : undefined;
+                const returnRecipient = action.hodKraIds?.length
+                  ? `${review.managerName} (Manager), then ${review.hodName || 'HOD'} (HOD)`
+                  : action.returnTarget === 'HOD'
+                  ? `HOD: ${review.hodName || 'HOD'}`
+                  : `Reporting Manager: ${review.managerName}`;
+                const reasonLabels = (action.reasonCodes || [])
+                  .map((c) => RETURN_REASON_TEMPLATES.find((t) => t.code === c)?.label)
+                  .filter(Boolean);
                 const isClosed = action.action === 'CLOSED';
                 const isException = action.action === 'HOD_MISSING_EXCEPTION';
 
                 return (
                   <div key={action.id || idx} className="relative">
                     <div
-                      className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full bg-white dark:bg-slate-850 border-2 flex items-center justify-center shadow-xs ${
+                      className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full bg-white dark:bg-slate-850 border-2 flex items-center justify-center ${
                         isException
                           ? 'border-red-500'
                           : isReturned
@@ -127,25 +168,79 @@ export const AuditTrailDrawer: React.FC<AuditTrailDrawerProps> = ({
                         <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                           {action.performedByName}
                         </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">
+                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 tabular-nums">
                           {action.performedByRole}
                         </span>
                       </div>
 
                       {isReturned && (
                         <div className="mt-1 text-[11px] text-rose-600 dark:text-rose-400 font-medium">
-                          ↩ Returned to Reporting Manager: <span className="font-semibold text-slate-800 dark:text-slate-200">{review.managerName}</span>
+                          ↩ Returned to <span className="font-semibold text-slate-800 dark:text-slate-200">{returnRecipient}</span>
+                          {returnRequest && (
+                            <span className="text-slate-500 dark:text-slate-400">
+                              {' '}· round {returnRequest.round} ·{' '}
+                              {returnRequest.status === 'OPEN'
+                                ? `due ${new Date(returnRequest.dueAt).toLocaleDateString()}`
+                                : returnRequest.status === 'QUEUED'
+                                ? 'waiting for the Manager'
+                                : returnRequest.status === 'RESOLVED'
+                                ? `resolved ${returnRequest.resolvedAt ? new Date(returnRequest.resolvedAt).toLocaleDateString() : ''}`
+                                : 'superseded'}
+                            </span>
+                          )}
                         </div>
                       )}
 
+                      {isReturned && action.returnedKraTitles && action.returnedKraTitles.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {action.returnedKraTitles.map((t, i) => {
+                            const kraId = action.returnedKraIds?.[i];
+                            const note = kraId ? returnRequest?.kraComments?.[kraId] : undefined;
+                            return (
+                              <span
+                                key={`${t}_${i}`}
+                                title={note}
+                                className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-semibold"
+                              >
+                                {t}
+                                {note ? ' 💬' : ''}
+                              </span>
+                            );
+                          })}
+                          {action.hodKraTitles && action.hodKraTitles.length > 0 && (
+                            <>
+                              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 self-center ml-1">then HOD:</span>
+                              {action.hodKraTitles.map((t, i) => (
+                                <span
+                                  key={`hod_${t}_${i}`}
+                                  className="text-[11px] px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-950/40 text-violet-800 dark:text-violet-300 border border-violet-200 dark:border-violet-800 font-semibold"
+                                >
+                                  {t}
+                                </span>
+                              ))}
+                            </>
+                          )}
+                          {reasonLabels.map((l) => (
+                            <span
+                              key={l}
+                              className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                            >
+                              {l}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {action.kraChanges && action.kraChanges.length > 0 && <KraChangeList changes={action.kraChanges} />}
+
                       {action.remarks && (
                         <div className="text-xs text-slate-700 dark:text-slate-300 mt-1.5 bg-slate-50 dark:bg-slate-850 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 leading-relaxed">
-                          <span className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 block mb-0.5">Remarks / Reason:</span>
+                          <span className="font-semibold text-[11px] text-slate-500 dark:text-slate-400 block mb-0.5">Remarks / reason:</span>
                           {action.remarks}
                         </div>
                       )}
 
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 block">
                         {new Date(action.performedAt).toLocaleString()}
                       </span>
                     </div>

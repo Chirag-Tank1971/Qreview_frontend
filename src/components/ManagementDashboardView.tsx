@@ -39,6 +39,9 @@ import { api } from '../services/api';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { PieChart, PieChartItem } from './ui/PieChart';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
+import { PageHeader } from './ui/PageHeader';
+import { Button } from './ui/Button';
+import { SELECT_CLASS } from './ui/formStyles';
 
 interface ManagementDashboardViewProps {
   departments?: Department[];
@@ -501,67 +504,49 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
 
   return (
     <div className="space-y-6 pb-12">
-      {/* 1. Read-Only Executive Security Banner */}
-      <div className="bg-slate-900 text-white rounded-xl p-4 sm:p-5 shadow-sm border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-entrance">
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-bold tracking-tight">Executive Management Intelligence</h1>
-            </div>
-            <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-              Comprehensive organization-wide review progress, department rankings, quarterly score trends, and appraisal rollups.
-            </p>
-          </div>
-        </div>
-
-        {/* Period & Filter Controls */}
-        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto shrink-0">
-          <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-slate-400 font-medium">Period:</span>
-            <select
+      <PageHeader
+        title="Organization overview"
+        description="Review progress, department rankings, score trends and appraisal results across the organization."
+        actions={
+          <>
+            <select aria-label="Review period"
               value={selectedPeriodId}
               onChange={(e) => setSelectedPeriodId(e.target.value)}
-              className="bg-transparent text-white font-medium focus:outline-none cursor-pointer"
+              className={SELECT_CLASS}
             >
-              <option value="" className="bg-slate-800 text-white">Latest Active Quarter</option>
+              <option value="">Latest active quarter</option>
               {allPeriods.map((p) => (
-                <option key={p.id} value={p.id} className="bg-slate-800 text-white">
+                <option key={p.id} value={p.id}>
                   Q{p.quarter} {p.year} {p.status === 'ACTIVE' ? '(Active)' : `(${p.status})`}
                 </option>
               ))}
             </select>
-          </div>
-
-          <button
-            onClick={() => {
-              fetchDashboardSummary();
-              if (activeTab === 'departments') fetchDepartmentPerformance();
-              if (activeTab === 'trends') fetchPerformanceTrends();
-              if (activeTab === 'talent') fetchTalentPool();
-              if (activeTab === 'appraisals') fetchAppraisalSummary();
-              if (activeTab === 'workforceRisk') fetchWorkforceRisk();
-            }}
-            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors cursor-pointer"
-            title="Refresh All Metrics"
-          >
-            <RefreshCw className={`w-4 h-4 ${loadingDashboard ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
+            <Button
+              variant="ghost"
+              icon={RefreshCw}
+              iconSpin={loadingDashboard}
+              title="Refresh"
+              aria-label="Refresh all figures"
+              onClick={() => {
+                fetchDashboardSummary();
+                if (activeTab === 'departments') fetchDepartmentPerformance();
+                if (activeTab === 'trends') fetchPerformanceTrends();
+                if (activeTab === 'talent') fetchTalentPool();
+                if (activeTab === 'appraisals') fetchAppraisalSummary();
+                if (activeTab === 'workforceRisk') fetchWorkforceRisk();
+              }}
+            />
+          </>
+        }
+      />
 
       {/* 2. Organization Summary Strip (8 KPI Cards) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4 animate-entrance animate-stagger-1">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4">
         {/* Total Workforce */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs animate-badge-in animate-stagger-1">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Workforce</span>
-            <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <Users className="w-4 h-4" />
-            </div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total workforce</span>
+            <Users className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
           </div>
           <div className="mt-2 flex items-baseline gap-1.5">
             <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
@@ -576,12 +561,10 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         </div>
 
         {/* Review Completion Rate */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs animate-badge-in animate-stagger-2">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Completion Rate</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Completion rate</span>
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
           </div>
           <div className="mt-2 flex items-baseline gap-1.5">
             <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
@@ -600,12 +583,10 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         </div>
 
         {/* Pending Manager Reviews */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs animate-badge-in animate-stagger-3">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Manager Pending</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-              <Clock className="w-4 h-4" />
-            </div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Manager pending</span>
+            <Clock className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
           </div>
           <div className="mt-2">
             <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
@@ -618,12 +599,10 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         </div>
 
         {/* Pending HOD Reviews */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs animate-badge-in animate-stagger-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">HOD Pending</span>
-            <div className="w-7 h-7 rounded-lg bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 flex items-center justify-center">
-              <UserCheck className="w-4 h-4" />
-            </div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">HOD pending</span>
+            <UserCheck className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
           </div>
           <div className="mt-2">
             <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
@@ -636,12 +615,10 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         </div>
 
         {/* Pending HR / Calibration */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs animate-badge-in animate-stagger-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">HR Review Pending</span>
-            <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-              <UserCheck className="w-4 h-4" />
-            </div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">HR review pending</span>
+            <UserCheck className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
           </div>
           <div className="mt-2">
             <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
@@ -654,12 +631,10 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         </div>
 
         {/* Overdue / Returned Bottlenecks */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs animate-badge-in animate-stagger-5">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Bottlenecks & Overdue</span>
-            <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Bottlenecks & overdue</span>
+            <AlertTriangle className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-xl sm:text-2xl font-bold text-rose-600 dark:text-rose-400">
@@ -673,12 +648,10 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         </div>
 
         {/* Appraisals Due in Cycle */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4 shadow-xs animate-badge-in animate-stagger-6">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 sm:p-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Appraisals Due</span>
-            <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-              <Award className="w-4 h-4" />
-            </div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Appraisals due</span>
+            <Award className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
           </div>
           <div className="mt-2 flex items-baseline gap-1.5">
             <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
@@ -693,7 +666,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
       </div>
 
       {/* 2.5 Executive Visual Intelligence (Interactive Pie & Donut Charts) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-entrance animate-stagger-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Review Pipeline Distribution */}
         <PieChart
           title="Review Pipeline Distribution"
@@ -702,7 +675,6 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
           centerValue={orgSummary?.totalQuarterlyReviews ?? 0}
           centerLabel="Reviews"
           formatValue={(v) => v.toString()}
-          className="animate-entrance-scale animate-stagger-2"
         />
 
         {/* Workforce by Department */}
@@ -713,7 +685,6 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
           centerValue={orgSummary?.totalActiveEmployees ?? 0}
           centerLabel="Headcount"
           formatValue={(v) => v.toString()}
-          className="animate-entrance-scale animate-stagger-3"
         />
 
         {/* Performance Rating Score Spread */}
@@ -724,18 +695,17 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
           centerValue={safeNum(orgPerf?.currentQuarterAverageScore, 2, '—')}
           centerLabel="Quarter Avg"
           formatValue={(v) => v.toString()}
-          className="animate-entrance-scale animate-stagger-4"
         />
       </div>
 
       {/* 3. Organization Performance Scoreboard & Trend */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 animate-entrance animate-stagger-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Overall Score Card */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs flex flex-col justify-between animate-badge-in animate-stagger-3">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Organization Scoreboard
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                Organization scoreboard
               </span>
               <span className="px-2 py-0.5 text-xs font-semibold rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                 {orgSummary?.currentQuarter || 'Current Quarter'}
@@ -743,15 +713,15 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
             </div>
 
             <div className="mt-4 flex items-center gap-4">
-              <div className="w-18 h-18 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/80 flex flex-col items-center justify-center">
-                <span className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">
+              <div className="w-18 h-18 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/80 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
                   {safeNum(orgPerf?.currentQuarterAverageScore, 2, '—')}
                 </span>
-                <span className="text-[10px] uppercase font-semibold text-indigo-400 dark:text-indigo-300">Out of 5.0</span>
+                <span className="text-[11px] font-semibold text-indigo-400 dark:text-indigo-300">Out of 5.0</span>
               </div>
 
               <div>
-                <div className="text-sm font-semibold text-slate-900 dark:text-white">Current Quarter Avg Score</div>
+                <div className="text-sm font-semibold text-slate-900 dark:text-white">Current quarter avg score</div>
                 <div className="flex items-center gap-2 mt-1">
                   {orgPerf?.trendDirection === 'UP' ? (
                     <span className="inline-flex items-center gap-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md">
@@ -776,7 +746,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
           </div>
 
           <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
-            <span className="text-slate-500 dark:text-slate-400">All-Time Organization Benchmark:</span>
+            <span className="text-slate-500 dark:text-slate-400">All-time organization benchmark:</span>
             <span className="font-bold text-slate-800 dark:text-slate-200">
               {safeNum(orgPerf?.overallAverageScore, 2, '—')} / 5.0
             </span>
@@ -784,15 +754,15 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         </div>
 
         {/* Highest Performing Departments Spotlight */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs animate-badge-in animate-stagger-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5">
               <Award className="w-4 h-4 text-emerald-500" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Top Performing Departments
+              <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Top performing departments
               </h3>
             </div>
-            <span className="text-[11px] text-slate-400">Quarter Avg</span>
+            <span className="text-[11px] text-slate-400">Quarter avg</span>
           </div>
 
           <div className="space-y-2.5">
@@ -813,7 +783,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
 
                     <div className="flex items-center gap-3 shrink-0">
                       <span className="text-xs text-slate-500 dark:text-slate-400">{dept.completionRate}% Done</span>
-                      <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+                      <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
                         {safeNum(dept.averageScore, 2, '0.00')}
                       </span>
                     </div>
@@ -826,15 +796,15 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         </div>
 
         {/* Departments Requiring Attention Spotlight */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs animate-badge-in animate-stagger-5">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5">
               <AlertCircle className="w-4 h-4 text-amber-500" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                Departments Requiring Attention
+              <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Departments requiring attention
               </h3>
             </div>
-            <span className="text-[11px] text-slate-400">Bottlenecks & Scores</span>
+            <span className="text-[11px] text-slate-400">Bottlenecks & scores</span>
           </div>
 
           <div className="space-y-2.5">
@@ -869,7 +839,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
       </div>
 
       {/* 4. Deep-Dive Section with Navigation Tabs */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden animate-entrance animate-stagger-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
         {/* Tab Bar */}
         <div className="border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 pt-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1 sm:gap-2">
@@ -882,7 +852,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
               }`}
             >
               <Building2 className="w-4 h-4" />
-              <span>Department Performance Matrix</span>
+              <span>Department performance</span>
             </button>
 
             <button
@@ -894,7 +864,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
               }`}
             >
               <TrendingUp className="w-4 h-4" />
-              <span>Quarterly Trends</span>
+              <span>Quarterly trends</span>
             </button>
 
             <button
@@ -906,7 +876,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
               }`}
             >
               <Award className="w-4 h-4" />
-              <span>High Performers & Attention</span>
+              <span>High performers & attention</span>
             </button>
 
             <button
@@ -918,7 +888,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
               }`}
             >
               <DollarSign className="w-4 h-4" />
-              <span>Appraisal & Budget Rollups</span>
+              <span>Appraisal & budget rollups</span>
             </button>
 
             <button
@@ -930,7 +900,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
               }`}
             >
               <ShieldAlert className="w-4 h-4" />
-              <span>Workforce Risk & Alerts</span>
+              <span>Workforce risk & alerts</span>
             </button>
           </div>
 
@@ -942,7 +912,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Export Matrix CSV</span>
+                <span>Export CSV</span>
               </button>
             )}
             {activeTab === 'talent' && (
@@ -951,7 +921,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Export Talent Pool CSV</span>
+                <span>Export talent pool CSV</span>
               </button>
             )}
           </div>
@@ -980,11 +950,11 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                   onChange={(e) => setDeptSortBy(e.target.value)}
                   className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none"
                 >
-                  <option value="averageScore">Average Rating</option>
-                  <option value="completionRate">Completion Rate</option>
+                  <option value="averageScore">Average rating</option>
+                  <option value="completionRate">Completion rate</option>
                   <option value="headcount">Headcount</option>
-                  <option value="managerPending">Manager Pending</option>
-                  <option value="overdueCount">Overdue Count</option>
+                  <option value="managerPending">Manager pending</option>
+                  <option value="overdueCount">Overdue count</option>
                 </select>
                 <button
                   onClick={() => setDeptSortOrder(deptSortOrder === 'asc' ? 'desc' : 'asc')}
@@ -1003,12 +973,12 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                     <th className="py-3 px-4">Department</th>
                     <th className="py-3 px-3 text-center">Headcount</th>
                     <th className="py-3 px-3 text-center">Progress</th>
-                    <th className="py-3 px-3 text-center">Pending Mgr</th>
+                    <th className="py-3 px-3 text-center">Pending mgr</th>
                     <th className="py-3 px-3 text-center">Pending HR</th>
                     <th className="py-3 px-3 text-center">Overdue</th>
-                    <th className="py-3 px-3 text-right">Avg Rating</th>
+                    <th className="py-3 px-3 text-right">Avg rating</th>
                     <th className="py-3 px-3 text-center">Trend</th>
-                    <th className="py-3 px-3 text-center">Appraisals Due</th>
+                    <th className="py-3 px-3 text-center">Appraisals due</th>
                     <th className="py-3 px-4 text-center">Action</th>
                   </tr>
                 </thead>
@@ -1094,7 +1064,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                             )}
                           </td>
                           <td className="py-3 px-3 text-right">
-                            <span className={`font-extrabold ${
+                            <span className={`font-bold ${
                               Number(dept.averageScore) >= 4.0
                                 ? 'text-emerald-600 dark:text-emerald-400'
                                 : Number(dept.averageScore) >= 3.2
@@ -1154,7 +1124,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
           <div className="p-4 sm:p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Organization Multi-Quarter Performance</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Organization multi-quarter performance</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Historical weighted rating averages and review completion metrics across quarters for {selectedYear}.
                 </p>
@@ -1188,17 +1158,17 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                       key={q.quarter}
                       className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center"
                     >
-                      <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
                         {q.label}
                       </div>
-                      <div className="mt-2 text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">
+                      <div className="mt-2 text-2xl font-bold text-indigo-600 dark:text-indigo-400">
                         {Number(q.averageScore) > 0 ? safeNum(q.averageScore, 2) : '—'}
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                         {q.completedReviewsCount} completed reviews ({q.completionRate}%)
                       </div>
                       <div className="mt-2">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                           q.periodStatus === 'ACTIVE'
                             ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300'
                             : q.periodStatus === 'CLOSED'
@@ -1214,7 +1184,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
 
                 {/* Department Multi-Quarter Breakdown Table */}
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
+                  <h4 className="text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">
                     Department Quarterly Score Progression ({selectedYear})
                   </h4>
                   <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
@@ -1222,11 +1192,11 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                       <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-800">
                         <tr>
                           <th className="py-2.5 px-4">Department</th>
-                          <th className="py-2.5 px-3 text-center">Q1 Score</th>
-                          <th className="py-2.5 px-3 text-center">Q2 Score</th>
-                          <th className="py-2.5 px-3 text-center">Q3 Score</th>
-                          <th className="py-2.5 px-3 text-center">Q4 Score</th>
-                          <th className="py-2.5 px-4 text-right">Overall Weighted Avg</th>
+                          <th className="py-2.5 px-3 text-center">Q1 score</th>
+                          <th className="py-2.5 px-3 text-center">Q2 score</th>
+                          <th className="py-2.5 px-3 text-center">Q3 score</th>
+                          <th className="py-2.5 px-3 text-center">Q4 score</th>
+                          <th className="py-2.5 px-4 text-right">Overall weighted avg</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
@@ -1238,7 +1208,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                               <td className="py-2.5 px-3 text-center font-medium">{Number(dept.q2) > 0 ? safeNum(dept.q2, 2) : '—'}</td>
                               <td className="py-2.5 px-3 text-center font-medium">{Number(dept.q3) > 0 ? safeNum(dept.q3, 2) : '—'}</td>
                               <td className="py-2.5 px-3 text-center font-medium">{Number(dept.q4) > 0 ? safeNum(dept.q4, 2) : '—'}</td>
-                              <td className="py-2.5 px-4 text-right font-extrabold text-indigo-600 dark:text-indigo-400">
+                              <td className="py-2.5 px-4 text-right font-bold text-indigo-600 dark:text-indigo-400">
                                 {Number(dept.overallAvg) > 0 ? safeNum(dept.overallAvg, 2) : '—'}
                               </td>
                             </tr>
@@ -1283,7 +1253,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                   }`}
                 >
-                  Attention Required (Low Scores / Overdue)
+                  Attention required (low scores / overdue)
                 </button>
               </div>
 
@@ -1302,7 +1272,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="text-slate-500">Score Flag Threshold:</span>
+                  <span className="text-slate-500">Score flag threshold:</span>
                   <select
                     value={attentionThreshold}
                     onChange={(e) => setAttentionThreshold(Number(e.target.value))}
@@ -1330,8 +1300,8 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                       <th className="py-2.5 px-4">Employee</th>
                       <th className="py-2.5 px-3">Department</th>
                       <th className="py-2.5 px-3">Designation</th>
-                      <th className="py-2.5 px-3">Reporting Manager</th>
-                      <th className="py-2.5 px-3 text-center">Quarter Score</th>
+                      <th className="py-2.5 px-3">Reporting manager</th>
+                      <th className="py-2.5 px-3 text-center">Quarter score</th>
                       <th className="py-2.5 px-3 text-center">Status</th>
                       <th className="py-2.5 px-4 text-center">Action</th>
                     </tr>
@@ -1354,8 +1324,8 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                           <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300">{p.designation}</td>
                           <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300">{p.managerName}</td>
                           <td className="py-2.5 px-3 text-center">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">
-                              ★ {safeNum(p.finalScore ?? (p as any).latestScore ?? (p as any).score, 2, '0.00')}
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">
+                              {safeNum(p.finalScore ?? (p as any).latestScore ?? (p as any).score, 2, '0.00')}
                             </span>
                           </td>
                           <td className="py-2.5 px-3 text-center">
@@ -1369,7 +1339,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 cursor-pointer"
                             >
                               <Eye className="w-3.5 h-3.5" />
-                              <span>View Dossier</span>
+                              <span>View dossier</span>
                             </button>
                           </td>
                         </tr>
@@ -1387,7 +1357,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                       <th className="py-2.5 px-4">Employee</th>
                       <th className="py-2.5 px-3">Department</th>
                       <th className="py-2.5 px-3">Manager</th>
-                      <th className="py-2.5 px-3">Flag Reason</th>
+                      <th className="py-2.5 px-3">Flag reason</th>
                       <th className="py-2.5 px-3 text-center">Urgency</th>
                       <th className="py-2.5 px-3 text-center">Score</th>
                       <th className="py-2.5 px-4 text-center">Action</th>
@@ -1436,7 +1406,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 cursor-pointer"
                             >
                               <Eye className="w-3.5 h-3.5" />
-                              <span>View Dossier</span>
+                              <span>View dossier</span>
                             </button>
                           </td>
                         </tr>
@@ -1454,7 +1424,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
           <div className="p-4 sm:p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Annual Appraisal & Compensation Rollup</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Annual appraisal & compensation rollup</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   High-level calibration progress, increment averages, and estimated payroll impact for {selectedYear}.
                 </p>
@@ -1484,7 +1454,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-2 grid grid-cols-2 gap-3.5">
                     <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800">
-                      <span className="text-xs font-semibold text-purple-700 dark:text-purple-300">Total Eligible Cohort</span>
+                      <span className="text-xs font-semibold text-purple-700 dark:text-purple-300">Total eligible cohort</span>
                       <div className="text-2xl font-bold text-purple-900 dark:text-purple-100 mt-1">
                         {appraisalsData?.summary.totalEligible ?? 0}
                       </div>
@@ -1494,7 +1464,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                     </div>
 
                     <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
-                      <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Locked / Finalized</span>
+                      <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Locked / finalized</span>
                       <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100 mt-1">
                         {appraisalsData?.summary.totalLocked ?? 0}
                       </div>
@@ -1502,7 +1472,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                     </div>
 
                     <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800">
-                      <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">Avg Organization Increment</span>
+                      <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">Avg organization increment</span>
                       <div className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-1">
                         {appraisalsData?.summary.averageIncrementPercent ?? 0}%
                       </div>
@@ -1510,7 +1480,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                     </div>
 
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Est. Annual Payroll Impact</span>
+                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Est. Annual payroll impact</span>
                       <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
                         ${(appraisalsData?.summary.totalPayrollImpact ?? 0).toLocaleString()}
                       </div>
@@ -1532,8 +1502,8 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
 
                 {/* Department Appraisal Rollup Table */}
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
-                    Department Compensation & Calibration Summary
+                  <h4 className="text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">
+                    Department compensation & calibration summary
                   </h4>
                   <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
                     <table className="w-full text-left text-xs sm:text-sm">
@@ -1541,10 +1511,10 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                         <tr>
                           <th className="py-2.5 px-4">Department</th>
                           <th className="py-2.5 px-3 text-center">Headcount</th>
-                          <th className="py-2.5 px-3 text-center">Appraisals Initiated</th>
-                          <th className="py-2.5 px-3 text-center">Locked / Approved</th>
-                          <th className="py-2.5 px-3 text-center">Avg Increment %</th>
-                          <th className="py-2.5 px-4 text-right">Est. Payroll Impact</th>
+                          <th className="py-2.5 px-3 text-center">Appraisals initiated</th>
+                          <th className="py-2.5 px-3 text-center">Locked / approved</th>
+                          <th className="py-2.5 px-3 text-center">Avg increment %</th>
+                          <th className="py-2.5 px-4 text-right">Est. Payroll impact</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
@@ -1560,7 +1530,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                               <td className="py-2.5 px-3 text-center font-bold">
                                 {Number(d.averageIncrementPercent) > 0 ? `${safeNum(d.averageIncrementPercent, 1)}%` : '—'}
                               </td>
-                              <td className="py-2.5 px-4 text-right font-extrabold text-slate-900 dark:text-white">
+                              <td className="py-2.5 px-4 text-right font-bold text-slate-900 dark:text-white">
                                 ${d.payrollImpact.toLocaleString()}
                               </td>
                             </tr>
@@ -1581,7 +1551,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                 <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
                   <ShieldCheck className="w-4 h-4 text-indigo-500 shrink-0" />
                   <span>
-                    <strong>Governance Rule:</strong> Management accounts have read-only analytics access to compensation summaries. Direct calibrations, recommendation modifications, and letter issuances are executed exclusively by HR and HOD review panels.
+                    <strong>Governance rule:</strong> Management accounts have read-only analytics access to compensation summaries. Direct calibrations, recommendation modifications, and letter issuances are executed exclusively by HR and HOD review panels.
                   </span>
                 </div>
               </>
@@ -1593,9 +1563,9 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
         {activeTab === 'workforceRisk' && (
           <div className="p-4 sm:p-6 space-y-6">
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Workforce Risk & Live Alerts</h3>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Workforce risk & live alerts</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Active Performance Improvement Plans, stale check-ins, plans past their end date, and this year's outcomes.
+                Active performance improvement plans, stale check-ins, plans past their end date, and this year's outcomes.
               </p>
             </div>
 
@@ -1637,7 +1607,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                   </div>
 
                   <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
-                    <span className="text-xs font-semibold text-rose-700 dark:text-rose-300">Stale Check-Ins</span>
+                    <span className="text-xs font-semibold text-rose-700 dark:text-rose-300">Stale check-ins</span>
                     <div className="text-2xl font-bold text-rose-900 dark:text-rose-100 mt-1">
                       {workforceRiskData?.summary.overdueCheckInCount ?? 0}
                     </div>
@@ -1645,7 +1615,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                   </div>
 
                   <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
-                    <span className="text-xs font-semibold text-rose-700 dark:text-rose-300">Past End Date</span>
+                    <span className="text-xs font-semibold text-rose-700 dark:text-rose-300">Past end date</span>
                     <div className="text-2xl font-bold text-rose-900 dark:text-rose-100 mt-1">
                       {workforceRiskData?.summary.pastEndDateNoOutcomeCount ?? 0}
                     </div>
@@ -1679,8 +1649,8 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
 
                 {/* At-Risk Employees Table */}
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
-                    Employees on Active Performance Improvement Plans
+                  <h4 className="text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">
+                    Employees on active performance improvement plans
                   </h4>
                   <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
                     <table className="w-full text-left text-xs sm:text-sm">
@@ -1690,15 +1660,15 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                           <th className="py-2.5 px-3">Department</th>
                           <th className="py-2.5 px-3">Manager / HOD</th>
                           <th className="py-2.5 px-3 text-center">Status</th>
-                          <th className="py-2.5 px-3 text-center">End Date</th>
-                          <th className="py-2.5 px-4 text-center">Check-In Status</th>
+                          <th className="py-2.5 px-3 text-center">End date</th>
+                          <th className="py-2.5 px-4 text-center">Check-in status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-800 dark:text-slate-200">
                         {!workforceRiskData || workforceRiskData.atRiskEmployees.length === 0 ? (
                           <tr>
                             <td colSpan={6} className="py-6 text-center text-slate-400">
-                              No employees are currently on an active Performance Improvement Plan.
+                              No employees are currently on an active performance improvement plan.
                             </td>
                           </tr>
                         ) : (
@@ -1751,7 +1721,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
 
                 {/* Recent Outcomes */}
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
+                  <h4 className="text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">
                     Recent PIP Outcomes ({selectedYear})
                   </h4>
                   <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-lg">
@@ -1761,7 +1731,7 @@ export const ManagementDashboardView: React.FC<ManagementDashboardViewProps> = (
                           <th className="py-2.5 px-4">Employee</th>
                           <th className="py-2.5 px-3">Department</th>
                           <th className="py-2.5 px-3 text-center">Decision</th>
-                          <th className="py-2.5 px-3">Decided By</th>
+                          <th className="py-2.5 px-3">Decided by</th>
                           <th className="py-2.5 px-4 text-right">Date</th>
                         </tr>
                       </thead>
@@ -1847,7 +1817,7 @@ const EmployeeDossierModal: React.FC<EmployeeDossierModalProps> = ({
   }
   const data = dossierData || cachedDossierRef.current;
 
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+  const { isMounted, handleClose, backdropClass, cardClass } = useModalAnimation({
     isOpen,
     onClose,
   });
@@ -1857,10 +1827,9 @@ const EmployeeDossierModal: React.FC<EmployeeDossierModalProps> = ({
   return createPortal(
     <div
       className={`fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto ${backdropClass}`}
-      onClick={handleBackdropClick}
     >
       <div
-        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto ${cardClass}`}
+        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto ${cardClass}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -1874,7 +1843,7 @@ const EmployeeDossierModal: React.FC<EmployeeDossierModalProps> = ({
                 <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
                   {data?.employee.name || 'Employee Dossier'}
                 </h2>
-                <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono">
+                <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 tabular-nums">
                   {data?.employee.employeeCode}
                 </span>
               </div>
@@ -1904,7 +1873,7 @@ const EmployeeDossierModal: React.FC<EmployeeDossierModalProps> = ({
               {/* Executive Read-Only Notice */}
               <div className="p-3 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-900/60 flex items-center gap-2 text-xs text-indigo-800 dark:text-indigo-300 font-medium">
                 <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
-                <span>Executive Read-Only Mode: Historical performance, KRA scores, and manager feedback are displayed for decision-support.</span>
+                <span>Executive read-only mode: historical performance, KRA scores, and manager feedback are displayed for decision-support.</span>
               </div>
 
               {/* Profile Summary Box */}
@@ -1914,7 +1883,7 @@ const EmployeeDossierModal: React.FC<EmployeeDossierModalProps> = ({
                   <div className="font-semibold text-slate-800 dark:text-slate-200 truncate">{data.employee.email}</div>
                 </div>
                 <div>
-                  <span className="text-slate-400">Reporting Manager:</span>
+                  <span className="text-slate-400">Reporting manager:</span>
                   <div className="font-semibold text-slate-800 dark:text-slate-200">{(data.employee as any).reportingManagerName || data.employee.managerName || 'N/A'}</div>
                 </div>
                 <div>
@@ -1922,16 +1891,16 @@ const EmployeeDossierModal: React.FC<EmployeeDossierModalProps> = ({
                   <div className="font-semibold text-slate-800 dark:text-slate-200">{data.employee.status}</div>
                 </div>
                 <div>
-                  <span className="text-slate-400">Joining Date:</span>
+                  <span className="text-slate-400">Joining date:</span>
                   <div className="font-semibold text-slate-800 dark:text-slate-200">{(data.employee as any).dateOfJoining || data.employee.joiningDate || 'N/A'}</div>
                 </div>
               </div>
 
               {/* Historical Quarterly Reviews */}
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-1.5">
+                <h3 className="text-xs font-bold text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-1.5">
                   <Calendar className="w-4 h-4" />
-                  Quarterly Review History
+                  Quarterly review history
                 </h3>
 
                 {data.historicalReviews.length === 0 ? (
@@ -1950,14 +1919,14 @@ const EmployeeDossierModal: React.FC<EmployeeDossierModalProps> = ({
                             <span className="text-xs font-bold text-slate-900 dark:text-white">
                               {rev.periodName}
                             </span>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-150 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-150 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                               {rev.status}
                             </span>
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="text-right">
-                              <span className="text-[10px] text-slate-400 block">Overall Score</span>
-                              <span className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">
+                              <span className="text-[11px] text-slate-400 block">Overall score</span>
+                              <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
                                 {Number(rev.finalScore) > 0 ? safeNum(rev.finalScore, 2) : '—'} / 5.00
                               </span>
                             </div>
@@ -1997,9 +1966,9 @@ const EmployeeDossierModal: React.FC<EmployeeDossierModalProps> = ({
 
               {/* Annual Appraisal Decisions */}
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-1.5">
+                <h3 className="text-xs font-bold text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-1.5">
                   <Award className="w-4 h-4" />
-                  Annual Appraisal History
+                  Annual appraisal history
                 </h3>
 
                 {data.appraisalHistory.length === 0 ? (
@@ -2015,7 +1984,7 @@ const EmployeeDossierModal: React.FC<EmployeeDossierModalProps> = ({
                           <th className="py-2 px-3">Status</th>
                           <th className="py-2 px-3 text-center">Proposed %</th>
                           <th className="py-2 px-3 text-center">Approved %</th>
-                          <th className="py-2 px-3 text-center">Final Rating</th>
+                          <th className="py-2 px-3 text-center">Final rating</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -2023,7 +1992,7 @@ const EmployeeDossierModal: React.FC<EmployeeDossierModalProps> = ({
                           <tr key={app.id}>
                             <td className="py-2 px-3 font-semibold">{app.appraisalYear}</td>
                             <td className="py-2 px-3">
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800">
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 dark:bg-slate-800">
                                 {app.status}
                               </span>
                             </td>
@@ -2049,7 +2018,7 @@ const EmployeeDossierModal: React.FC<EmployeeDossierModalProps> = ({
             onClick={handleClose}
             className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors cursor-pointer"
           >
-            Close Dossier
+            Close dossier
           </button>
         </div>
       </div>
@@ -2079,7 +2048,7 @@ const DepartmentInspectionModal: React.FC<DepartmentInspectionModalProps> = ({
   }
   const dept = inspectDepartment || cachedDeptRef.current;
 
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+  const { isMounted, handleClose, backdropClass, cardClass } = useModalAnimation({
     isOpen: !!inspectDepartment,
     onClose,
   });
@@ -2089,10 +2058,9 @@ const DepartmentInspectionModal: React.FC<DepartmentInspectionModalProps> = ({
   return createPortal(
     <div
       className={`fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto ${backdropClass}`}
-      onClick={handleBackdropClick}
     >
       <div
-        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden my-auto ${cardClass}`}
+        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden my-auto ${cardClass}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -2152,7 +2120,7 @@ const DepartmentInspectionModal: React.FC<DepartmentInspectionModalProps> = ({
                           {rev.status}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 text-right font-extrabold text-indigo-600 dark:text-indigo-400">
+                      <td className="py-2.5 px-3 text-right font-bold text-indigo-600 dark:text-indigo-400">
                         {Number(rev.finalScore) > 0 ? safeNum(rev.finalScore, 2) : '—'}
                       </td>
                       <td className="py-2.5 px-3 text-center">

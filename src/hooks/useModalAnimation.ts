@@ -69,20 +69,11 @@ export function useModalAnimation({
     }, duration);
   }, [isClosing, duration]);
 
-  const handleBackdropClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (e.target === e.currentTarget) {
-        handleClose();
-      }
-    },
-    [handleClose]
-  );
 
   return {
     isMounted,
     isClosing,
     handleClose,
-    handleBackdropClick,
     backdropClass: isClosing ? 'modal-backdrop-exit' : 'modal-backdrop-enter',
     cardClass: isClosing ? 'modal-card-exit' : 'modal-card-enter',
     drawerRightClass: isClosing ? 'drawer-right-exit' : 'drawer-right-enter',

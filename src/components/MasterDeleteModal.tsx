@@ -33,7 +33,7 @@ export const MasterDeleteModal: React.FC<MasterDeleteModalProps> = ({
   }
   const target = deleteTarget || cachedTargetRef.current;
 
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+  const { isMounted, handleClose, backdropClass, cardClass } = useModalAnimation({
     isOpen: !!deleteTarget,
     onClose,
   });
@@ -46,10 +46,9 @@ export const MasterDeleteModal: React.FC<MasterDeleteModalProps> = ({
   return createPortal(
     <div
       className={`fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto ${backdropClass}`}
-      onClick={handleBackdropClick}
     >
       <div
-        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-md w-full my-auto overflow-hidden ${cardClass}`}
+        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl max-w-md w-full my-auto overflow-hidden ${cardClass}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -91,7 +90,7 @@ export const MasterDeleteModal: React.FC<MasterDeleteModalProps> = ({
           {/* Target Details Card */}
           <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
             <div>
-              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 block">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 block">
                 Target {typeLabel}
               </span>
               <span className="text-xs font-bold text-slate-900 dark:text-white">
@@ -99,7 +98,7 @@ export const MasterDeleteModal: React.FC<MasterDeleteModalProps> = ({
               </span>
             </div>
             {target.code && (
-              <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+              <span className="text-xs tabular-nums px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                 {target.code}
               </span>
             )}
@@ -124,8 +123,8 @@ export const MasterDeleteModal: React.FC<MasterDeleteModalProps> = ({
               </div>
 
               <div className="space-y-1.5">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400 block">
-                  Assigned Personnel:
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">
+                  Assigned personnel:
                 </span>
                 <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1">
                   {target.assignedEmployees.slice(0, 8).map((emp) => (
@@ -134,7 +133,7 @@ export const MasterDeleteModal: React.FC<MasterDeleteModalProps> = ({
                       className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1"
                     >
                       <span className="font-semibold">{emp.name}</span>
-                      <span className="text-[10px] text-slate-400">({emp.employeeCode})</span>
+                      <span className="text-[11px] text-slate-400">({emp.employeeCode})</span>
                     </span>
                   ))}
                   {target.assignedEmployees.length > 8 && (
@@ -159,7 +158,7 @@ export const MasterDeleteModal: React.FC<MasterDeleteModalProps> = ({
               <div className="p-3 bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl text-xs text-rose-800 dark:text-rose-300 space-y-1">
                 <div className="flex items-center gap-1.5 font-bold">
                   <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
-                  <span>Permanent Action</span>
+                  <span>Permanent action</span>
                 </div>
                 <p className="text-[11px] leading-relaxed text-rose-700 dark:text-rose-400">
                   {target.type === 'department'
@@ -197,7 +196,7 @@ export const MasterDeleteModal: React.FC<MasterDeleteModalProps> = ({
                 type="button"
                 disabled={loading}
                 onClick={onConfirm}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
               >
                 {loading ? (
                   <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />

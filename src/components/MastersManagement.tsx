@@ -309,25 +309,25 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Department Master */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 space-y-5 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-5 space-y-5">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
               <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
                 <Building2 className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Department Master</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Manage business units & Head of Departments (HOD)</p>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Department master</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Manage business units & head of departments (HOD)</p>
               </div>
             </div>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+            <span className="text-[11px] tabular-nums px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
               {departments.length} Units
             </span>
           </div>
 
           {/* New Dept Form */}
           <form onSubmit={handleCreateDepartment} className="space-y-3 bg-slate-50/70 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">Add New Department</h4>
+            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">Add new department</h4>
 
             {deptError && (
               <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
@@ -345,7 +345,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Department Name</label>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Department name</label>
                 <input
                   type="text"
                   required
@@ -364,7 +364,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                   value={deptCode}
                   onChange={(e) => setDeptCode(e.target.value)}
                   placeholder="e.g. ENG"
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-mono focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-slate-400/20 focus:border-slate-400 dark:focus:border-slate-600"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-slate-400/20 focus:border-slate-400 dark:focus:border-slate-600"
                 />
               </div>
             </div>
@@ -377,7 +377,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                   onChange={(e) => setDeptHodId(e.target.value)}
                   className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-slate-400/20 focus:border-slate-400 dark:focus:border-slate-600 font-medium"
                 >
-                  <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Select HOD (Optional)</option>
+                  <option value="" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Select HOD (optional)</option>
                   {employees.map((emp) => (
                     <option key={emp.id} value={emp.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                       {emp.name} ({emp.employeeCode})
@@ -388,8 +388,8 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
 
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
-                  <span>Increment Budget Cap (%)</span>
-                  <span className="text-[10px] text-slate-400 font-normal">0 - 100%</span>
+                  <span>Increment budget cap (%)</span>
+                  <span className="text-[11px] text-slate-400 font-normal">0 - 100%</span>
                 </label>
                 <input
                   type="number"
@@ -400,7 +400,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                   value={deptBudgetCapPercent}
                   onChange={(e) => setDeptBudgetCapPercent(e.target.value)}
                   placeholder="12.0"
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-slate-400/20 focus:border-slate-400 dark:focus:border-slate-600"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs tabular-nums text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 dark:focus:ring-slate-400/20 focus:border-slate-400 dark:focus:border-slate-600"
                 />
               </div>
             </div>
@@ -408,7 +408,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
             <button
               type="submit"
               disabled={deptLoading}
-              className="w-full py-2 bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {deptLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
               <span>{deptLoading ? 'Creating...' : 'Create Department'}</span>
@@ -417,7 +417,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
 
           {/* List of Departments */}
           <div className="space-y-2">
-            <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Active Departments</h4>
+            <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">Active departments</h4>
             <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-72 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl">
               {departments.map((d) => (
                 <div key={d.id} className="p-3 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
@@ -435,7 +435,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Name</label>
+                          <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Name</label>
                           <input
                             type="text"
                             value={editDeptData.name}
@@ -444,25 +444,25 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Code</label>
+                          <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Code</label>
                           <input
                             type="text"
                             value={editDeptData.code}
                             onChange={(e) => setEditDeptData({ ...editDeptData, code: e.target.value })}
-                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-400"
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs tabular-nums text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-400"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">HOD</label>
+                          <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">HOD</label>
                           <select
                             value={editDeptData.hodId}
                             onChange={(e) => setEditDeptData({ ...editDeptData, hodId: e.target.value })}
                             className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-400"
                           >
-                            <option value="">Not Assigned</option>
+                            <option value="">Not assigned</option>
                             {employees.map((emp) => (
                               <option key={emp.id} value={emp.id}>
                                 {emp.name} ({emp.employeeCode})
@@ -471,7 +471,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                           </select>
                         </div>
                         <div>
-                          <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Budget Cap (%)</label>
+                          <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Budget cap (%)</label>
                           <input
                             type="number"
                             step="0.1"
@@ -479,7 +479,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                             max="100"
                             value={editDeptData.budgetCapPercent}
                             onChange={(e) => setEditDeptData({ ...editDeptData, budgetCapPercent: e.target.value })}
-                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-400"
+                            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs tabular-nums text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-400"
                           />
                         </div>
                       </div>
@@ -487,7 +487,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                       <button
                         onClick={() => handleUpdateDepartment(d.id)}
                         disabled={deptUpdateLoading}
-                        className="w-full py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         {deptUpdateLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                         <span>{deptUpdateLoading ? 'Saving...' : 'Save Changes'}</span>
@@ -498,10 +498,10 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-slate-900 dark:text-white text-xs">{d.name}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                          <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 tabular-nums text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                             {d.code}
                           </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-mono font-semibold">
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 tabular-nums font-semibold">
                             {typeof d.budgetCapPercent === 'number' ? d.budgetCapPercent : 12.0}% Cap
                           </span>
                         </div>
@@ -532,7 +532,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                         >
                           <Trash2 className="w-3.5 h-3.5 text-rose-500" />
                         </button>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-medium">
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-medium">
                           Active
                         </span>
                       </div>
@@ -545,25 +545,25 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
         </div>
 
         {/* Designation Master */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 space-y-5 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-5 space-y-5">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
               <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800">
                 <Briefcase className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Designation & Role Master</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Designation & role master</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">Configure hierarchy levels & role titles per department</p>
               </div>
             </div>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+            <span className="text-[11px] tabular-nums px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
               {designations.length} Roles
             </span>
           </div>
 
           {/* New Des Form */}
           <form onSubmit={handleCreateDesignation} className="space-y-3 bg-slate-50/70 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">Add New Designation</h4>
+            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">Add new designation</h4>
 
             {desError && (
               <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
@@ -581,7 +581,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-2">
-                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Designation Title</label>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Designation title</label>
                 <input
                   type="text"
                   required
@@ -593,7 +593,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Hierarchy Level</label>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Hierarchy level</label>
                 <input
                   type="number"
                   min={1}
@@ -607,7 +607,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Associated Department</label>
+              <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">Associated department</label>
               <select
                 value={desDeptId}
                 onChange={(e) => setDesDeptId(e.target.value)}
@@ -624,7 +624,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
             <button
               type="submit"
               disabled={desLoading}
-              className="w-full py-2 bg-slate-900 hover:bg-slate-800 dark:bg-purple-600 dark:hover:bg-purple-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full py-2 bg-slate-900 hover:bg-slate-800 dark:bg-purple-600 dark:hover:bg-purple-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {desLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
               <span>{desLoading ? 'Creating...' : 'Create Designation'}</span>
@@ -633,14 +633,14 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
 
           {/* List of Designations */}
           <div className="space-y-2">
-            <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Active Designations</h4>
+            <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">Active designations</h4>
             <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-56 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl">
               {designations.map((des) => (
                 <div key={des.id} className="p-3 flex items-center justify-between bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-slate-900 dark:text-white text-xs">{des.name}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                      <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 tabular-nums text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                         Level {des.level}
                       </span>
                     </div>
@@ -649,7 +649,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 font-medium">
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 font-medium">
                       Role Tier {des.level}
                     </span>
                     <button
@@ -668,19 +668,19 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
       </div>
 
       {/* Cycle Master */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 space-y-5 shadow-xs">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-5 space-y-5">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
               <Calendar className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Appraisal Cycle Framework Master</h3>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Appraisal cycle framework master</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">Configure appraisal months and cycle designations</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+            <span className="text-[11px] tabular-nums px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
               {activeCycles.length} Active Cycles
             </span>
             <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
@@ -705,7 +705,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
             return (
               <div
                 key={cycle.id}
-                className="p-4 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-850 shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+                className="p-4 rounded-xl border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-850 flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
               >
                 {editingCycleId === cycle.id ? (
                   <div className="space-y-3">
@@ -716,7 +716,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                       </button>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Cycle Name</label>
+                      <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Cycle name</label>
                       <input
                         type="text"
                         value={editCycleData.name}
@@ -725,7 +725,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Appraisal Month</label>
+                      <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Appraisal month</label>
                       <select
                         value={editCycleData.appraisalMonth}
                         onChange={(e) => setEditCycleData({ ...editCycleData, appraisalMonth: parseInt(e.target.value) })}
@@ -739,7 +739,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                     <button
                       onClick={() => handleUpdateCycle(cycle.id)}
                       disabled={cycleLoading}
-                      className="w-full py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {cycleLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                       <span>{cycleLoading ? 'Saving...' : 'Save Changes'}</span>
@@ -785,7 +785,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                           }}
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                             cycleEmployees.length > 0
-                              ? 'bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/80 hover:shadow-2xs'
+                              ? 'bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/80'
                               : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
                           }`}
                           title="Click to view enrolled employees"
@@ -807,19 +807,19 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
       </div>
 
       {/* Location Master */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 space-y-5 shadow-xs">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-5 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 gap-3">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
               <MapPin className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Work Location Master</h3>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Work location master</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">Manage base office and remote work locations across the organization</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+            <span className="text-[11px] tabular-nums px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
               {locations.length} Locations
             </span>
             <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
@@ -831,7 +831,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
         {/* Add Location Form (HR / Super Admin only) */}
         {isHRorAdmin && (
           <form onSubmit={handleCreateLocation} className="space-y-3 bg-slate-50/70 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">Add New Work Location</h4>
+            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">Add new work location</h4>
 
             {newLocError && (
               <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
@@ -862,7 +862,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
               <button
                 type="submit"
                 disabled={newLocLoading || !newLocationName.trim()}
-                className="py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                className="py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               >
                 {newLocLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                 <span>{newLocLoading ? 'Adding...' : 'Add Location'}</span>
@@ -874,7 +874,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
         {/* Location Search Bar & Grid */}
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Registered Locations</h4>
+            <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">Registered locations</h4>
             <div className="relative w-64 max-w-full">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
@@ -900,7 +900,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                   return (
                     <div
                       key={loc.id || loc.name}
-                      className="p-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl hover:border-slate-300 dark:hover:border-slate-700 transition-all flex items-center justify-between gap-2 shadow-2xs group"
+                      className="p-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl hover:border-slate-300 dark:hover:border-slate-700 transition-all flex items-center justify-between gap-2 group"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className={`p-1.5 rounded-lg shrink-0 ${
@@ -914,7 +914,7 @@ export const MastersManagement: React.FC<MastersManagementProps> = ({
                           <p className="text-xs font-semibold text-slate-900 dark:text-white truncate" title={loc.name}>
                             {loc.name}
                           </p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">
+                          <p className="text-[11px] text-slate-400 mt-0.5">
                             {hasEmployees ? (
                               <span className="text-indigo-600 dark:text-indigo-400 font-medium">Active work hub</span>
                             ) : (
@@ -1001,7 +1001,7 @@ const CycleEnrolledModal: React.FC<CycleEnrolledModalProps> = ({
   }
   const activeCycle = cycle || cachedCycleRef.current;
 
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+  const { isMounted, handleClose, backdropClass, cardClass } = useModalAnimation({
     isOpen: !!cycle,
     onClose,
   });
@@ -1028,10 +1028,9 @@ const CycleEnrolledModal: React.FC<CycleEnrolledModalProps> = ({
   return createPortal(
     <div
       className={`fixed inset-0 z-[9990] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto ${backdropClass}`}
-      onClick={handleBackdropClick}
     >
       <div
-        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] my-auto flex flex-col overflow-hidden ${cardClass}`}
+        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] my-auto flex flex-col overflow-hidden ${cardClass}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -1051,7 +1050,7 @@ const CycleEnrolledModal: React.FC<CycleEnrolledModalProps> = ({
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                   {activeCycle.name} — Enrolled Employees
                 </h3>
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                <span className="text-[11px] tabular-nums px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                   {enrolled.length} Enrolled
                 </span>
               </div>
@@ -1109,15 +1108,15 @@ const CycleEnrolledModal: React.FC<CycleEnrolledModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                  <span className="text-[11px] tabular-nums text-slate-500 dark:text-slate-400">
                     {emp.employeeCode}
                   </span>
                   {emp.status === 'INACTIVE' || emp.isPastEmployee ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
-                      <UserMinus className="w-2.5 h-2.5 text-slate-400" /> Past Employee
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
+                      <UserMinus className="w-2.5 h-2.5 text-slate-400" /> Past employee
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                       <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" /> Active
                     </span>
                   )}

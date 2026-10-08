@@ -67,7 +67,7 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
     totalEligible: number;
   } | null>(null);
 
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+  const { isMounted, handleClose, backdropClass, cardClass } =
     useModalAnimation({ onClose });
 
   // Keep selectedCycleId in sync if cycles are loaded/updated asynchronously
@@ -136,14 +136,14 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
         overrideExisting,
       });
       setResult(res);
-      toast.success(res.message || `Appraisal cohort initiated for Cycle ${selectedCycle?.name || ''}!`, 'Cohort Initiated');
+      toast.success(res.message || `Appraisal cohort initiated for Cycle ${selectedCycle?.name || ''}!`, 'Cohort initiated');
       setTimeout(() => {
         onSuccess();
       }, 1500);
     } catch (err: any) {
       const errMsg = err.message || 'Failed to initiate cycle appraisals';
       setError(errMsg);
-      toast.error(errMsg, 'Initiation Error');
+      toast.error(errMsg, 'Initiation error');
     } finally {
       setIsSubmitting(false);
     }
@@ -151,32 +151,30 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
 
   return createPortal(
     <div
-      className={`fixed inset-0 z-[9990] overflow-y-auto bg-slate-900/60 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 ${backdropClass}`}
-      onClick={handleBackdropClick}
+      className={`fixed inset-0 z-[9990] overflow-y-auto bg-slate-900/60 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 md:p-6 ${backdropClass}`}
     >
-      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800 ${cardClass}`}>
+      <div className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-lg w-full max-h-[92vh] sm:max-h-[88vh] flex flex-col overflow-hidden border border-slate-200 dark:border-slate-800 my-auto ${cardClass}`}>
         {/* Modal Header */}
-        <div className="px-6 py-5 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex items-center justify-between border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-indigo-300">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-white">Initiate Annual Appraisal Cohort</h3>
-              <p className="text-xs text-slate-300">Appraisal Cycle Automated 4-Quarter Rollup</p>
+        <div className="shrink-0 px-4 sm:px-6 py-4 bg-white dark:bg-slate-900 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-3 min-w-0">
+            <Sparkles className="w-5 h-5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white truncate">Initiate annual appraisal cohort</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 truncate">Appraisal cycle automated 4-quarter rollup</p>
             </div>
           </div>
           <button
             type="button"
             onClick={handleClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            aria-label="Close"
+            className="text-slate-500 hover:text-slate-900 dark:hover:text-white p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0 ml-2"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {result ? (
-          <div className="p-8 text-center space-y-4">
+          <div className="p-6 sm:p-8 text-center space-y-4 overflow-y-auto flex-1 min-h-0">
             <div className="w-14 h-14 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto border border-emerald-200 dark:border-emerald-800/60">
               <CheckCircle2 className="w-8 h-8" />
             </div>
@@ -188,171 +186,172 @@ export const InitiateAppraisalModal: React.FC<InitiateAppraisalModalProps> = ({
             </div>
             <div className="pt-2">
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800/60">
-                Rolling 4-Quarter aggregation & increment brackets calculated
+                Rolling 4-quarter aggregation & increment brackets calculated
               </span>
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-6 space-y-5">
-            {error && (
-              <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 rounded-xl text-xs text-red-700 dark:text-red-300 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-                <span>{error}</span>
-              </div>
-            )}
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            {/* Scrollable Form Content */}
+            <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6 space-y-4 sm:space-y-5">
+              {error && (
+                <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 rounded-xl text-xs text-red-700 dark:text-red-300 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+              )}
 
-            <div className="p-4 bg-indigo-50/60 dark:bg-indigo-950/30 rounded-xl border border-indigo-100/80 dark:border-indigo-900/50 text-xs text-indigo-900 dark:text-indigo-200 space-y-2">
-              <div className="font-semibold flex items-center gap-1.5 text-indigo-950 dark:text-indigo-200">
-                <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>Automated 4-Quarter Performance Aggregation</span>
+              <div className="p-3.5 sm:p-4 bg-indigo-50/60 dark:bg-indigo-950/30 rounded-xl border border-indigo-100/80 dark:border-indigo-900/50 text-xs text-indigo-900 dark:text-indigo-200 space-y-1.5 sm:space-y-2">
+                <div className="font-semibold flex items-center gap-1.5 text-indigo-950 dark:text-indigo-200 text-xs sm:text-[13px]">
+                  <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <span>Automated 4-quarter performance aggregation</span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-indigo-800 dark:text-indigo-300 leading-relaxed">
+                  The appraisal engine will pull all 4 quarterly review snapshots for active employees in the selected cycle, calculate their average composite performance score, and auto-assign recommended increment brackets (0-20%).
+                </p>
               </div>
-              <p className="text-[11px] text-indigo-800 dark:text-indigo-300 leading-relaxed">
-                The Appraisal Engine will pull all 4 quarterly review snapshots for active employees in the selected cycle, calculate their average composite performance score, and auto-assign recommended increment brackets (0-20%).
-              </p>
-            </div>
 
-            {/* Cycle Selector */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Select Appraisal Cycle <span className="text-red-500">*</span>
-                </label>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Total Active Employees: <strong className="text-slate-800 dark:text-slate-200">{employeeList.filter(e => e.status !== 'INACTIVE').length}</strong>
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {cycles.filter((c) => c.active !== false).map((c) => {
-                  const count = getCycleEmployeeCount(c.id, c.code);
-                  const isSelected = selectedCycleId === c.id;
-                  const isCurrentCycle = c.id === getDefaultCurrentCycleId(cycles);
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setSelectedCycleId(c.id)}
-                      className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                        isSelected
-                          ? 'border-indigo-600 bg-indigo-50/40 dark:bg-indigo-950/40 ring-2 ring-indigo-600/20'
-                          : 'border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: c.colorHex || '#4f46e5' }}
-                        />
-                        <div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-semibold text-slate-900 dark:text-white">{c.name}</span>
-                            {isCurrentCycle && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.2 text-indigo-700 dark:text-indigo-300 bg-indigo-100/90 dark:bg-indigo-900/60 rounded border border-indigo-200 dark:border-indigo-800">
-                                Current
+              {/* Cycle Selector */}
+              <div className="space-y-1.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Select appraisal cycle <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Total active employees: <strong className="text-slate-800 dark:text-slate-200">{employeeList.filter(e => e.status !== 'INACTIVE').length}</strong>
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
+                  {cycles.filter((c) => c.active !== false).map((c) => {
+                    const count = getCycleEmployeeCount(c.id, c.code);
+                    const isSelected = selectedCycleId === c.id;
+                    const isCurrentCycle = c.id === getDefaultCurrentCycleId(cycles);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setSelectedCycleId(c.id)}
+                        className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/40 ring-2 ring-indigo-600/20'
+                            : 'border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: c.colorHex || '#4f46e5' }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">{c.name}</span>
+                              {isCurrentCycle && (
+                                <span className="text-[11px] font-bold px-1.5 py-0.5 text-indigo-700 dark:text-indigo-300 bg-indigo-100/90 dark:bg-indigo-900/60 rounded border border-indigo-200 dark:border-indigo-800 shrink-0">
+                                  Current
+                                </span>
+                              )}
+                              <span className="inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 shrink-0">
+                                <Users className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400" />
+                                {count}
                               </span>
-                            )}
-                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700">
-                              <Users className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400" />
-                              {count}
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                            Appraisal: Month {c.appraisalMonth} • {c.appraisalMonth === 6 ? 'Jan–Jul' : 'Aug–Dec'}
+                            </div>
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              Appraisal: Month {c.appraisalMonth} • {c.appraisalMonth === 6 ? 'Jan–Jul' : 'Aug–Dec'}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      {isSelected && <ChevronRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Selected Cycle Enrolled Headcount Callout */}
-            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-200/60 dark:border-indigo-800/60">
-                  <Users className="w-4 h-4" />
+                        {isSelected && <ChevronRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 ml-1.5" />}
+                      </button>
+                    );
+                  })}
                 </div>
-                <div>
-                  <div className="text-xs font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
-                    <span>{selectedCycle?.name || 'Selected Cohort'}:</span>
-                    <span className="text-indigo-600 dark:text-indigo-400 font-bold">
-                      {selectedCycleEmployeeCount} Active {selectedCycleEmployeeCount === 1 ? 'Employee' : 'Employees'} Enrolled
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {selectedCycle?.appraisalMonth === 6
-                      ? 'Employees who joined January to July • Annual 4-Quarter Rollup'
-                      : 'Employees who joined August to December • Annual 4-Quarter Rollup'}
+              </div>
+
+              {/* Selected Cycle Enrolled Headcount Callout */}
+              <div className="p-3 sm:p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+                <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0">
+                  <Users className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
+                      <span>{selectedCycle?.name || 'Selected cohort'}:</span>
+                      <span className="text-indigo-600 dark:text-indigo-400 font-bold">
+                        {selectedCycleEmployeeCount} active {selectedCycleEmployeeCount === 1 ? 'employee' : 'employees'} enrolled
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      {selectedCycle?.appraisalMonth === 6
+                        ? 'Employees who joined January to July • Annual 4-quarter rollup'
+                        : 'Employees who joined August to December • Annual 4-quarter rollup'}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-750 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs">
-                {selectedCycle?.code || 'COHORT'}
-              </span>
-            </div>
-
-            {/* Appraisal Year */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Appraisal Fiscal Year</label>
-                <select
-                  value={appraisalYear}
-                  onChange={(e) => setAppraisalYear(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                >
-                  <option value={currentYear} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{currentYear} (Current)</option>
-                  <option value={currentYear - 1} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{currentYear - 1}</option>
-                  <option value={currentYear + 1} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{currentYear + 1}</option>
-                </select>
+                <span className="self-start sm:self-center text-xs font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-750 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
+                  {selectedCycle?.code || 'COHORT'}
+                </span>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Target Cycle Month</label>
-                <div className="px-3 py-2 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                  Month {selectedCycle?.appraisalMonth || '6'} (Due for Annual Review)
+              {/* Appraisal Year & Month */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Appraisal fiscal year</label>
+                  <select
+                    value={appraisalYear}
+                    onChange={(e) => setAppraisalYear(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  >
+                    <option value={currentYear} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{currentYear} (current)</option>
+                    <option value={currentYear - 1} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{currentYear - 1}</option>
+                    <option value={currentYear + 1} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{currentYear + 1}</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Target cycle month</label>
+                  <div className="px-3 py-2 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center min-h-[38px]">
+                    Month {selectedCycle?.appraisalMonth || '6'} (due for annual review)
+                  </div>
                 </div>
               </div>
+
+              {/* Overwrite Checkbox */}
+              <div className="flex items-start sm:items-center gap-2.5 pt-1">
+                <input
+                  id="overrideExisting"
+                  type="checkbox"
+                  checked={overrideExisting}
+                  onChange={(e) => setOverrideExisting(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 sm:mt-0 text-indigo-600 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:ring-indigo-500 shrink-0 cursor-pointer"
+                />
+                <label htmlFor="overrideExisting" className="text-xs text-slate-600 dark:text-slate-300 select-none cursor-pointer leading-tight">
+                  Recalculate & overwrite existing pending appraisal drafts in this cycle
+                </label>
+              </div>
             </div>
 
-            {/* Overwrite Checkbox */}
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                id="overrideExisting"
-                type="checkbox"
-                checked={overrideExisting}
-                onChange={(e) => setOverrideExisting(e.target.checked)}
-                className="w-4 h-4 text-indigo-600 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:ring-indigo-500"
-              />
-              <label htmlFor="overrideExisting" className="text-xs text-slate-600 dark:text-slate-300 select-none cursor-pointer">
-                Recalculate & overwrite existing pending appraisal drafts in this cycle
-              </label>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+            {/* Action Buttons Sticky Footer */}
+            <div className="shrink-0 p-4 sm:px-6 sm:py-3.5 bg-slate-50/80 dark:bg-slate-900/90 backdrop-blur-xs border-t border-slate-100 dark:border-slate-800 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3">
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={isSubmitting}
-                className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer text-center"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting || selectedCycleEmployeeCount === 0}
-                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Aggregating Reviews...</span>
+                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                    <span>Aggregating reviews...</span>
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4" />
-                    <span>
+                    <Sparkles className="w-4 h-4 shrink-0" />
+                    <span className="truncate">
                       Initiate {selectedCycle?.name || 'Cohort'} ({selectedCycleEmployeeCount} {selectedCycleEmployeeCount === 1 ? 'Employee' : 'Employees'})
                     </span>
                   </>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Employee, Department, Designation, Cycle, KraTemplate, ReviewPeriod } from '../types';
+import { Employee, Department, Designation, Cycle, KraTemplate, ReviewPeriod, User } from '../types';
 import { api } from '../services/api';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useAuth } from '../context/AuthContext';
@@ -31,9 +31,11 @@ import {
   ChevronRight,
   UserCheck,
 } from 'lucide-react';
-import { User } from '../types';
 import { CycleBadge } from './ui/CycleBadge';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
+import { PageHeader } from './ui/PageHeader';
+import { Button } from './ui/Button';
+import { SegmentedControl } from './ui/SegmentedControl';
 
 interface EmployeeDirectoryProps {
   currentUser?: User | null;
@@ -44,7 +46,6 @@ interface EmployeeDirectoryProps {
   onNavigateToAppraisals?: (options?: any) => void;
   onNavigateToReviews?: (options?: any) => void;
   onNavigateToHierarchy?: () => void;
-  initialConfig?: any;
   employees?: Employee[];
 }
 
@@ -242,7 +243,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
     if (status === 'INACTIVE' || isPastEmployee) {
       return (
         <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-medium">
-          <UserMinus className="w-3 h-3 text-slate-400 dark:text-slate-500" /> Past Employee
+          <UserMinus className="w-3 h-3 text-slate-400 dark:text-slate-500" /> Past employee
         </span>
       );
     }
@@ -280,61 +281,35 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Native Page Header & Navigation */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Employee Directory & Masters
-            </h1>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Directory
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Headcount directory, June/September appraisal cohorts, departments, and reviewer assignments.
-          </p>
-        </div>
-
-        {/* View Switcher and Primary Action */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700/80">
-            <button
-              onClick={() => setActiveTab('employees')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${activeTab === 'employees'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-            >
-              Employees ({employees.length})
-            </button>
-            {isHRorAdmin && (
-              <button
-                onClick={() => setActiveTab('masters')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${activeTab === 'masters'
-                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
+      <PageHeader
+        title="Employees"
+        description="Everyone in the organization, with their department, appraisal cycle and reviewers."
+        actions={
+          <>
+            <SegmentedControl
+              ariaLabel="Show"
+              value={activeTab}
+              onChange={setActiveTab}
+              options={[
+                { value: 'employees', label: `Employees (${employees.length})` },
+                ...(isHRorAdmin ? [{ value: 'masters' as const, label: 'Departments and roles' }] : []),
+              ]}
+            />
+            {isHRorAdmin && activeTab === 'employees' && (
+              <Button
+                variant="primary"
+                icon={Plus}
+                onClick={() => {
+                  setEditingEmployee(null);
+                  setIsModalOpen(true);
+                }}
               >
-                Departments & Roles
-              </button>
+                Add employee
+              </Button>
             )}
-          </div>
-
-          {isHRorAdmin && activeTab === 'employees' && (
-            <button
-              onClick={() => {
-                setEditingEmployee(null);
-                setIsModalOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer shrink-0"
-            >
-              <Plus className="w-4 h-4" /> Add Employee
-            </button>
-          )}
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* VIEW 1: EMPLOYEES DIRECTORY */}
       {activeTab === 'employees' && (
@@ -342,21 +317,19 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
           {/* Summary Metric Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
             {/* Total Employees Box */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Total Employees
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  Total employees
                 </span>
-                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center shrink-0">
-                  <Users className="w-4 h-4" />
-                </div>
+                <Users className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
               </div>
               <div className="flex items-baseline gap-2 mt-2">
-                <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono tracking-tight">
+                <span className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums tracking-tight">
                   {totalEmployeesCount}
                 </span>
                 {hasActiveFilters && (
-                  <span className="text-[10px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 px-1.5 py-0.5 rounded">
+                  <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 px-1.5 py-0.5 rounded">
                     {filteredEmployees.length} filtered
                   </span>
                 )}
@@ -367,20 +340,18 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
             </div>
 
             {/* Active Workforce Box */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Active Workforce
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  Active workforce
                 </span>
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="w-4 h-4" />
-                </div>
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
               </div>
               <div className="flex items-baseline gap-2 mt-2">
-                <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono tracking-tight">
+                <span className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums tracking-tight">
                   {activeEmployeesCount}
                 </span>
-                <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-1.5 py-0.5 rounded">
+                <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-1.5 py-0.5 rounded">
                   {totalEmployeesCount > 0 ? Math.round((activeEmployeesCount / totalEmployeesCount) * 100) : 0}%
                 </span>
               </div>
@@ -398,45 +369,41 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                   window.location.hash = '#hierarchy';
                 }
               }}
-              className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 shadow-2xs hover:border-blue-400 dark:hover:border-blue-600 transition-colors cursor-pointer group"
+              className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 hover:border-blue-400 dark:hover:border-blue-600 transition-colors cursor-pointer group"
               title="Click to view Department & Manager Hierarchy"
             >
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                   Departments
                 </span>
-                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/50 group-hover:text-blue-600 transition-colors">
-                  <Building2 className="w-4 h-4" />
-                </div>
+                <Building2 className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
               </div>
               <div className="flex items-baseline gap-2 mt-2">
-                <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono tracking-tight">
+                <span className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums tracking-tight">
                   {departments.length || uniqueDeptCount}
                 </span>
-                <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded">
+                <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-1.5 py-0.5 rounded">
                   {designations.length} roles
                 </span>
               </div>
               <p className="text-[11px] text-blue-600 dark:text-blue-400 group-hover:underline flex items-center gap-0.5 mt-1 font-medium">
-                View Org & Manager Hierarchy →
+                View org & manager hierarchy →
               </p>
             </div>
 
             {/* Review Cohorts Box */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Review Cohorts
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  Review cohorts
                 </span>
-                <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 flex items-center justify-center shrink-0">
-                  <Calendar className="w-4 h-4" />
-                </div>
+                <Calendar className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
               </div>
               <div className="flex items-baseline gap-2 mt-2">
-                <span className="text-2xl font-bold text-slate-900 dark:text-white font-mono tracking-tight">
+                <span className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums tracking-tight">
                   {cycles.filter((c) => c.active !== false).length}
                 </span>
-                <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 px-1.5 py-0.5 rounded">
+                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 px-1.5 py-0.5 rounded">
                   June & September
                 </span>
               </div>
@@ -447,7 +414,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
           </div>
 
           {/* Controls Bar */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-2.5 rounded-xl shadow-2xs flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-2.5">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-2.5 rounded-xl flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-2.5">
             {/* Search Input */}
             <div className="relative flex-1 min-w-[240px] max-w-md">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -478,7 +445,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                   onChange={(e) => setSelectedDept(e.target.value)}
                   className="h-9 pl-2.5 pr-7 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 appearance-none cursor-pointer"
                 >
-                  <option value="">All Departments</option>
+                  <option value="">All departments</option>
                   {departments.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
@@ -495,7 +462,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                   onChange={(e) => setSelectedCycle(e.target.value)}
                   className="h-9 pl-2.5 pr-7 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 appearance-none cursor-pointer"
                 >
-                  <option value="">All Cycles</option>
+                  <option value="">All cycles</option>
                   {cycles.filter((c) => c.active !== false).map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -512,11 +479,11 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                   onChange={(e) => setSelectedStatus(e.target.value)}
                   className="h-9 pl-2.5 pr-7 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 appearance-none cursor-pointer"
                 >
-                  <option value="">All Statuses</option>
+                  <option value="">All statuses</option>
                   <option value="ACTIVE">Active</option>
                   <option value="PROBATION">Probation</option>
                   <option value="NOTICE">Notice</option>
-                  <option value="INACTIVE">Past Employees</option>
+                  <option value="INACTIVE">Past employees</option>
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
@@ -553,7 +520,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                 <button
                   onClick={() => setViewMode('cards')}
                   className={`h-7 px-2.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${viewMode === 'cards'
-                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-semibold'
+                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 font-semibold'
                       : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   title="Card View"
@@ -564,7 +531,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                 <button
                   onClick={() => setViewMode('table')}
                   className={`h-7 px-2.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${viewMode === 'table'
-                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs font-semibold'
+                      ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 font-semibold'
                       : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   title="Table View"
@@ -580,11 +547,11 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
           {effectiveViewMode === 'cards' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
               {loading ? (
-                <div className="col-span-full p-12 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="col-span-full p-12 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
                   Loading employee records...
                 </div>
               ) : filteredEmployees.length === 0 ? (
-                <div className="col-span-full p-12 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <div className="col-span-full p-12 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
                   No employees found matching the filters.
                 </div>
               ) : (
@@ -593,23 +560,23 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                   return (
                     <div
                       key={emp.id}
-                      className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-2xs hover:shadow-xs transition-all space-y-3 flex flex-col justify-between"
+                      className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-4 transition-all space-y-3 flex flex-col justify-between"
                     >
                       <div className="space-y-2.5">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-800 dark:text-slate-200 font-bold text-xs shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-800 dark:text-slate-200 font-bold text-xs shrink-0">
                               {emp.name.charAt(0)}
                             </div>
                             <div className="min-w-0">
                               <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">{emp.name}</h4>
-                              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate">{emp.employeeCode} • {emp.email}</p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums truncate">{emp.employeeCode} • {emp.email}</p>
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-1">
                             {getStatusBadge(emp.status, emp.isPastEmployee)}
                             {employeeIdsOnPip.has(emp.id) && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                                 On PIP
                               </span>
                             )}
@@ -623,7 +590,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                           {(emp.systemRole || emp.hasLoginAccount) && (
                             <div>
                               <span
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
                               >
                                 <Key className="w-2.5 h-2.5 text-indigo-500 dark:text-indigo-400" />
                                 {emp.systemRole || 'Portal Active'}
@@ -649,8 +616,8 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                       <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
                         {(emp.status === 'INACTIVE' || emp.isPastEmployee) ? (
                           <div>
-                            <span className="text-[10px] text-rose-500 dark:text-rose-400 font-semibold block leading-tight">
-                              Relieved On
+                            <span className="text-[11px] text-rose-500 dark:text-rose-400 font-semibold block leading-tight">
+                              Relieved on
                             </span>
                             <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                               {(emp.relievingDate || emp.pastEmployeeDate)
@@ -664,13 +631,13 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                           </div>
                         ) : isHRorAdmin ? (
                           <div>
-                            <span className="text-[10px] text-slate-400 block leading-tight">Starting CTC</span>
-                            <span className="font-mono font-bold text-slate-900 dark:text-white">
+                            <span className="text-[11px] text-slate-400 block leading-tight">Starting CTC</span>
+                            <span className="tabular-nums font-bold text-slate-900 dark:text-white">
                               {emp.currency || '₹'}{(emp.currentCtc || 1600000).toLocaleString()}
                             </span>
                           </div>
                         ) : (
-                          <div className="text-[10px] text-slate-400">
+                          <div className="text-[11px] text-slate-400">
                             Joined {new Date(emp.joiningDate).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
                           </div>
                         )}
@@ -718,22 +685,22 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
               )}
             </div>
           ) : (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs">
+            <div className="bg-white dark:bg-[#121215] border border-slate-200/80 dark:border-white/[0.08] rounded-xl overflow-hidden shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.4)]">
               <div className="overflow-x-auto overscroll-x-contain max-h-[70vh]" style={{ WebkitOverflowScrolling: 'touch' }}>
                 <table className="w-full text-left border-collapse text-xs">
-                  <thead className="sticky top-0 z-10 backdrop-blur-md bg-slate-50/95 dark:bg-slate-800/95 border-b border-slate-200 dark:border-slate-800 shadow-2xs">
-                    <tr className="text-slate-600 dark:text-slate-300 font-semibold uppercase tracking-wider text-[11px]">
+                  <thead className="sticky top-0 z-10 backdrop-blur-md bg-slate-50/95 dark:bg-[#18181d]/95 border-b border-slate-200/80 dark:border-white/[0.06]">
+                    <tr className="text-slate-600 dark:text-slate-300 font-semibold text-[11px]">
                       <th className="px-5 py-3.5">Employee</th>
-                      <th className="px-4 py-3.5">Department & Role</th>
-                      <th className="px-4 py-3.5">Appraisal Cycle</th>
-                      <th className="px-4 py-3.5">Reporting Hierarchy</th>
+                      <th className="px-4 py-3.5">Department & role</th>
+                      <th className="px-4 py-3.5">Appraisal cycle</th>
+                      <th className="px-4 py-3.5">Reporting hierarchy</th>
                       {isHRorAdmin && <th className="px-4 py-3.5">Starting CTC</th>}
                       <th className="px-4 py-3.5">Status</th>
-                      <th className="px-4 py-3.5">Joining / Relieving Date</th>
+                      <th className="px-4 py-3.5">Joining / relieving date</th>
                       {isHRorAdmin && <th className="px-4 py-3.5 text-right">Actions</th>}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                  <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04] text-slate-700 dark:text-slate-300">
                     {loading ? (
                       <tr>
                         <td colSpan={isHRorAdmin ? 8 : 6} className="px-6 py-12 text-center text-slate-400 dark:text-slate-500">
@@ -752,23 +719,23 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                         return (
                           <tr
                             key={emp.id}
-                            className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors group"
+                            className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors group"
                           >
                             {/* Employee Info */}
                             <td className="px-5 py-3.5">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-800 dark:text-slate-200 font-bold text-xs shadow-2xs">
+                                <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-white/[0.06] border border-slate-200/80 dark:border-white/[0.08] flex items-center justify-center text-slate-800 dark:text-slate-200 font-bold text-xs">
                                   {emp.name.charAt(0)}
                                 </div>
                                 <div>
                                   <div className="font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                                     {emp.name}
                                   </div>
-                                  <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                                  <div className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
                                     {emp.employeeCode} • {emp.email}
                                   </div>
                                   {(emp.location || emp.phone) && (
-                                    <div className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                    <div className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mt-0.5">
                                       {emp.location && (
                                         <span className="flex items-center gap-0.5">
                                           <MapPin className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500" />
@@ -790,7 +757,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                               {(emp.systemRole || emp.hasLoginAccount) && (
                                 <div className="mt-1">
                                   <span
-                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
                                     title={`Portal Sign-In Active (${emp.systemRole || 'User'})`}
                                   >
                                     <Key className="w-2.5 h-2.5 text-indigo-500 dark:text-indigo-400" />
@@ -825,10 +792,10 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                             {/* Compensation */}
                             {isHRorAdmin && (
                               <td className="px-4 py-3.5">
-                                <div className="font-semibold text-slate-900 dark:text-white font-mono text-[11px]">
+                                <div className="font-semibold text-slate-900 dark:text-white tabular-nums text-[11px]">
                                   {emp.currency || '₹'}{(emp.currentCtc || 1600000).toLocaleString()}
                                 </div>
-                                <div className="text-[10px] text-slate-400 dark:text-slate-500">
+                                <div className="text-[11px] text-slate-400 dark:text-slate-500">
                                   Annual CTC
                                 </div>
                               </td>
@@ -839,7 +806,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 {getStatusBadge(emp.status, emp.isPastEmployee)}
                                 {employeeIdsOnPip.has(emp.id) && (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                                     On PIP
                                   </span>
                                 )}
@@ -887,7 +854,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                                         setIsRehireInitial(true);
                                         setIsModalOpen(true);
                                       }}
-                                      className="px-2 py-1 rounded-lg text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 font-semibold text-[11px] flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                                      className="px-2 py-1 rounded-lg text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 font-semibold text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
                                       title="Rehire past employee and reactivate profile"
                                     >
                                       <UserCheck className="w-3 h-3" /> Rehire
@@ -928,14 +895,14 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
 
           {/* Pagination Footer Controls (20 per page) */}
           {totalFilteredCount > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-white/[0.06]">
               <div className="flex items-center gap-2 font-medium">
                 <span>
                   Showing <strong className="text-slate-800 dark:text-slate-200">{startIndex + 1}</strong> to{' '}
                   <strong className="text-slate-800 dark:text-slate-200">{endIndex}</strong> of{' '}
                   <strong className="text-slate-800 dark:text-slate-200">{totalFilteredCount}</strong> employees
                 </span>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-normal">
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400 font-normal border border-slate-200/50 dark:border-white/[0.06]">
                   20 per page
                 </span>
               </div>
@@ -948,7 +915,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                     disabled={safeCurrentPage === 1}
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium flex items-center gap-1 cursor-pointer"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#18181d] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.04] disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium flex items-center gap-1 cursor-pointer"
                     title="Previous Page"
                   >
                     <ChevronLeft className="w-3.5 h-3.5" />
@@ -975,8 +942,8 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                           }}
                           className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer ${
                             isActive
-                              ? 'bg-indigo-600 text-white shadow-xs'
-                              : 'border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                              ? 'bg-indigo-600 text-white'
+                              : 'border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#18181d] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.04]'
                           }`}
                         >
                           {pageNum}
@@ -991,7 +958,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                     disabled={safeCurrentPage === totalPages}
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium flex items-center gap-1 cursor-pointer"
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#18181d] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.04] disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-medium flex items-center gap-1 cursor-pointer"
                     title="Next Page"
                   >
                     <span className="hidden sm:inline">Next</span>
@@ -1073,7 +1040,7 @@ const EmployeeDeleteModal: React.FC<EmployeeDeleteModalProps> = ({
   }
   const emp = employee || cachedEmployeeRef.current;
 
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+  const { isMounted, handleClose, backdropClass, cardClass } = useModalAnimation({
     isOpen: !!employee,
     onClose,
   });
@@ -1087,10 +1054,9 @@ const EmployeeDeleteModal: React.FC<EmployeeDeleteModalProps> = ({
   return createPortal(
     <div
       className={`fixed inset-0 z-[9990] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto ${backdropClass}`}
-      onClick={handleBackdropClick}
     >
       <div
-        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full my-auto overflow-hidden ${cardClass}`}
+        className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl max-w-lg w-full my-auto overflow-hidden ${cardClass}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -1101,7 +1067,7 @@ const EmployeeDeleteModal: React.FC<EmployeeDeleteModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                Delete Employee & Archive as Past Employee
+                Delete employee & archive as past employee
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Purge performance data while keeping directory record
@@ -1132,7 +1098,7 @@ const EmployeeDeleteModal: React.FC<EmployeeDeleteModalProps> = ({
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                   {emp.designationName || 'Designation'} • {emp.departmentName || 'Department'}
                 </p>
-                <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 block truncate">
+                <span className="text-[11px] tabular-nums text-slate-400 dark:text-slate-500 block truncate">
                   {emp.employeeCode} • {emp.email}
                 </span>
               </div>
@@ -1147,11 +1113,11 @@ const EmployeeDeleteModal: React.FC<EmployeeDeleteModalProps> = ({
             <div className="p-3 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-xl text-xs text-amber-800 dark:text-amber-300 space-y-1.5">
               <div className="flex items-center gap-1.5 font-bold">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                <span>Leadership Assignment Impact:</span>
+                <span>Leadership assignment impact:</span>
               </div>
               {managedReports.length > 0 && (
                 <p className="text-[11px] text-amber-700 dark:text-amber-300/90 leading-relaxed">
-                  Reporting Manager for <strong>{managedReports.length} active employee(s)</strong> ({managedReports.slice(0, 3).map((e) => e.name).join(', ')}{managedReports.length > 3 ? ` +${managedReports.length - 3} more` : ''}). Their manager will automatically be set to <strong>&quot;Unassigned&quot;</strong>.
+                  Reporting manager for <strong>{managedReports.length} active employee(s)</strong> ({managedReports.slice(0, 3).map((e) => e.name).join(', ')}{managedReports.length > 3 ? ` +${managedReports.length - 3} more` : ''}). Their manager will automatically be set to <strong>&quot;Unassigned&quot;</strong>.
                 </p>
               )}
               {ledDepartments.length > 0 && (
@@ -1184,7 +1150,7 @@ const EmployeeDeleteModal: React.FC<EmployeeDeleteModalProps> = ({
                 <span>What will be preserved:</span>
               </div>
               <p className="text-[11px] text-emerald-700 dark:text-emerald-300/90 leading-relaxed">
-                Identity details (Name, Employee Code, Department, Designation, and Joining Date) will remain preserved in the directory with status <strong>Past Employee</strong> for corporate compliance and historical service reference.
+                Identity details (name, employee code, department, designation, and joining date) will remain preserved in the directory with status <strong>Past employee</strong> for corporate compliance and historical service reference.
               </p>
             </div>
           </div>
@@ -1204,7 +1170,7 @@ const EmployeeDeleteModal: React.FC<EmployeeDeleteModalProps> = ({
             type="button"
             disabled={loading}
             onClick={onConfirm}
-            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
           >
             {loading ? (
               <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />

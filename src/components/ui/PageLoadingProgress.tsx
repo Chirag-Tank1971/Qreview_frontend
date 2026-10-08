@@ -16,7 +16,7 @@ export const PageLoadingProgress: React.FC<PageLoadingProgressProps> = ({ active
 
   return (
     <div aria-hidden="true" className="fixed top-0 left-0 right-0 z-[9999] h-[2px] overflow-hidden pointer-events-none">
-      <div className="h-full w-1/3 bg-blue-600 dark:bg-blue-500 animate-page-loading-slide" />
+      <div className="h-full w-1/3 bg-indigo-600 dark:bg-indigo-400 animate-page-loading-slide" />
     </div>
   );
 };

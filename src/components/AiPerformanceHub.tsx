@@ -19,6 +19,8 @@ import {
   AiReviewSynthesisResult,
   AiTalentInsightsResult,
 } from '../types';
+import { PageHeader } from './ui/PageHeader';
+import { Button } from './ui/Button';
 
 interface AiPerformanceHubProps {
   currentUser: User;
@@ -171,37 +173,15 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
 
   return (
     <div id="ai_performance_hub_container" className="space-y-6">
-      {/* Top Header Card */}
-      <div id="ai_hub_header" className="bg-slate-900 border border-slate-800 rounded-xl p-6 text-white shadow-xl relative overflow-hidden">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                AI-Assisted Intelligence Suite
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                Gemini 3.8 Flash Engine
-              </span>
-            </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">AI Review & Talent Intelligence Hub</h1>
-            <p className="text-slate-300 text-sm mt-1 max-w-3xl">
-              Harmonize appraisal review narratives and analyze strategic 9-box talent mobility using Google GenAI models.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              id="refresh_data_btn"
-              onClick={loadBaseData}
-              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Sync Data
-            </button>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="AI review assistant"
+        description="Draft consistent review summaries and see where people sit on the 9-box grid, using Google Gemini."
+        actions={
+          <Button id="refresh_data_btn" icon={RefreshCw} onClick={loadBaseData}>
+            Refresh data
+          </Button>
+        }
+      />
 
       {/* Navigation Tabs */}
       <div id="ai_hub_tabs" className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-t-xl px-4 pt-3 overflow-x-auto gap-2">
@@ -215,7 +195,7 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          AI Review Narrative Synthesizer
+          Review summary
         </button>
 
         <button
@@ -240,8 +220,8 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
               {/* Controls Column */}
               <div className="space-y-5 border-r border-slate-100 dark:border-slate-800 pr-0 lg:pr-6">
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Target Employee
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">
+                    Target employee
                   </label>
                   <select
                     id="select_synthesis_employee"
@@ -258,8 +238,8 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Appraisal Perspective
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-400 mb-2">
+                    Appraisal perspective
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     {(['manager', 'self', 'executive'] as const).map((p) => (
@@ -285,7 +265,7 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                       {selectedEmployee.name}
                     </div>
                     <div className="text-slate-600 dark:text-slate-400">
-                      Code: <span className="font-mono text-slate-800 dark:text-slate-200">{selectedEmployee.employeeCode}</span>
+                      Code: <span className="tabular-nums text-slate-800 dark:text-slate-200">{selectedEmployee.employeeCode}</span>
                     </div>
                     <div className="text-slate-600 dark:text-slate-400">
                       Dept: <span className="font-medium text-slate-800 dark:text-slate-200">{selectedEmployee.departmentName || selectedEmployee.departmentId}</span>
@@ -303,17 +283,17 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                   id="btn_run_synthesis"
                   onClick={handleRunSynthesis}
                   disabled={synthesizing || !selectedEmployee}
-                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-semibold shadow-md flex items-center justify-center gap-2 transition-all"
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-all"
                 >
                   {synthesizing ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      Synthesizing with Gemini 3.7...
+                      Drafting…
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      Synthesize Full Review & Narrative
+                      Draft review summary
                     </>
                   )}
                 </button>
@@ -324,9 +304,9 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                 {!synthesisResult && !synthesizing && (
                   <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl min-h-[360px]">
                     <Sparkles className="w-12 h-12 text-indigo-300 dark:text-indigo-500 mb-3" />
-                    <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200">Ready to Draft Executive Appraisals</h3>
+                    <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200">Ready to draft a review summary</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mt-1">
-                      Click the button on the left to invoke Gemini 3.7. The AI models analyze the 4-quarter KRA performance rollup, peer recognitions, and weighted milestone metrics to craft publication-ready review statements.
+                      Pick an employee on the left. Gemini reads their last four quarters of KRA scores and recognitions, and drafts a review summary for you to edit.
                     </p>
                   </div>
                 )}
@@ -334,9 +314,9 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                 {synthesizing && (
                   <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl min-h-[360px]">
                     <div className="w-12 h-12 rounded-full border-4 border-indigo-200 dark:border-indigo-800 border-t-indigo-600 dark:border-t-indigo-400 animate-spin mb-4" />
-                    <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Synthesizing Performance Narrative</h3>
+                    <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Drafting the summary</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      Correlating Q1-Q4 ratings, feedback badges, and KRA weights...
+                      Correlating Q1-q4 ratings, feedback badges, and KRA weights...
                     </p>
                   </div>
                 )}
@@ -346,12 +326,12 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                     {/* Executive Summary Card */}
                     <div className="p-4 bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 rounded-xl">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-indigo-900 dark:text-indigo-300 flex items-center gap-1.5">
                           <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                          Executive Summary
+                          Executive summary
                         </span>
                         <button
-                          onClick={() => copyToClipboard(synthesisResult.executiveSummary, 'exec')}
+                          onClick={() => copyToClipboard(synthesisResult.executiveSummary || '', 'exec')}
                           className="text-xs text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-100 flex items-center gap-1"
                         >
                           {copiedSection === 'exec' ? <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -366,12 +346,12 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                     {/* Strengths & Growth Areas Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="p-4 bg-emerald-50/40 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/50 rounded-xl">
-                        <div className="text-xs font-bold uppercase tracking-wider text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5 mb-2">
+                        <div className="text-xs font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5 mb-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                          Key Strengths & Differentiators
+                          Key strengths & differentiators
                         </div>
                         <ul className="space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
-                          {synthesisResult.topStrengths.map((str, i) => (
+                          {(synthesisResult.topStrengths || []).map((str, i) => (
                             <li key={i} className="flex items-start gap-1.5">
                               <span className="text-emerald-600 dark:text-emerald-400 font-bold">•</span>
                               <span>{str}</span>
@@ -381,12 +361,12 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                       </div>
 
                       <div className="p-4 bg-amber-50/40 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/50 rounded-xl">
-                        <div className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300 flex items-center gap-1.5 mb-2">
+                        <div className="text-xs font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1.5 mb-2">
                           <Target className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                          Growth & Development Opportunities
+                          Growth & development opportunities
                         </div>
                         <ul className="space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
-                          {synthesisResult.growthAreas.map((ga, i) => (
+                          {(synthesisResult.growthAreas || []).map((ga, i) => (
                             <li key={i} className="flex items-start gap-1.5">
                               <span className="text-amber-600 dark:text-amber-400 font-bold">•</span>
                               <span>{ga}</span>
@@ -399,9 +379,9 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                     {/* Manager & Self Narrative Drafts */}
                     <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                           <MessageSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                          Suggested Manager Appraisal Narrative
+                          Suggested manager appraisal narrative
                         </span>
                         <button
                           onClick={() => copyToClipboard(synthesisResult.suggestedManagerNarrative, 'narrative')}
@@ -418,14 +398,14 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
 
                     {/* Recommended Development Goals */}
                     <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl">
-                      <div className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-1.5">
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-1.5">
                         <TrendingUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                        Next Cycle Recommended Milestones
+                        Next cycle recommended milestones
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {synthesisResult.recommendedDevelopmentGoals.map((g, i) => (
                           <div key={i} className="p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
-                            <span className="w-5 h-5 rounded-full bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center shrink-0 text-[10px]">
+                            <span className="w-5 h-5 rounded-full bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center shrink-0 text-[11px]">
                               {i + 1}
                             </span>
                             <span>{g}</span>
@@ -449,7 +429,7 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <Layers className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                9-Box Succession & Executive Talent Intelligence
+                9-box grid and succession
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Strategic workforce stratification mapping rolling quarterly performance against future leadership potential.
@@ -460,17 +440,17 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
               id="btn_run_talent_insights"
               onClick={handleRunTalentInsights}
               disabled={generatingInsights}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-xs font-semibold shadow-sm flex items-center gap-1.5 shrink-0 transition-all"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-all"
             >
               {generatingInsights ? (
                 <>
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  Analyzing Talent Matrix...
+                  Analyzing the 9-box grid…
                 </>
               ) : (
                 <>
                   <Sparkles className="w-3.5 h-3.5" />
-                  Generate AI Succession Insights
+                  Suggest succession actions
                 </>
               )}
             </button>
@@ -482,8 +462,8 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
               <div className="flex items-center justify-between border-b border-indigo-800/80 pb-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-indigo-400" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-200">
-                    Executive Talent Health & Retention Strategy
+                  <span className="text-xs font-bold text-indigo-200">
+                    Talent health and retention
                   </span>
                 </div>
                 <div className="text-xs font-bold px-3 py-1 bg-indigo-800 rounded-full text-indigo-200">
@@ -493,9 +473,9 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                 <div className="p-3 bg-indigo-900/40 rounded-lg border border-indigo-800/60 space-y-2">
-                  <div className="font-bold text-indigo-300">Strategic Observations</div>
+                  <div className="font-bold text-indigo-300">Strategic observations</div>
                   <ul className="space-y-1 text-slate-300">
-                    {talentInsights.strategicObservations.map((obs, i) => (
+                    {(talentInsights.strategicObservations || []).map((obs, i) => (
                       <li key={i} className="flex items-start gap-1">
                         <span className="text-indigo-400">•</span>
                         <span>{obs}</span>
@@ -505,9 +485,9 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                 </div>
 
                 <div className="p-3 bg-indigo-900/40 rounded-lg border border-indigo-800/60 space-y-2">
-                  <div className="font-bold text-emerald-300">Retention & Merit Accelerators</div>
+                  <div className="font-bold text-emerald-300">Retention and merit actions</div>
                   <ul className="space-y-1 text-slate-300">
-                    {talentInsights.retentionRecommendations.map((rec, i) => (
+                    {(talentInsights.retentionRecommendations || []).map((rec, i) => (
                       <li key={i} className="flex items-start gap-1">
                         <span className="text-emerald-400">•</span>
                         <span>{rec}</span>
@@ -517,7 +497,7 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                 </div>
 
                 <div className="p-3 bg-indigo-900/40 rounded-lg border border-indigo-800/60 space-y-2">
-                  <div className="font-bold text-amber-300">Succession & Immediate Action</div>
+                  <div className="font-bold text-amber-300">Succession & immediate action</div>
                   <ul className="space-y-1 text-slate-300">
                     {talentInsights.leadershipSuccessionPipelines.map((succ, i) => (
                       <li key={i} className="flex items-start gap-1">
@@ -537,11 +517,11 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
             <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
-                    Interactive 9-Box Talent Grid
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                    9-box talent grid
                   </h4>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    X-Axis: Performance Rollup • Y-Axis: Leadership Potential
+                    X-axis: performance rollup • y-axis: leadership potential
                   </p>
                 </div>
                 <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
@@ -553,8 +533,8 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
               <div className="grid grid-cols-3 gap-2 text-xs">
                 {/* Top Row: High Potential */}
                 <div className="p-3 rounded-lg bg-amber-50/50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-800/50 min-h-[105px]">
-                  <div className="text-[10px] font-bold text-amber-900 dark:text-amber-300 uppercase">Untapped Enigma</div>
-                  <div className="text-[9px] text-amber-700 dark:text-amber-400">Low Perf • High Pot</div>
+                  <div className="text-[11px] font-bold text-amber-900 dark:text-amber-300">Untapped enigma</div>
+                  <div className="text-[11px] text-amber-700 dark:text-amber-400">Low perf • high pot</div>
                   <div className="mt-2 space-y-1">
                     {talentRecords
                       .filter((t) => t.performanceLevel === 'low' && t.potentialLevel === 'high')
@@ -562,7 +542,7 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                         <div
                           key={t.id}
                           onClick={() => setSelectedTalent(t)}
-                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-amber-200 dark:border-amber-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-amber-500 shadow-2xs"
+                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-amber-200 dark:border-amber-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-amber-500"
                         >
                           {t.employeeName}
                         </div>
@@ -571,8 +551,8 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                 </div>
 
                 <div className="p-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-800/50 min-h-[105px]">
-                  <div className="text-[10px] font-bold text-emerald-900 dark:text-emerald-300 uppercase">Growth Driver</div>
-                  <div className="text-[9px] text-emerald-700 dark:text-emerald-400">Med Perf • High Pot</div>
+                  <div className="text-[11px] font-bold text-emerald-900 dark:text-emerald-300">Growth driver</div>
+                  <div className="text-[11px] text-emerald-700 dark:text-emerald-400">Med perf • high pot</div>
                   <div className="mt-2 space-y-1">
                     {talentRecords
                       .filter((t) => t.performanceLevel === 'medium' && t.potentialLevel === 'high')
@@ -580,7 +560,7 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                         <div
                           key={t.id}
                           onClick={() => setSelectedTalent(t)}
-                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-emerald-200 dark:border-emerald-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-emerald-500 shadow-2xs"
+                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-emerald-200 dark:border-emerald-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-emerald-500"
                         >
                           {t.employeeName}
                         </div>
@@ -589,11 +569,11 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                 </div>
 
                 <div className="p-3 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border-2 border-indigo-500 min-h-[105px] shadow-sm">
-                  <div className="text-[10px] font-bold text-indigo-900 dark:text-indigo-300 uppercase flex items-center justify-between">
-                    <span>Star Leader</span>
+                  <div className="text-[11px] font-bold text-indigo-900 dark:text-indigo-300 flex items-center justify-between">
+                    <span>Star leader</span>
                     <Sparkles className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
                   </div>
-                  <div className="text-[9px] text-indigo-700 dark:text-indigo-400">High Perf • High Pot</div>
+                  <div className="text-[11px] text-indigo-700 dark:text-indigo-400">High perf • high pot</div>
                   <div className="mt-2 space-y-1">
                     {talentRecords
                       .filter((t) => t.performanceLevel === 'high' && t.potentialLevel === 'high')
@@ -601,10 +581,10 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                         <div
                           key={t.id}
                           onClick={() => setSelectedTalent(t)}
-                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-indigo-200 dark:border-indigo-700 text-slate-800 dark:text-slate-100 font-bold cursor-pointer text-[11px] hover:border-indigo-600 shadow-2xs flex items-center justify-between"
+                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-indigo-200 dark:border-indigo-700 text-slate-800 dark:text-slate-100 font-bold cursor-pointer text-[11px] hover:border-indigo-600 flex items-center justify-between"
                         >
                           <span>{t.employeeName}</span>
-                          <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono">{t.currentScore}</span>
+                          <span className="text-[11px] text-indigo-600 dark:text-indigo-400 tabular-nums">{t.currentScore}</span>
                         </div>
                       ))}
                   </div>
@@ -612,8 +592,8 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
 
                 {/* Middle Row: Medium Potential */}
                 <div className="p-3 rounded-lg bg-rose-50/40 dark:bg-rose-950/30 border border-rose-200/70 dark:border-rose-800/50 min-h-[105px]">
-                  <div className="text-[10px] font-bold text-rose-900 dark:text-rose-300 uppercase">Inconsistent Dilemma</div>
-                  <div className="text-[9px] text-rose-700 dark:text-rose-400">Low Perf • Med Pot</div>
+                  <div className="text-[11px] font-bold text-rose-900 dark:text-rose-300">Inconsistent dilemma</div>
+                  <div className="text-[11px] text-rose-700 dark:text-rose-400">Low perf • med pot</div>
                   <div className="mt-2 space-y-1">
                     {talentRecords
                       .filter((t) => t.performanceLevel === 'low' && t.potentialLevel === 'medium')
@@ -621,7 +601,7 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                         <div
                           key={t.id}
                           onClick={() => setSelectedTalent(t)}
-                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-rose-200 dark:border-rose-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-rose-500 shadow-2xs"
+                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-rose-200 dark:border-rose-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-rose-500"
                         >
                           {t.employeeName}
                         </div>
@@ -630,8 +610,8 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                 </div>
 
                 <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 min-h-[105px]">
-                  <div className="text-[10px] font-bold text-slate-800 dark:text-slate-200 uppercase">Core Contributor</div>
-                  <div className="text-[9px] text-slate-500 dark:text-slate-400">Med Perf • Med Pot</div>
+                  <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200">Core contributor</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">Med perf • med pot</div>
                   <div className="mt-2 space-y-1">
                     {talentRecords
                       .filter((t) => t.performanceLevel === 'medium' && t.potentialLevel === 'medium')
@@ -639,7 +619,7 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                         <div
                           key={t.id}
                           onClick={() => setSelectedTalent(t)}
-                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-slate-400 shadow-2xs"
+                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-slate-400"
                         >
                           {t.employeeName}
                         </div>
@@ -648,8 +628,8 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                 </div>
 
                 <div className="p-3 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 min-h-[105px]">
-                  <div className="text-[10px] font-bold text-emerald-900 dark:text-emerald-300 uppercase">Key Asset</div>
-                  <div className="text-[9px] text-emerald-700 dark:text-emerald-400">High Perf • Med Pot</div>
+                  <div className="text-[11px] font-bold text-emerald-900 dark:text-emerald-300">Key asset</div>
+                  <div className="text-[11px] text-emerald-700 dark:text-emerald-400">High perf • med pot</div>
                   <div className="mt-2 space-y-1">
                     {talentRecords
                       .filter((t) => t.performanceLevel === 'high' && t.potentialLevel === 'medium')
@@ -657,10 +637,10 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                         <div
                           key={t.id}
                           onClick={() => setSelectedTalent(t)}
-                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-emerald-200 dark:border-emerald-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-emerald-500 shadow-2xs flex items-center justify-between"
+                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-emerald-200 dark:border-emerald-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-emerald-500 flex items-center justify-between"
                         >
                           <span>{t.employeeName}</span>
-                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">{t.currentScore}</span>
+                          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 tabular-nums">{t.currentScore}</span>
                         </div>
                       ))}
                   </div>
@@ -668,8 +648,8 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
 
                 {/* Bottom Row: Low Potential */}
                 <div className="p-3 rounded-lg bg-rose-100/50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 min-h-[105px]">
-                  <div className="text-[10px] font-bold text-rose-950 dark:text-rose-300 uppercase">Talent Risk / Action</div>
-                  <div className="text-[9px] text-rose-800 dark:text-rose-400">Low Perf • Low Pot</div>
+                  <div className="text-[11px] font-bold text-rose-950 dark:text-rose-300">Talent risk / action</div>
+                  <div className="text-[11px] text-rose-800 dark:text-rose-400">Low perf • low pot</div>
                   <div className="mt-2 space-y-1">
                     {talentRecords
                       .filter((t) => t.performanceLevel === 'low' && t.potentialLevel === 'low')
@@ -677,7 +657,7 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                         <div
                           key={t.id}
                           onClick={() => setSelectedTalent(t)}
-                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-rose-300 dark:border-rose-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-rose-600 shadow-2xs"
+                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-rose-300 dark:border-rose-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-rose-600"
                         >
                           {t.employeeName}
                         </div>
@@ -686,8 +666,8 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                 </div>
 
                 <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 min-h-[105px]">
-                  <div className="text-[10px] font-bold text-slate-700 dark:text-slate-200 uppercase">Effective Steady</div>
-                  <div className="text-[9px] text-slate-500 dark:text-slate-400">Med Perf • Low Pot</div>
+                  <div className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Effective steady</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">Med perf • low pot</div>
                   <div className="mt-2 space-y-1">
                     {talentRecords
                       .filter((t) => t.performanceLevel === 'medium' && t.potentialLevel === 'low')
@@ -695,7 +675,7 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                         <div
                           key={t.id}
                           onClick={() => setSelectedTalent(t)}
-                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-slate-400 shadow-2xs"
+                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-slate-400"
                         >
                           {t.employeeName}
                         </div>
@@ -704,8 +684,8 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                 </div>
 
                 <div className="p-3 rounded-lg bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 min-h-[105px]">
-                  <div className="text-[10px] font-bold text-blue-900 dark:text-blue-300 uppercase">Trusted Professional</div>
-                  <div className="text-[9px] text-blue-700 dark:text-blue-400">High Perf • Low Pot</div>
+                  <div className="text-[11px] font-bold text-blue-900 dark:text-blue-300">Trusted professional</div>
+                  <div className="text-[11px] text-blue-700 dark:text-blue-400">High perf • low pot</div>
                   <div className="mt-2 space-y-1">
                     {talentRecords
                       .filter((t) => t.performanceLevel === 'high' && t.potentialLevel === 'low')
@@ -713,7 +693,7 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
                         <div
                           key={t.id}
                           onClick={() => setSelectedTalent(t)}
-                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-blue-200 dark:border-blue-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-blue-500 shadow-2xs"
+                          className="p-1.5 bg-white dark:bg-slate-800 rounded border border-blue-200 dark:border-blue-700 text-slate-800 dark:text-slate-100 font-medium cursor-pointer text-[11px] hover:border-blue-500"
                         >
                           {t.employeeName}
                         </div>
@@ -725,8 +705,8 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
 
             {/* Selected Talent Assessment Details Card */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
-              <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider pb-2 border-b border-slate-100 dark:border-slate-800">
-                Talent Profile & Mobility
+              <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 pb-2 border-b border-slate-100 dark:border-slate-800">
+                Talent profile & mobility
               </h4>
 
               {selectedTalent ? (
@@ -738,33 +718,33 @@ export const AiPerformanceHub: React.FC<AiPerformanceHubProps> = ({ currentUser 
 
                   <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-100 dark:border-slate-700 space-y-1.5">
                     <div className="flex justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">Rollup Rating:</span>
+                      <span className="text-slate-500 dark:text-slate-400">Rollup rating:</span>
                       <span className="font-bold text-slate-800 dark:text-slate-200">{selectedTalent.currentScore} / 5.00</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500 dark:text-slate-400">9-Box Quadrant:</span>
                       <span className="font-bold text-indigo-700 dark:text-indigo-400 capitalize">
-                        {selectedTalent.nineBoxCategory.replace('_', ' ')}
+                        {selectedTalent.nineBoxCategory?.replace('_', ' ') || 'Unassigned'}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">Succession Ready:</span>
+                      <span className="text-slate-500 dark:text-slate-400">Succession ready:</span>
                       <span className={`font-bold ${selectedTalent.successionReady ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-400'}`}>
                         {selectedTalent.successionReady ? '✓ Ready for Next Role' : 'Developing'}
                       </span>
                     </div>
                     {selectedTalent.targetNextRole && (
                       <div className="flex justify-between">
-                        <span className="text-slate-500 dark:text-slate-400">Target Role:</span>
+                        <span className="text-slate-500 dark:text-slate-400">Target role:</span>
                         <span className="font-medium text-slate-800 dark:text-slate-200">{selectedTalent.targetNextRole}</span>
                       </div>
                     )}
                   </div>
 
                   <div>
-                    <div className="font-semibold text-slate-700 dark:text-slate-300 mb-1">Recommended Talent Actions:</div>
+                    <div className="font-semibold text-slate-700 dark:text-slate-300 mb-1">Recommended talent actions:</div>
                     <ul className="space-y-1 text-slate-600 dark:text-slate-300 pl-2">
-                      {selectedTalent.recommendedActions.map((act, i) => (
+                      {(selectedTalent.recommendedActions || []).map((act, i) => (
                         <li key={i} className="flex items-start gap-1.5">
                           <span className="text-indigo-600 dark:text-indigo-400 font-bold">•</span>
                           <span>{act}</span>

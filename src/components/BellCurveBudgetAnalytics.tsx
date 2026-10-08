@@ -10,7 +10,6 @@ import {
   Layers,
   ChevronDown,
   ChevronUp,
-  BarChart2,
   AlertCircle,
 } from 'lucide-react';
 import {
@@ -19,6 +18,8 @@ import {
 } from '../types';
 import { api } from '../services/api';
 import { PieChart } from './ui/PieChart';
+import { PageHeader } from './ui/PageHeader';
+import { SELECT_CLASS } from './ui/formStyles';
 
 interface BellCurveBudgetAnalyticsProps {
   cycles: Cycle[];
@@ -60,52 +61,34 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
 
   return (
     <div className="space-y-6">
-      {/* Header Controls & Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold shadow-2xs">
-            <BarChart2 className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Bell Curve Calibration & Budget Pools Hub
-              </h3>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 uppercase">
-                Executive & HOD
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Departmental forced distribution normalization, increment budget cap tracking, and high-performer retention flight risk metrics
-            </p>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <select
+      <PageHeader
+        title="Bell curve and budget"
+        description="Rating distribution by department, increment budgets, and high performers who may be at risk of leaving."
+        actions={
+          <>
+            <select aria-label="Appraisal cycle"
             value={selectedCycleId}
             onChange={(e) => setSelectedCycleId(e.target.value)}
-            className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            className={SELECT_CLASS}
           >
-            <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Cycles</option>
+            <option value="ALL">All cycles</option>
             {cycles.filter((c) => c.active !== false).map((c) => (
-              <option key={c.id} value={c.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+              <option key={c.id} value={c.id}>
                 {c.name}
               </option>
             ))}
           </select>
-
-          <select
+            <select aria-label="Financial year"
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            className={SELECT_CLASS}
           >
-            <option value={2026} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">FY 2026</option>
-            <option value={2025} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">FY 2025</option>
+            <option value={2026}>FY 2026</option>
+            <option value={2025}>FY 2025</option>
           </select>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Sub Module Tabs */}
       <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-800/80 rounded-xl border border-slate-200/60 dark:border-slate-700 overflow-x-auto">
@@ -113,54 +96,54 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
           onClick={() => setActiveTab('bellCurve')}
           className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'bellCurve'
-              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-slate-700 font-semibold'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200/80 dark:border-slate-700 font-semibold'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
           }`}
         >
           <Sliders className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-          <span>Departmental Bell Curve Normalization</span>
+          <span>Bell curve by department</span>
         </button>
 
         <button
           onClick={() => setActiveTab('budgets')}
           className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'budgets'
-              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-slate-700 font-semibold'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200/80 dark:border-slate-700 font-semibold'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
           }`}
         >
           <DollarSign className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span>Department Budget Pools & Caps</span>
+          <span>Department budget pools & caps</span>
         </button>
 
         <button
           onClick={() => setActiveTab('attrition')}
           className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'attrition'
-              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-slate-700 font-semibold'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200/80 dark:border-slate-700 font-semibold'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
           }`}
         >
           <Award className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-          <span>High-Performer Retention & Flight Risk</span>
+          <span>High performers at risk of leaving</span>
         </button>
 
         <button
           onClick={() => setActiveTab('cycles')}
           className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'cycles'
-              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-slate-700 font-semibold'
+              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200/80 dark:border-slate-700 font-semibold'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
           }`}
         >
           <Layers className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-          <span>Cycle Cross Comparison</span>
+          <span>Cycle cross comparison</span>
         </button>
       </div>
 
       {loading || !data ? (
-        <div className="py-16 text-center text-xs text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-          Calculating Bell Curve normalizations and department budget pool telemetry...
+        <div className="py-16 text-center text-xs text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+          Calculating the bell curve and department budgets…
         </div>
       ) : (
         <>
@@ -168,26 +151,26 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
           {activeTab === 'bellCurve' && (
             <div className="space-y-6">
               {/* Overall Bell Curve Target Benchmark Card */}
-              <div className="p-6 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl shadow-sm border border-slate-800 space-y-4">
+              <div className="p-6 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
-                    <h4 className="text-base font-bold text-white flex items-center gap-2">
-                      <span>Standard Forced Distribution Normalization (10 - 25 - 45 - 20)</span>
+                    <h4 className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>Target distribution (10 / 25 / 45 / 20)</span>
                     </h4>
-                    <p className="text-xs text-slate-300">
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
                       Target organizational distribution guidelines vs. actual active cohort performance distribution.
                     </p>
                   </div>
-                  <div className="px-3 py-1 bg-white/10 rounded-xl text-xs font-mono font-semibold border border-white/20">
+                  <div className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-md text-xs tabular-nums font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                     Cohort Headcount: {data.cohortSummary.totalActiveAppraisals}
                   </div>
                 </div>
 
                 {/* Visual Comparative Distribution Charts */}
                 <div className="space-y-3 pt-2">
-                  <div className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
-                    <span>Organizational Distribution Comparison</span>
-                    <span>Target vs Actual %</span>
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                    <span>Organizational distribution comparison</span>
+                    <span>Target vs actual %</span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -248,7 +231,7 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                    <span>Departmental Distribution Curves & HOD Forced Alerts</span>
+                    <span>Departmental distribution curves & HOD forced alerts</span>
                   </h4>
                   <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                     {data.departmentBellCurves.length} Departments Calibrated
@@ -262,7 +245,7 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                     return (
                       <div
                         key={deptCurve.departmentId}
-                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-2xs space-y-4"
+                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-4"
                       >
                         <div
                           className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer"
@@ -276,11 +259,11 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                               <div className="flex items-center gap-2">
                                 <h5 className="text-sm font-bold text-slate-900 dark:text-white">{deptCurve.departmentName}</h5>
                                 {deptCurve.departmentCode && (
-                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                  <span className="px-1.5 py-0.5 rounded text-[11px] tabular-nums font-semibold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
                                     {deptCurve.departmentCode}
                                   </span>
                                 )}
-                                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                <span className="px-2 py-0.5 rounded text-[11px] tabular-nums font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                                   {deptCurve.totalEmployees} Active Appraisals
                                 </span>
                               </div>
@@ -356,7 +339,7 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                                   <div className="flex items-center justify-between text-[11px]">
                                     <span className="font-bold text-slate-800 dark:text-slate-200">{b.label}</span>
                                     <span
-                                      className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                                      className={`px-1.5 py-0.2 rounded text-[11px] font-bold ${
                                         b.status === 'SURPLUS'
                                           ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300'
                                           : b.status === 'DEFICIT'
@@ -367,16 +350,16 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                                       {b.status}
                                     </span>
                                   </div>
-                                  <div className="text-base font-bold text-slate-900 dark:text-white font-mono">
+                                  <div className="text-base font-bold text-slate-900 dark:text-white tabular-nums">
                                     {b.actualPercent}%{' '}
                                     <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400">
                                       ({b.actualCount} emp)
                                     </span>
                                   </div>
-                                  <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                                  <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center justify-between">
                                     <span>Target: {b.targetPercent}%</span>
                                     <span
-                                      className={`font-mono font-semibold ${
+                                      className={`tabular-nums font-semibold ${
                                         b.deltaPercent > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-400'
                                       }`}
                                     >
@@ -407,34 +390,34 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
 
                 return (
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5">
-                    <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
+                    <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1">
                       <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                        <span className="text-[11px] font-semibold uppercase tracking-wider">Current Payroll (Pre)</span>
+                        <span className="text-[11px] font-semibold">Current payroll (pre)</span>
                         <DollarSign className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                       </div>
-                      <div className="text-2xl font-bold text-slate-900 dark:text-white font-mono">
+                      <div className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
                         {currencySymbol}{(data.cohortSummary.totalPayrollPre / 100000).toFixed(2)}L
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400">Total base CTC annualized</div>
                     </div>
 
-                    <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
+                    <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1">
                       <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                        <span className="text-[11px] font-semibold uppercase tracking-wider">Total Allocated Budget Cap ({overallCapPercent}%)</span>
+                        <span className="text-[11px] font-semibold">Total Allocated Budget Cap ({overallCapPercent}%)</span>
                         <Sliders className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                       </div>
-                      <div className="text-2xl font-bold text-purple-700 dark:text-purple-400 font-mono">
+                      <div className="text-2xl font-bold text-purple-700 dark:text-purple-400 tabular-nums">
                         {currencySymbol}{(data.cohortSummary.totalBudgetCap / 100000).toFixed(2)}L
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400">Approved organizational budget limit</div>
                     </div>
 
-                    <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
+                    <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1">
                       <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                        <span className="text-[11px] font-semibold uppercase tracking-wider">Actual Spent Increment</span>
+                        <span className="text-[11px] font-semibold">Actual spent increment</span>
                         <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                       </div>
-                      <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 font-mono">
+                      <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
                         {currencySymbol}{(data.cohortSummary.totalBudgetSpent / 100000).toFixed(2)}L
                       </div>
                       <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
@@ -448,12 +431,12 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                       </div>
                     </div>
 
-                    <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-1">
+                    <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1">
                       <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                        <span className="text-[11px] font-semibold uppercase tracking-wider">Remaining Budget Reserve</span>
+                        <span className="text-[11px] font-semibold">Remaining budget reserve</span>
                         <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                       </div>
-                      <div className="text-2xl font-bold text-blue-700 dark:text-blue-400 font-mono">
+                      <div className="text-2xl font-bold text-blue-700 dark:text-blue-400 tabular-nums">
                         {currencySymbol}{((data.cohortSummary.totalBudgetCap - data.cohortSummary.totalBudgetSpent) / 100000).toFixed(2)}L
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400">Cap not yet committed to increments</div>
@@ -466,7 +449,7 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
               <div className="space-y-4">
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>Real-Time Department Increment Pool Tracking</span>
+                  <span>Real-time department increment pool tracking</span>
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -478,19 +461,19 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                     return (
                       <div
                         key={pool.departmentId}
-                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-2xs space-y-4"
+                        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-4"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <div className="flex items-center gap-2">
                               <h5 className="text-sm font-bold text-slate-900 dark:text-white">{pool.departmentName}</h5>
                               {pool.departmentCode && (
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                <span className="px-1.5 py-0.5 rounded text-[11px] tabular-nums font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                                   {pool.departmentCode}
                                 </span>
                               )}
                               <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                className={`px-2 py-0.5 rounded text-[11px] font-bold ${
                                   pool.status === 'EXCEEDED'
                                     ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
                                     : pool.status === 'NEAR_CAP'
@@ -507,10 +490,10 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                           </div>
 
                           <div className="text-right">
-                            <div className="text-sm font-extrabold text-slate-900 dark:text-white font-mono">
+                            <div className="text-sm font-bold text-slate-900 dark:text-white tabular-nums">
                               +{pool.actualSpentPercent}%
                             </div>
-                            <div className="text-[10px] text-slate-400 dark:text-slate-500">Actual pool spend rate</div>
+                            <div className="text-[11px] text-slate-400 dark:text-slate-500">Actual pool spend rate</div>
                           </div>
                         </div>
 
@@ -518,7 +501,7 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-slate-600 dark:text-slate-300 font-medium">Spent vs Budget Cap ({pool.budgetCapPercent}%)</span>
-                            <span className="font-mono font-bold text-slate-900 dark:text-white">{spendPercentage}% of Cap</span>
+                            <span className="tabular-nums font-bold text-slate-900 dark:text-white">{spendPercentage}% of Cap</span>
                           </div>
                           <div className="w-full bg-slate-100 dark:bg-slate-800 h-3 rounded-full overflow-hidden flex">
                             <div
@@ -537,20 +520,20 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                         {/* Metric Tiles */}
                         <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
                           <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
-                            <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">Budget Cap</div>
-                            <div className="text-sm font-bold text-slate-900 dark:text-white font-mono">
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">Budget cap</div>
+                            <div className="text-sm font-bold text-slate-900 dark:text-white tabular-nums">
                               {currencySymbol}{(pool.allocatedBudgetAmount / 100000).toFixed(2)}L
                             </div>
                           </div>
                           <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
-                            <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">Actual Spent</div>
-                            <div className={`text-sm font-bold font-mono ${pool.isOverBudget ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">Actual spent</div>
+                            <div className={`text-sm font-bold tabular-nums ${pool.isOverBudget ? 'text-rose-700 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-400'}`}>
                               {currencySymbol}{(pool.actualSpentAmount / 100000).toFixed(2)}L
                             </div>
                           </div>
                           <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
-                            <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-semibold">Remaining Pool</div>
-                            <div className={`text-sm font-bold font-mono ${pool.remainingBudgetAmount < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-blue-700 dark:text-blue-400'}`}>
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">Remaining pool</div>
+                            <div className={`text-sm font-bold tabular-nums ${pool.remainingBudgetAmount < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-blue-700 dark:text-blue-400'}`}>
                               {currencySymbol}{(pool.remainingBudgetAmount / 100000).toFixed(2)}L
                             </div>
                           </div>
@@ -590,7 +573,7 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                 <div>
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <Award className="w-4 h-4 text-amber-500" />
-                    <span>Top-Performer Retention & Attrition Flight Risk Insights</span>
+                    <span>Top performers at risk of leaving</span>
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Employees with a rolling score of 4.20 or above. Risk compares each person's increment with the
@@ -603,18 +586,18 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                 </span>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
+                    <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold text-[11px]">
                       <tr>
-                        <th className="px-4 py-3">Employee & Role</th>
+                        <th className="px-4 py-3">Employee & role</th>
                         <th className="px-4 py-3">Department</th>
                         <th className="px-4 py-3">4-Qtr Score</th>
                         <th className="px-4 py-3">Increment</th>
-                        <th className="px-4 py-3">Guideline Band</th>
-                        <th className="px-4 py-3">Flight Risk</th>
-                        <th className="px-4 py-3">Risk Diagnostic & Recommended Action</th>
+                        <th className="px-4 py-3">Guideline band</th>
+                        <th className="px-4 py-3">Flight risk</th>
+                        <th className="px-4 py-3">Risk diagnostic & recommended action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -629,29 +612,29 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                         <tr key={risk.employeeId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
                           <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">
                             <div>{risk.employeeName}</div>
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{risk.employeeCode} • {risk.designationName}</div>
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">{risk.employeeCode} • {risk.designationName}</div>
                           </td>
                           <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{risk.departmentName}</td>
-                          <td className="px-4 py-3 font-mono font-bold text-slate-900 dark:text-white">
+                          <td className="px-4 py-3 tabular-nums font-bold text-slate-900 dark:text-white">
                             <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded">
                               {risk.score.toFixed(2)}
                             </span>
                           </td>
-                          <td className="px-4 py-3 font-mono font-bold text-emerald-700 dark:text-emerald-400">
+                          <td className="px-4 py-3 tabular-nums font-bold text-emerald-700 dark:text-emerald-400">
                             +{risk.incrementPercent}%
                             {risk.isSystemDefaultIncrement && (
-                              <div className="text-[10px] font-normal text-slate-400 dark:text-slate-500">system default</div>
+                              <div className="text-[11px] font-normal text-slate-400 dark:text-slate-500">system default</div>
                             )}
                           </td>
-                          <td className="px-4 py-3 font-mono text-slate-700 dark:text-slate-300">
+                          <td className="px-4 py-3 tabular-nums text-slate-700 dark:text-slate-300">
                             {risk.guidelineMinPercent}–{risk.guidelineMaxPercent}%
                             {risk.peerAverageIncrementPercent !== null && risk.peerAverageIncrementPercent !== undefined && (
-                              <div className="text-[10px] text-slate-400 dark:text-slate-500">peer avg {risk.peerAverageIncrementPercent}%</div>
+                              <div className="text-[11px] text-slate-400 dark:text-slate-500">peer avg {risk.peerAverageIncrementPercent}%</div>
                             )}
                           </td>
                           <td className="px-4 py-3">
                             <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              className={`px-2 py-0.5 rounded text-[11px] font-bold ${
                                 risk.flightRisk === 'HIGH'
                                   ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
                                   : risk.flightRisk === 'MEDIUM'
@@ -664,7 +647,7 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
                           </td>
                           <td className="px-4 py-3 text-slate-600 dark:text-slate-300 max-w-xs space-y-0.5">
                             <div className="text-[11px] font-medium text-slate-800 dark:text-slate-200">{risk.riskReason}</div>
-                            <div className="text-[10px] text-indigo-700 dark:text-indigo-400 font-semibold">{risk.recommendedRetentionAction}</div>
+                            <div className="text-[11px] text-indigo-700 dark:text-indigo-400 font-semibold">{risk.recommendedRetentionAction}</div>
                           </td>
                         </tr>
                       ))}
@@ -680,24 +663,24 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
             <div className="space-y-4">
               <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Layers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>June/September Annual Execution & Completion Benchmarks</span>
+                <span>June/September annual execution & completion benchmarks</span>
               </h4>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {data.cycleProgressComparison.map((cycleItem) => (
                   <div
                     key={cycleItem.cycleCode}
-                    className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xs space-y-3"
+                    className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-lg bg-indigo-900 text-white font-bold text-xs flex items-center justify-center font-mono">
+                        <span className="w-6 h-6 rounded-lg bg-indigo-900 text-white font-bold text-xs flex items-center justify-center tabular-nums">
                           {cycleItem.cycleCode}
                         </span>
                         <span className="text-xs font-bold text-slate-900 dark:text-white">{cycleItem.cycleName}</span>
                       </div>
                       <span
-                        className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                        className={`px-1.5 py-0.2 rounded text-[11px] font-bold ${
                           cycleItem.status === 'COMPLETED'
                             ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                             : cycleItem.status === 'IN_PROGRESS'
@@ -711,23 +694,23 @@ export const BellCurveBudgetAnalytics: React.FC<BellCurveBudgetAnalyticsProps> =
 
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                        <span>Appraisal Month</span>
+                        <span>Appraisal month</span>
                         <strong className="text-slate-800 dark:text-slate-200">{cycleItem.appraisalMonthName}</strong>
                       </div>
                       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                         <span>Headcount</span>
-                        <strong className="font-mono text-slate-900 dark:text-white">{cycleItem.headcount} emp</strong>
+                        <strong className="tabular-nums text-slate-900 dark:text-white">{cycleItem.headcount} emp</strong>
                       </div>
                       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                        <span>Avg Increment</span>
-                        <strong className="font-mono text-emerald-700 dark:text-emerald-400">+{cycleItem.avgIncrement}%</strong>
+                        <span>Avg increment</span>
+                        <strong className="tabular-nums text-emerald-700 dark:text-emerald-400">+{cycleItem.avgIncrement}%</strong>
                       </div>
                     </div>
 
                     <div className="space-y-1 pt-1">
-                      <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
-                        <span>Completion Rate</span>
-                        <span className="font-mono font-bold text-slate-900 dark:text-white">{cycleItem.completionPercent}%</span>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                        <span>Completion rate</span>
+                        <span className="tabular-nums font-bold text-slate-900 dark:text-white">{cycleItem.completionPercent}%</span>
                       </div>
                       <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                         <div

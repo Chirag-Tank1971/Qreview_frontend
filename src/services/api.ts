@@ -33,6 +33,9 @@ import {
   PerformanceImprovementPlan,
   DepartmentBudgetSnapshot,
   DashboardSummary,
+  ReturnPolicy,
+  ReturnSelection,
+  ReviewReturnDraft,
 } from '../types'
 
 // Resolve API Base URL: respects VITE_API_BASE_URL; falls back to relative '/api' in production
@@ -48,6 +51,20 @@ function getAuthHeaders(): HeadersInit {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+/**
+ * Older review records store empty KRA fields as null, but the API validates optional fields
+ * as "value or absent" and rejects null. The server keeps the stored value for any field that
+ * isn't sent, so leaving nulls out never erases data.
+ */
+function withoutNulls<T extends object>(obj: T): T {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== null)) as T;
+}
+
+function cleanSnapshotPayload<T extends { kraSnapshot?: ReviewKraSnapshot[] }>(data: T): T {
+  const cleaned = withoutNulls(data);
+  return data.kraSnapshot ? { ...cleaned, kraSnapshot: data.kraSnapshot.map(withoutNulls) } : cleaned;
 }
 
 let isRefreshing = false;
@@ -833,6 +850,7 @@ export const api = {
       strengths?: string;
       improvements?: string;
       managerOverallComments?: string;
+      returnResponses?: Record<string, { reply?: string; keepRating?: boolean; keepReason?: string }>;
       employeeComments?: string;
       hrComments?: string;
       isDraft?: boolean;
@@ -844,7 +862,7 @@ export const api = {
     const res = await fetch(`${API_BASE}/reviews/${id}/score`, {
       method: 'PUT',
       headers: getAuthHeaders(),
-      body: JSON.stringify(data),
+      body: JSON.stringify(cleanSnapshotPayload(data)),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Failed to submit review scores' }));
@@ -859,7 +877,13 @@ export const api = {
       status: ReviewStatus;
       remarks?: string;
       /** Only meaningful when status === 'RETURNED' — who HR is returning the review to. Defaults to Manager. */
-      target?: 'MANAGER' | 'HOD';
+      target?: 'MANAGER' | 'HOD' | 'BOTH';
+      /** Only meaningful when status === 'RETURNED' — KRAs to re-evaluate (empty = all). For 'BOTH', the Manager's. */
+      kraIds?: string[];
+      /** HOD's KRAs when target === 'BOTH'. */
+      hodKraIds?: string[];
+      kraComments?: Record<string, string>;
+      reasonCodes?: string[];
     }
   ): Promise<EmployeeReview> {
     invalidateApiCache('/reviews');
@@ -884,6 +908,7 @@ export const api = {
       hodOverallComments?: string;
       hodComments?: string;
       isDraft?: boolean;
+      returnResponses?: Record<string, { reply?: string; keepRating?: boolean; keepReason?: string }>;
     }
   ): Promise<EmployeeReview> {
     invalidateApiCache('/reviews');
@@ -891,7 +916,7 @@ export const api = {
     const res = await fetch(`${API_BASE}/reviews/${id}/hod-approve`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify(data || {}),
+      body: JSON.stringify(cleanSnapshotPayload(data || {})),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Failed to approve review' }));
@@ -900,7 +925,10 @@ export const api = {
     return res.json();
   },
 
-  async hodReturnReview(id: string, data: { reason: string }): Promise<EmployeeReview> {
+  async hodReturnReview(
+    id: string,
+    data: { reason: string; kraIds?: string[]; kraComments?: Record<string, string>; reasonCodes?: string[] }
+  ): Promise<EmployeeReview> {
     invalidateApiCache('/reviews');
     invalidateApiCache('/notifications');
     const res = await fetch(`${API_BASE}/reviews/${id}/hod-return`, {
@@ -912,6 +940,70 @@ export const api = {
       const err = await res.json().catch(() => ({ error: 'Failed to return review' }));
       throw new Error(err.error || 'Failed to return review');
     }
+    return res.json();
+  },
+
+  async getReturnPolicy(): Promise<ReturnPolicy> {
+    const res = await fetch(`${API_BASE}/reviews/return-policy`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to load return policy');
+    return res.json();
+  },
+
+  async updateReturnPolicy(data: Partial<ReturnPolicy>): Promise<ReturnPolicy> {
+    const res = await fetch(`${API_BASE}/reviews/return-policy`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to update return policy' }));
+      throw new Error(err.error || 'Failed to update return policy');
+    }
+    return res.json();
+  },
+
+  async getReturnDraft(reviewId: string): Promise<{ draft: ReviewReturnDraft | null; returnCount?: number }> {
+    const res = await fetch(`${API_BASE}/reviews/${reviewId}/return-draft`, { headers: getAuthHeaders() });
+    if (!res.ok) return { draft: null };
+    return res.json();
+  },
+
+  async saveReturnDraft(reviewId: string, data: ReturnSelection): Promise<{ draft: ReviewReturnDraft }> {
+    const res = await fetch(`${API_BASE}/reviews/${reviewId}/return-draft`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to save return draft' }));
+      throw new Error(err.error || 'Failed to save return draft');
+    }
+    return res.json();
+  },
+
+  async deleteReturnDraft(reviewId: string): Promise<void> {
+    await fetch(`${API_BASE}/reviews/${reviewId}/return-draft`, { method: 'DELETE', headers: getAuthHeaders() });
+  },
+
+  async sendReviewerReminder(reviewerId: string, role: 'MANAGER' | 'HOD'): Promise<{ sentAt: string; pending: number; emailStatus: string }> {
+    const res = await fetch(`${API_BASE}/dashboard/reviewer-reminder`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ reviewerId, role }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to send reminder' }));
+      throw new Error(err.error || 'Failed to send reminder');
+    }
+    invalidateApiCache('/dashboard');
+    return res.json();
+  },
+
+  async getReturnAnalyticsReport(params?: { periodId?: string }): Promise<any> {
+    const q = new URLSearchParams();
+    if (params?.periodId) q.append('periodId', params.periodId);
+    const res = await fetch(`${API_BASE}/reports/return-analytics?${q.toString()}`, { headers: getAuthHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch return analytics report');
     return res.json();
   },
 
@@ -1154,7 +1246,7 @@ export const api = {
     const res = await fetch(`${API_BASE}/reviews/${reviewId}/self-assess`, {
       method: 'PUT',
       headers: getAuthHeaders(),
-      body: JSON.stringify(data),
+      body: JSON.stringify(cleanSnapshotPayload(data)),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Failed to submit self assessment' }));

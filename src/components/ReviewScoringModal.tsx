@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   EmployeeReview,
+  KraReturnFlag,
+  ReturnSelection,
   ReviewKraSnapshot,
   ReviewStatus,
   User,
@@ -21,6 +23,8 @@ import {
   History,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Save,
   UserCheck,
   Send,
@@ -32,10 +36,18 @@ import {
   Step1SelfSection,
   Step2ManagerSection,
   Step3HodScoringSection,
-  Step3HodSection,
+  Step4FinalReviewSection,
+  ManagerFeedbackSection,
   ScoreSummaryBar,
   StatusRemarksModal,
   AuditTrailDrawer,
+  ReturnReviewModal,
+  getOpenReturn,
+  getReturnCount,
+  getReturnDueInfo,
+  getQueuedHodLeg,
+  isReturnedKraAddressed,
+  buildReturnResponses,
 } from './reviews/ReviewScoringModal';
 import { ReviewLetterModal } from './ReviewLetterModal';
 import { useModalAnimation } from '../hooks/useModalAnimation';
@@ -64,9 +76,10 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
   const [employeeComments, setEmployeeComments] = useState('');
   const [statusModalRemarks, setStatusModalRemarks] = useState('');
   const [showStatusModal, setShowStatusModal] = useState<ReviewStatus | null>(null);
-  const [isHodReturnFlow, setIsHodReturnFlow] = useState(false);
+  const [returnModalMode, setReturnModalMode] = useState<'HOD' | 'HR' | null>(null);
+  const [returnBannerExpanded, setReturnBannerExpanded] = useState(false);
+  const [returnPreselect, setReturnPreselect] = useState<string[] | undefined>(undefined);
   const [hodOverallComments, setHodOverallComments] = useState('');
-  const [hrReturnTarget, setHrReturnTarget] = useState<'MANAGER' | 'HOD'>('MANAGER');
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showLetterModal, setShowLetterModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -93,6 +106,8 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
       if (e.key === 'Escape') {
         if (showUnsavedAlert) {
           setShowUnsavedAlert(false);
+        } else if (returnModalMode) {
+          // ReturnReviewModal handles its own Escape
         } else if (showStatusModal) {
           setShowStatusModal(null);
         } else if (showAuditModal) {
@@ -107,7 +122,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
       document.body.style.overflow = origOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, showStatusModal, showAuditModal, showUnsavedAlert]);
+  }, [isOpen, showStatusModal, showAuditModal, showUnsavedAlert, returnModalMode]);
 
   // Sync state when review prop changes
   useEffect(() => {
@@ -118,9 +133,12 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
           rating: s.rating || 0,
           achievement: s.achievement || '',
           comments: s.comments || '',
+          ratingJustification: s.ratingJustification || '',
           hodRating: s.hodRating || 0,
           hodAchievement: s.hodAchievement || '',
           hodComments: s.hodComments || '',
+          hodJustification: s.hodJustification || '',
+          selfJustification: s.selfJustification || '',
         }))
       );
       setStrengths(review.strengths || '');
@@ -129,13 +147,16 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
       setHodOverallComments(review.hodOverallComments || '');
       setHrComments(review.hrComments || '');
       setEmployeeComments(review.employeeComments || '');
-      setHrReturnTarget('MANAGER');
+      setReturnModalMode(null);
+      setReturnBannerExpanded(false);
       setErrorMessage('');
       setSuccessMessage('');
       setAiSuccessNote('');
 
       // Determine initial wizard step:
-      if (review.status === 'HOD_PENDING') {
+      if (getOpenReturn(review, 'MANAGER')) {
+        setWizardStep(2);
+      } else if (review.status === 'HOD_PENDING') {
         setWizardStep(3);
       } else if (
         review.status === 'HR_PENDING' ||
@@ -199,6 +220,48 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
     return snapshots.filter((s) => !s.hodRating || s.hodRating === 0).length;
   }, [snapshots]);
 
+  // Track missing justifications for extreme ratings (1, 2, 5) with minimum 15 chars
+  const missingManagerJustifications = useMemo(() => {
+    return snapshots.filter(
+      (s) => [1, 2, 5].includes(s.rating || 0) && (!s.ratingJustification || s.ratingJustification.trim().length < 15)
+    ).length;
+  }, [snapshots]);
+
+  const missingHodJustifications = useMemo(() => {
+    return snapshots.filter(
+      (s) => [1, 2, 5].includes(s.hodRating || 0) && (!s.hodJustification || s.hodJustification.trim().length < 15)
+    ).length;
+  }, [snapshots]);
+
+  const firstInvalidManagerKra = useMemo(() => {
+    return snapshots.find(
+      (s) => [1, 2, 5].includes(s.rating || 0) && (!s.ratingJustification || s.ratingJustification.trim().length < 15)
+    );
+  }, [snapshots]);
+
+  const firstInvalidHodKra = useMemo(() => {
+    return snapshots.find(
+      (s) => [1, 2, 5].includes(s.hodRating || 0) && (!s.hodJustification || s.hodJustification.trim().length < 15)
+    );
+  }, [snapshots]);
+
+  // KRA-level return progress for whoever currently holds the return.
+  const unaddressedManagerKras = useMemo(
+    () => snapshots.filter((k) => k.returnFlag?.target === 'MANAGER' && !isReturnedKraAddressed(k, 'MANAGER')),
+    [snapshots]
+  );
+  const unaddressedHodKras = useMemo(
+    () => snapshots.filter((k) => k.returnFlag?.target === 'HOD' && !isReturnedKraAddressed(k, 'HOD')),
+    [snapshots]
+  );
+
+  const scrollToKraCard = (cardPrefix: 'mgr' | 'hod', kraId: string) => {
+    const el = document.getElementById(`${cardPrefix}-kra-card-${kraId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   if (!isMounted || !review) return null;
 
   // Permissions: Only the assigned Reporting Manager or HR / Super Admin can score and edit
@@ -215,9 +278,12 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
   const canEdit = !review.isClosed && (isHrOrAdmin || isManager);
   const isHod = canActInElevatedCapacity && review.hodId === currentUser?.employeeId;
   const canHodAct = isHod && review.status === 'HOD_PENDING' && !review.isClosed;
+  const managerCanSubmit =
+    canEdit && !isHrOrAdmin && ['DRAFT', 'ASSIGNED', 'MANAGER_PENDING', 'RETURNED'].includes(review.status);
 
-  // Detect if user has entered unsaved scores, notes, or commentary
-  const hasUnsavedChanges = useMemo(() => {
+  // Detect if user has entered unsaved scores, notes, or commentary. Plain computation (not a
+  // hook) because it runs after the early return above.
+  const hasUnsavedChanges = (() => {
     if (!review || (!canEdit && !canHodAct)) return false;
     if (canEdit) {
       if (strengths !== (review.strengths || '')) return true;
@@ -242,9 +308,14 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
         if ((s.hodAchievement || '') !== (orig.hodAchievement || '')) return true;
         if ((s.hodComments || '') !== (orig.hodComments || '')) return true;
       }
+      if (s.returnFlag) {
+        if ((s.returnFlag.reply || '') !== (orig.returnFlag?.reply || '')) return true;
+        if (Boolean(s.returnFlag.keepRating) !== Boolean(orig.returnFlag?.keepRating)) return true;
+        if ((s.returnFlag.keepReason || '') !== (orig.returnFlag?.keepReason || '')) return true;
+      }
     }
     return false;
-  }, [canEdit, canHodAct, strengths, improvements, managerComments, hrComments, employeeComments, hodOverallComments, snapshots, review]);
+  })();
 
   const handleAttemptClose = () => {
     if (hasUnsavedChanges) {
@@ -262,6 +333,29 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
       updated[index] = { ...updated[index], [field]: value };
       return updated;
     });
+  };
+
+  const handleReturnFlagChange = (index: number, patch: Partial<KraReturnFlag>) => {
+    setSnapshots((prev) => {
+      const updated = [...prev];
+      const flag = updated[index].returnFlag;
+      if (!flag) return prev;
+      updated[index] = { ...updated[index], returnFlag: { ...flag, ...patch } };
+      return updated;
+    });
+  };
+
+  /** Blocks submission while a returned KRA hasn't been changed or explicitly kept. */
+  const guardUnaddressedReturn = (target: 'MANAGER' | 'HOD'): boolean => {
+    const pending = target === 'MANAGER' ? unaddressedManagerKras : unaddressedHodKras;
+    if (pending.length === 0) return false;
+    const first = pending[0];
+    const msg = `${pending.length} returned KRA${pending.length === 1 ? '' : 's'} still need${pending.length === 1 ? 's' : ''} your attention — update the rating/justification or tick "Keep current rating" with a reason (first: "${first.kraName || first.title}").`;
+    setErrorMessage(msg);
+    toast.warning(msg, 'Returned KRAs pending');
+    setWizardStep(target === 'MANAGER' ? 2 : 3);
+    setTimeout(() => scrollToKraCard(target === 'MANAGER' ? 'mgr' : 'hod', first.id), 100);
+    return true;
   };
 
   // AI Assist Draft Generator
@@ -303,7 +397,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
         if (res.data.growthAreas && res.data.growthAreas.length > 0) {
           setImprovements(res.data.growthAreas.map((g) => `• ${g}`).join('\n'));
         }
-        setAiSuccessNote('✨ Review narrative and growth recommendations drafted by Gemini AI Copilot.');
+        setAiSuccessNote('Draft summary written with Gemini. Read it through and edit it before you submit.');
       }
     } catch (err: any) {
       console.warn('AI synthesis fallback:', err);
@@ -325,7 +419,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
       setManagerComments(
         `${review.employeeName} demonstrated dependable ownership and disciplined execution throughout ${review.reviewPeriodName}. Core deliverables align well with department milestones, achieving a weighted rating of ${computedScore > 0 ? computedScore.toFixed(2) : '3.50'}/5.00.`
       );
-      setAiSuccessNote('✨ Review narrative and growth recommendations drafted based on current KRA evaluation ratings.');
+      setAiSuccessNote('Draft summary written from the current KRA ratings. Read it through and edit it before you submit.');
     } finally {
       setAiLoading(false);
     }
@@ -340,7 +434,12 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
     if (review?.employeeStatus === 'INACTIVE') {
       const msg = 'Cannot submit evaluation for an inactive/offboarded employee.';
       setErrorMessage(msg);
-      toast.error(msg, 'Action Restricted');
+      toast.error(msg, 'Action restricted');
+      setSaving(false);
+      return;
+    }
+
+    if (!isDraft && guardUnaddressedReturn('MANAGER')) {
       setSaving(false);
       return;
     }
@@ -350,9 +449,28 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
       if (unrated) {
         const msg = 'All KRA items must be assigned a rating (1-5) before submitting the evaluation.';
         setErrorMessage(msg);
-        toast.warning(msg, 'Incomplete Ratings');
+        toast.warning(msg, 'Incomplete ratings');
         setSaving(false);
         setWizardStep(2);
+        return;
+      }
+
+      const invalidJustification = snapshots.find(
+        (s) => [1, 2, 5].includes(s.rating || 0) && (!s.ratingJustification || s.ratingJustification.trim().length < 15)
+      );
+      if (invalidJustification) {
+        const targetId = invalidJustification.id || (invalidJustification as any).kraId || '';
+        const msg = `KRA "${invalidJustification.kraName || invalidJustification.title}" is rated ${invalidJustification.rating}, which needs a justification of at least 15 characters.`;
+        setErrorMessage(msg);
+        toast.warning(msg, 'Mandatory justification required');
+        setSaving(false);
+        setWizardStep(2);
+        setTimeout(() => {
+          const el = document.getElementById(`mgr-kra-card-${targetId}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
         return;
       }
     }
@@ -366,14 +484,19 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
         employeeComments,
         hrComments,
         isDraft,
+        returnResponses: buildReturnResponses(snapshots.filter((k) => k.returnFlag?.target === 'MANAGER')),
       });
 
-      const succMsg = isDraft ? 'Review draft saved successfully.' : `Quarterly review submitted for ${review.employeeName}!`;
+      const succMsg = isDraft
+        ? 'Review draft saved successfully.'
+        : openManagerReturn
+        ? `Re-evaluated KRAs resubmitted for ${review.employeeName}.`
+        : `Quarterly review submitted for ${review.employeeName}!`;
       setSuccessMessage(succMsg);
       if (isDraft) {
-        toast.info(succMsg, 'Draft Saved');
+        toast.info(succMsg, 'Draft saved');
       } else {
-        toast.success(succMsg, 'Review Submitted');
+        toast.success(succMsg, 'Review submitted');
       }
       setTimeout(() => {
         onSaved();
@@ -381,7 +504,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
     } catch (err: any) {
       const errMsg = err.message || 'Failed to save review scoring.';
       setErrorMessage(errMsg);
-      toast.error(errMsg, 'Submission Error');
+      toast.error(errMsg, 'Submission error');
     } finally {
       setSaving(false);
     }
@@ -414,7 +537,6 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
       await api.updateReviewStatus(review.id, {
         status: newStatus,
         remarks: statusModalRemarks || defaultRemarks,
-        target: newStatus === 'RETURNED' ? hrReturnTarget : undefined,
       });
 
       setShowStatusModal(null);
@@ -424,18 +546,16 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
           ? 'Review successfully finalized, locked, and closed!'
           : newStatus === 'HR_COMPLETED'
           ? 'Review successfully approved by HR!'
-          : newStatus === 'RETURNED'
-          ? `Review returned to ${hrReturnTarget === 'HOD' ? review.hodName || 'HOD' : review.managerName} for recalibration.`
           : `Review status updated to ${newStatus}`;
       setSuccessMessage(succMsg);
-      toast.success(succMsg, 'Workflow Updated');
+      toast.success(succMsg, 'Workflow updated');
       setTimeout(() => {
         onSaved();
       }, 600);
     } catch (err: any) {
       const errMsg = err.message || 'Failed to update review status.';
       setErrorMessage(errMsg);
-      toast.error(errMsg, 'Status Update Error');
+      toast.error(errMsg, 'Status update error');
     } finally {
       setSaving(false);
     }
@@ -452,7 +572,12 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
     if (review?.employeeStatus === 'INACTIVE') {
       const msg = 'Cannot submit evaluation for an inactive/offboarded employee.';
       setErrorMessage(msg);
-      toast.error(msg, 'Action Restricted');
+      toast.error(msg, 'Action restricted');
+      setSaving(false);
+      return;
+    }
+
+    if (!isDraft && guardUnaddressedReturn('HOD')) {
       setSaving(false);
       return;
     }
@@ -462,8 +587,27 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
       if (unrated) {
         const msg = 'All KRA items must be assigned an HOD rating (1-5) before submitting to HR.';
         setErrorMessage(msg);
-        toast.warning(msg, 'Incomplete Ratings');
+        toast.warning(msg, 'Incomplete ratings');
         setSaving(false);
+        return;
+      }
+
+      const invalidHodJustification = snapshots.find(
+        (s) => [1, 2, 5].includes(s.hodRating || 0) && (!s.hodJustification || s.hodJustification.trim().length < 15)
+      );
+      if (invalidHodJustification) {
+        const targetId = invalidHodJustification.id || (invalidHodJustification as any).kraId || '';
+        const msg = `KRA "${invalidHodJustification.kraName || invalidHodJustification.title}" is rated ${invalidHodJustification.hodRating}, which needs an HOD justification of at least 15 characters.`;
+        setErrorMessage(msg);
+        toast.warning(msg, 'Mandatory justification required');
+        setSaving(false);
+        setWizardStep(3);
+        setTimeout(() => {
+          const el = document.getElementById(`hod-kra-card-${targetId}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
         return;
       }
     }
@@ -473,15 +617,16 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
         kraSnapshot: snapshots,
         hodOverallComments,
         isDraft,
+        returnResponses: buildReturnResponses(snapshots.filter((k) => k.returnFlag?.target === 'HOD')),
       });
       const succMsg = isDraft
         ? 'HOD scoring draft saved successfully.'
         : `Independent HOD scoring submitted and forwarded to HR for ${review.employeeName}.`;
       setSuccessMessage(succMsg);
       if (isDraft) {
-        toast.info(succMsg, 'Draft Saved');
+        toast.info(succMsg, 'Draft saved');
       } else {
-        toast.success(succMsg, 'Review Approved');
+        toast.success(succMsg, 'Review approved');
       }
       setTimeout(() => {
         onSaved();
@@ -489,38 +634,71 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
     } catch (err: any) {
       const errMsg = err.message || 'Failed to save HOD scoring.';
       setErrorMessage(errMsg);
-      toast.error(errMsg, 'Approval Error');
+      toast.error(errMsg, 'Approval error');
     } finally {
       setSaving(false);
     }
   };
 
-  // HOD returns the review to the reporting manager with a mandatory reason.
-  // Transitions: HOD_PENDING -> MANAGER_PENDING
-  const handleHodReturn = async (reason: string) => {
-    if (!reason || !reason.trim()) {
-      const msg = 'A return reason is mandatory. Please provide specific feedback for the manager.';
-      setErrorMessage(msg);
-      toast.warning(msg, 'Reason Required');
-      return;
-    }
+  // Sends the selected KRAs (or the full review) back. HOD -> Manager (MANAGER_PENDING);
+  // HR -> Manager (RETURNED) or HR -> HOD (HOD_PENDING).
+  const handleReturnConfirm = async (selection: ReturnSelection) => {
+    const mode = returnModalMode;
+    if (!mode) return;
     setSaving(true);
     setErrorMessage('');
     try {
-      await api.hodReturnReview(review.id, { reason });
-      setShowStatusModal(null);
-      setIsHodReturnFlow(false);
-      setStatusModalRemarks('');
-      const succMsg = `Review returned to ${review.managerName} for correction.`;
+      if (mode === 'HOD') {
+        // Keep the HOD's own in-progress scoring before handing the review back.
+        await api.hodApproveReview(review.id, { kraSnapshot: snapshots, hodOverallComments, isDraft: true });
+        await api.hodReturnReview(review.id, {
+          reason: selection.reason,
+          kraIds: selection.kraIds,
+          kraComments: selection.kraComments,
+          reasonCodes: selection.reasonCodes,
+        });
+      } else {
+        if (canEdit && snapshots.length > 0) {
+          await api.scoreReview(review.id, {
+            kraSnapshot: snapshots,
+            strengths,
+            improvements,
+            managerOverallComments: managerComments,
+            employeeComments,
+            hrComments,
+            isDraft: true,
+          });
+        }
+        await api.updateReviewStatus(review.id, {
+          status: 'RETURNED',
+          remarks: selection.reason,
+          target: selection.target,
+          kraIds: selection.kraIds,
+          hodKraIds: selection.hodKraIds,
+          kraComments: selection.kraComments,
+          reasonCodes: selection.reasonCodes,
+        });
+      }
+
+      setReturnModalMode(null);
+      setReturnPreselect(undefined);
+      const recipient = selection.target === 'HOD' ? review.hodName || 'HOD' : review.managerName;
+      const kraCount = (n: number) => `${n} KRA${n === 1 ? '' : 's'}`;
+      const scope =
+        selection.kraIds.length === snapshots.length ? 'Full review' : kraCount(selection.kraIds.length);
+      const succMsg =
+        selection.target === 'BOTH'
+          ? `${kraCount(selection.kraIds.length)} returned to ${review.managerName}; ${kraCount(selection.hodKraIds?.length || 0)} will go to ${review.hodName || 'the HOD'} after that.`
+          : `${scope} returned to ${recipient} for re-evaluation.`;
       setSuccessMessage(succMsg);
-      toast.success(succMsg, 'Review Returned');
+      toast.success(succMsg, 'Review returned');
       setTimeout(() => {
         onSaved();
       }, 600);
     } catch (err: any) {
       const errMsg = err.message || 'Failed to return review.';
       setErrorMessage(errMsg);
-      toast.error(errMsg, 'Return Error');
+      toast.error(errMsg, 'Return error');
     } finally {
       setSaving(false);
     }
@@ -533,6 +711,10 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
   // Derive which "returned" banner (if any) applies to the current state — status alone is
   // ambiguous for MANAGER_PENDING (fresh vs. HOD-returned) and HOD_PENDING (fresh vs.
   // HR-returned-to-HOD), so the last relevant action in the audit trail disambiguates.
+  const openManagerReturn = getOpenReturn(review, 'MANAGER');
+  const openHodReturn = getOpenReturn(review, 'HOD');
+  const openReturn = openManagerReturn || openHodReturn;
+  const returnCount = getReturnCount(review);
   const lastAction = [...(review.actionHistory || [])].reverse().find((a) => a.action !== 'DRAFT_SAVED');
   const returnBadge: { by: 'HOD' | 'HR'; recipient: string; message: string } | null =
     review.status === 'RETURNED'
@@ -558,17 +740,14 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
   return createPortal(
     <div
       className={`fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-xs p-4 overflow-y-auto ${backdropClass}`}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) handleAttemptClose();
-      }}
     >
-      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl my-6 flex flex-col max-h-[92vh] overflow-hidden text-slate-900 dark:text-white ${cardClass}`}>
+      <div className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-5xl my-6 flex flex-col max-h-[92vh] overflow-clip text-slate-900 dark:text-white ${cardClass}`}>
         
         {/* MODAL HEADER */}
         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-850">
           <div className="flex items-center space-x-4">
             <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white shadow-xs"
+              className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white"
               style={{ backgroundColor: review.cycleColor || '#1e3a8a' }}
             >
               {review.cycleCode}
@@ -576,7 +755,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
             <div>
               <div className="flex items-center space-x-2 flex-wrap">
                 <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">{review.employeeName}</h2>
-                <span className="text-xs px-2 py-0.5 rounded-full font-mono font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                <span className="text-xs px-2 py-0.5 rounded-full tabular-nums font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                   {review.employeeCode}
                 </span>
                 <EmployeeStatusBadge status={review.employeeStatus} />
@@ -589,7 +768,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                 {review.isClosed && (
                   <span className="inline-flex items-center space-x-1 text-xs px-2.5 py-0.5 rounded-full font-medium bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
                     <Lock className="w-3 h-3" />
-                    <span>Closed & Locked</span>
+                    <span>Closed & locked</span>
                   </span>
                 )}
               </div>
@@ -604,10 +783,10 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               <button
                 onClick={() => setShowLetterModal(true)}
                 title="View Quarterly Review Letter"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg shadow-xs transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors cursor-pointer"
               >
                 <Award className="w-3.5 h-3.5" />
-                <span>View Letter</span>
+                <span>View letter</span>
               </button>
             )}
             <button
@@ -631,7 +810,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
           <div className="mx-6 mt-3 px-4 py-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs rounded-xl flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold">Employment Record Inactive (Offboarded / Exited)</p>
+              <p className="font-bold">Employment record inactive (offboarded / exited)</p>
               <p className="text-rose-700 dark:text-rose-300 text-[11px] mt-0.5">
                 This employee has been marked inactive in the system. Performance review scoring and evaluation submission are disabled to safeguard evaluation integrity. Historical review records remain available for reference.
               </p>
@@ -640,16 +819,101 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
         )}
 
         {/* REVIEW RETURNED BANNER */}
-        {returnBadge && (
-          <div className="mx-6 mt-3 px-4 py-3 bg-rose-50/90 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/80 text-rose-900 dark:text-rose-200 text-xs rounded-xl flex items-start gap-3 shadow-xs">
-            <div className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 flex items-center justify-center shrink-0 mt-0.5">
-              <RotateCcw className="w-4 h-4" />
-            </div>
+        {openReturn ? (
+          (() => {
+            const due = getReturnDueInfo(openReturn);
+            const recipient = openReturn.target === 'HOD' ? review.hodName || 'HOD' : review.managerName;
+            const target = openReturn.target;
+            const pendingCount = target === 'MANAGER' ? unaddressedManagerKras.length : unaddressedHodKras.length;
+            const doneCount = openReturn.kraIds.length - pendingCount;
+            const queuedHodLeg = getQueuedHodLeg(review, openReturn);
+            const nextStep = queuedHodLeg
+              ? `it will then go to the HOD to re-evaluate ${queuedHodLeg.kraIds.length} KRA${queuedHodLeg.kraIds.length === 1 ? '' : 's'}, then back to HR.`
+              : openReturn.returnedByRole === 'HOD'
+                ? 'it will go back to the HOD, who will re-score only these KRAs.'
+                : target === 'HOD'
+                ? 'it will go straight back to HR.'
+                : 'it will go straight back to HR without another HOD pass.';
+            return (
+              <div className="mx-6 mt-2 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 text-amber-950 dark:text-amber-100 text-xs rounded-xl">
+                {/* Compact one-line summary — keeps the KRA scoring area roomy */}
+                <button
+                  type="button"
+                  onClick={() => setReturnBannerExpanded((v) => !v)}
+                  className="w-full px-3 py-2 flex items-center gap-2 text-left cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-700 dark:text-amber-300 shrink-0" />
+                  <span className="font-bold truncate">
+                    Returned by {openReturn.returnedByRole} ({openReturn.returnedByName}) ·{' '}
+                    {openReturn.isFullReturn ? 'full review' : `${openReturn.kraIds.length} of ${snapshots.length} KRAs`} to re-evaluate
+                    {queuedHodLeg && <span className="font-normal"> · then HOD ({queuedHodLeg.kraIds.length})</span>}
+                  </span>
+                  <span className="ml-auto flex items-center gap-1.5 shrink-0">
+                    <span className="text-[11px] px-2 py-0.5 rounded-md font-semibold bg-white/70 dark:bg-slate-900/60 border border-amber-200 dark:border-amber-800">
+                      {doneCount}/{openReturn.kraIds.length} done
+                    </span>
+                    <span
+                      className={`text-[11px] px-2 py-0.5 rounded-md font-semibold ${
+                        due.overdue
+                          ? 'bg-rose-600 text-white'
+                          : due.soon
+                          ? 'bg-amber-500 text-white'
+                          : 'bg-white/70 dark:bg-slate-900/60 border border-amber-200 dark:border-amber-800'
+                      }`}
+                    >
+                      {due.label}
+                    </span>
+                    {returnCount > 1 && (
+                      <span className="text-[11px] px-2 py-0.5 rounded-md font-semibold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300">
+                        Returned {returnCount}×
+                      </span>
+                    )}
+                    <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-0.5">
+                      {returnBannerExpanded ? 'Hide' : 'Details'}
+                      {returnBannerExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </span>
+                  </span>
+                </button>
+
+                {returnBannerExpanded && (
+                  <div className="px-3 pb-2.5 pl-8 space-y-1.5 border-t border-amber-200/70 dark:border-amber-800/60 pt-2">
+                    <p className="leading-relaxed">
+                      <span className="font-semibold">Reason:</span> {openReturn.reason}
+                    </p>
+                    {!openReturn.isFullReturn && (
+                      <div className="flex flex-wrap gap-1">
+                        {openReturn.kraIds.map((id, i) => (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => {
+                              setWizardStep(target === 'MANAGER' ? 2 : 3);
+                              setTimeout(() => scrollToKraCard(target === 'MANAGER' ? 'mgr' : 'hod', id), 100);
+                            }}
+                            className="text-[11px] px-2 py-0.5 rounded-full bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/40 cursor-pointer"
+                          >
+                            {openReturn.kraTitles[i] || id}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90">
+                      Returned on {new Date(openReturn.createdAt).toLocaleDateString()} to {recipient}. Only the returned KRAs are editable — update each one (or keep its
+                      rating with a reason) and resubmit; {nextStep}
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()
+        ) : returnBadge ? (
+          <div className="mx-6 mt-3 px-4 py-3 bg-rose-50/90 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800/80 text-rose-900 dark:text-rose-200 text-xs rounded-xl flex items-start gap-3">
+            <RotateCcw className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <span className="font-bold text-xs">Returned by {returnBadge.by} — Awaiting {returnBadge.recipient}</span>
-                <span className="text-[10px] bg-rose-200/60 dark:bg-rose-900/60 text-rose-800 dark:text-rose-300 px-2 py-0.5 rounded-md font-medium">
-                  Needs Revision
+                <span className="text-[11px] bg-rose-200/60 dark:bg-rose-900/60 text-rose-800 dark:text-rose-300 px-2 py-0.5 rounded-md font-medium">
+                  Needs revision
                 </span>
               </div>
               <p className="text-rose-800 dark:text-rose-300 text-[11px] mt-0.5 leading-relaxed">
@@ -657,7 +921,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               </p>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* ALERTS & ERROR MESSAGES */}
         {errorMessage && (
@@ -682,16 +946,16 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               onClick={() => setWizardStep(1)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 wizardStep === 1
-                  ? 'bg-white dark:bg-slate-750 text-indigo-950 dark:text-white shadow-xs font-bold border border-slate-200 dark:border-slate-700 ring-1 ring-black/5'
+                  ? 'bg-white dark:bg-slate-750 text-indigo-950 dark:text-white font-bold border border-slate-200 dark:border-slate-700 ring-1 ring-black/5'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
                 wizardStep === 1 ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
               }`}>
                 1
               </span>
-              <span>Employee Input</span>
+              <span>Employee input</span>
               {review.selfSubmittedAt ? (
                 <span title="Self-Review Completed">
                   <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
@@ -711,19 +975,24 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               onClick={() => setWizardStep(2)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 wizardStep === 2
-                  ? 'bg-white dark:bg-slate-750 text-indigo-950 dark:text-white shadow-xs font-bold border border-slate-200 dark:border-slate-700 ring-1 ring-black/5'
+                  ? 'bg-white dark:bg-slate-750 text-indigo-950 dark:text-white font-bold border border-slate-200 dark:border-slate-700 ring-1 ring-black/5'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
                 wizardStep === 2 ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
               }`}>
                 2
               </span>
-              <span>Manager Scoring</span>
-              <span className="text-[10px] font-mono font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-1.5 py-0.2 rounded-md border border-indigo-200 dark:border-indigo-800">
-                {computedScore.toFixed(2)} ★
+              <span>Manager scoring</span>
+              <span className="text-[11px] tabular-nums font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-1.5 py-0.2 rounded-md border border-indigo-200 dark:border-indigo-800">
+                {computedScore.toFixed(2)}
               </span>
+              {missingManagerJustifications > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+                  <span>{missingManagerJustifications} justification{missingManagerJustifications > 1 ? 's' : ''} needed</span>
+                </span>
+              )}
             </button>
 
             <span className="text-slate-300 dark:text-slate-600">➔</span>
@@ -734,19 +1003,24 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               onClick={() => setWizardStep(3)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 wizardStep === 3
-                  ? 'bg-white dark:bg-slate-750 text-indigo-950 dark:text-white shadow-xs font-bold border border-slate-200 dark:border-slate-700 ring-1 ring-black/5'
+                  ? 'bg-white dark:bg-slate-750 text-indigo-950 dark:text-white font-bold border border-slate-200 dark:border-slate-700 ring-1 ring-black/5'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
                 wizardStep === 3 ? 'bg-violet-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
               }`}>
                 3
               </span>
-              <span>HOD Scoring</span>
-              <span className="text-[10px] font-mono font-bold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/50 px-1.5 py-0.2 rounded-md border border-violet-200 dark:border-violet-800">
-                {computedHodScore.toFixed(2)} ★
+              <span>HOD scoring</span>
+              <span className="text-[11px] tabular-nums font-bold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/50 px-1.5 py-0.2 rounded-md border border-violet-200 dark:border-violet-800">
+                {computedHodScore.toFixed(2)}
               </span>
+              {missingHodJustifications > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-violet-100 dark:bg-violet-950/60 text-violet-800 dark:text-violet-300 border border-violet-300 dark:border-violet-800 flex items-center gap-1">
+                  <span>{missingHodJustifications} justification{missingHodJustifications > 1 ? 's' : ''} needed</span>
+                </span>
+              )}
             </button>
 
             <span className="text-slate-300 dark:text-slate-600">➔</span>
@@ -757,16 +1031,16 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               onClick={() => setWizardStep(4)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 wizardStep === 4
-                  ? 'bg-white dark:bg-slate-750 text-indigo-950 dark:text-white shadow-xs font-bold border border-slate-200 dark:border-slate-700 ring-1 ring-black/5'
+                  ? 'bg-white dark:bg-slate-750 text-indigo-950 dark:text-white font-bold border border-slate-200 dark:border-slate-700 ring-1 ring-black/5'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
                 wizardStep === 4 ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
               }`}>
                 4
               </span>
-              <span>Growth & Sign-Off</span>
+              <span>Final review</span>
             </button>
           </div>
 
@@ -781,8 +1055,8 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
             }`}
           >
             <History className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Audit Trail</span>
-            <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-700 px-1 rounded">
+            <span className="hidden sm:inline">Audit trail</span>
+            <span className="tabular-nums text-[11px] bg-slate-100 dark:bg-slate-700 px-1 rounded">
               {review.actionHistory?.length || 0}
             </span>
           </button>
@@ -803,27 +1077,6 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
             unratedCount={unratedHodCount}
           />
         )}
-        {wizardStep === 4 && (
-          <ScoreSummaryBar
-            computedScore={
-              review.hodScore != null ? Number(((computedScore + review.hodScore) / 2).toFixed(2)) : computedScore
-            }
-            scoreTier={
-              review.hodScore != null
-                ? (() => {
-                    const s = Number(((computedScore + review.hodScore) / 2).toFixed(2));
-                    if (s === 0) return { label: 'Unscored', color: 'text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700' };
-                    if (s >= 4.5) return { label: 'Outstanding (5/5 Tier)', color: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800' };
-                    if (s >= 3.5) return { label: 'Exceeds Expectations', color: 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800' };
-                    if (s >= 2.5) return { label: 'Meets Expectations', color: 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800' };
-                    return { label: 'Needs Improvement', color: 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800' };
-                  })()
-                : scoreTier
-            }
-            unratedCount={0}
-          />
-        )}
-
         {/* MODAL BODY */}
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
           {wizardStep === 1 && (
@@ -831,11 +1084,26 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
           )}
 
           {wizardStep === 2 && (
-            <Step2ManagerSection
-              snapshots={snapshots}
-              canEdit={canEdit}
-              onKraChange={handleKraChange}
-            />
+            <>
+              <Step2ManagerSection
+                snapshots={snapshots}
+                canEdit={canEdit}
+                onKraChange={handleKraChange}
+                onReturnFlagChange={handleReturnFlagChange}
+              />
+              <ManagerFeedbackSection
+                strengths={strengths}
+                setStrengths={setStrengths}
+                improvements={improvements}
+                setImprovements={setImprovements}
+                managerComments={managerComments}
+                setManagerComments={setManagerComments}
+                canEdit={canEdit}
+                aiLoading={aiLoading}
+                aiSuccessNote={aiSuccessNote}
+                onAiDraftSummary={handleAiDraftSummary}
+              />
+            </>
           )}
 
           {wizardStep === 3 && (
@@ -845,31 +1113,111 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               onKraChange={handleKraChange}
               hodOverallComments={hodOverallComments}
               setHodOverallComments={setHodOverallComments}
+              onReturnFlagChange={handleReturnFlagChange}
             />
           )}
 
           {wizardStep === 4 && (
-            <Step3HodSection
+            <Step4FinalReviewSection
               review={review}
-              computedScore={computedScore}
+              snapshots={snapshots}
+              managerScore={computedScore}
+              hodScore={computedHodScore}
               strengths={strengths}
-              setStrengths={setStrengths}
               improvements={improvements}
-              setImprovements={setImprovements}
               managerComments={managerComments}
-              setManagerComments={setManagerComments}
               hrComments={hrComments}
               setHrComments={setHrComments}
-              canEdit={canEdit}
               isHrOrAdmin={isHrOrAdmin}
               saving={saving}
-              aiLoading={aiLoading}
-              aiSuccessNote={aiSuccessNote}
-              onAiDraftSummary={handleAiDraftSummary}
               onOpenStatusModal={(status) => setShowStatusModal(status)}
+              onReturnSelected={(kraIds) => {
+                setReturnPreselect(kraIds);
+                setReturnModalMode('HR');
+              }}
             />
           )}
         </div>
+
+        {/* Sticky Inline In-Modal Warning Banner pinned right above the footer */}
+        {(errorMessage ||
+          (wizardStep === 2 && canEdit && missingManagerJustifications > 0) ||
+          (wizardStep === 3 && canHodAct && missingHodJustifications > 0)) && (
+          <div
+            className={`px-6 py-3 border-t flex flex-wrap items-center justify-between gap-3 text-xs animate-in fade-in slide-in-from-bottom-2 shrink-0 ${
+              errorMessage
+                ? 'bg-rose-50 dark:bg-rose-950/95 border-rose-200 dark:border-rose-900/80 text-rose-800 dark:text-rose-200'
+                : 'bg-amber-50 dark:bg-amber-950/95 border-amber-200 dark:border-amber-900/80 text-amber-900 dark:text-amber-200'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <AlertTriangle
+                className={`w-4 h-4 shrink-0 ${
+                  errorMessage ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'
+                }`}
+              />
+              <span className="font-semibold">
+                {errorMessage ||
+                  (wizardStep === 2
+                    ? `${missingManagerJustifications} KRA${
+                        missingManagerJustifications > 1 ? 's' : ''
+                      } rated 1, 2 or 5 need a justification of at least 15 characters before you submit.`
+                    : `${missingHodJustifications} KRA${
+                        missingHodJustifications > 1 ? 's' : ''
+                      } rated 1, 2 or 5 need an HOD justification of at least 15 characters before you submit.`)}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 ml-auto">
+              {wizardStep === 2 && firstInvalidManagerKra && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    scrollToKraCard(
+                      'mgr',
+                      firstInvalidManagerKra.id || (firstInvalidManagerKra as any).kraId || ''
+                    )
+                  }
+                  className={`text-xs font-bold underline cursor-pointer shrink-0 ${
+                    errorMessage
+                      ? 'text-rose-700 hover:text-rose-900 dark:text-rose-300'
+                      : 'text-amber-800 hover:text-amber-950 dark:text-amber-300'
+                  }`}
+                >
+                  Jump to KRA →
+                </button>
+              )}
+              {wizardStep === 3 && firstInvalidHodKra && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    scrollToKraCard(
+                      'hod',
+                      firstInvalidHodKra.id || (firstInvalidHodKra as any).kraId || ''
+                    )
+                  }
+                  className={`text-xs font-bold underline cursor-pointer shrink-0 ${
+                    errorMessage
+                      ? 'text-rose-700 hover:text-rose-900 dark:text-rose-300'
+                      : 'text-amber-800 hover:text-amber-950 dark:text-amber-300'
+                  }`}
+                >
+                  Jump to KRA →
+                </button>
+              )}
+              {errorMessage && (
+                <button
+                  type="button"
+                  onClick={() => setErrorMessage('')}
+                  aria-label="Dismiss this message"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-rose-300 dark:border-rose-800 bg-white dark:bg-rose-950/60 text-xs font-semibold text-rose-800 dark:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                >
+                  <X className="w-3.5 h-3.5" aria-hidden="true" />
+                  Dismiss
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* MODAL FOOTER WITH GUIDED STEPPER NAVIGATION */}
         <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-900/90 flex flex-wrap items-center justify-between gap-3">
@@ -878,15 +1226,12 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
             {isHrOrAdmin && !review.isClosed && review.status === 'HR_PENDING' && (
               <button
                 type="button"
-                onClick={() => {
-                  setHrReturnTarget('MANAGER');
-                  setShowStatusModal('RETURNED');
-                }}
+                onClick={() => setReturnModalMode('HR')}
                 className="px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors flex items-center space-x-1 cursor-pointer"
                 title="Return review to the Manager or HOD for recalibration"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Return for Recalibration</span>
+                <span>Return for recalibration</span>
               </button>
             )}
           </div>
@@ -915,7 +1260,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
             {wizardStep === 3 && canHodAct ? (
               review.employeeStatus === 'INACTIVE' ? (
                 <div className="text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-3 py-2 rounded-xl border border-rose-200 dark:border-rose-800">
-                  Evaluation submission disabled (Employee Inactive)
+                  Can't submit: the employee is inactive
                 </div>
               ) : (
                 <div className="flex items-center space-x-2 flex-wrap gap-y-1">
@@ -923,24 +1268,20 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                     type="button"
                     disabled={saving}
                     onClick={() => handleSaveHodScores(true)}
-                    className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                    <span>Save Draft</span>
+                    <span>Save draft</span>
                   </button>
 
                   <button
                     type="button"
                     disabled={saving}
-                    onClick={() => {
-                      setIsHodReturnFlow(true);
-                      setStatusModalRemarks('');
-                      setShowStatusModal('MANAGER_PENDING');
-                    }}
-                    className="px-3.5 py-2 text-xs font-bold text-amber-800 dark:text-amber-200 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-800 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    onClick={() => setReturnModalMode('HOD')}
+                    className="px-3.5 py-2 text-xs font-bold text-amber-800 dark:text-amber-200 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-800 rounded-xl transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
-                    <span>Return to Manager</span>
+                    <span>Return to manager</span>
                   </button>
 
                   <button
@@ -950,34 +1291,61 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                     className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                    <span>Submit to HR</span>
+                    <span>
+                      {openHodReturn
+                        ? `Resubmit to HR (${openHodReturn.kraIds.length - unaddressedHodKras.length}/${openHodReturn.kraIds.length})`
+                        : 'Submit to HR'}
+                    </span>
                   </button>
                 </div>
               )
-            ) : wizardStep < 4 ? (
-              <button
-                type="button"
-                onClick={() => setWizardStep((prev) => (prev + 1) as 1 | 2 | 3 | 4)}
-                className="px-4 py-2 text-xs font-bold text-white bg-slate-900 dark:bg-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
-              >
-                <span>Continue to Step {wizardStep + 1}</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            ) : canEdit ? (
+            ) : wizardStep === 2 && managerCanSubmit ? (
               review.employeeStatus === 'INACTIVE' ? (
                 <div className="text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-3 py-2 rounded-xl border border-rose-200 dark:border-rose-800">
-                  Evaluation submission disabled (Employee Inactive)
+                  Can't submit: the employee is inactive
                 </div>
-              ) : isHrOrAdmin ? (
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => handleSaveScores(true)}
+                    className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    <span>Save draft</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => handleSaveScores(false)}
+                    className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    <span>
+                      {openManagerReturn
+                        ? `Resubmit (${openManagerReturn.kraIds.length - unaddressedManagerKras.length}/${openManagerReturn.kraIds.length} addressed)`
+                        : 'Submit Evaluation'}
+                    </span>
+                  </button>
+                </>
+              )
+            ) : wizardStep === 4 && isHrOrAdmin && canEdit ? (
+              review.employeeStatus === 'INACTIVE' ? (
+                <div className="text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-3 py-2 rounded-xl border border-rose-200 dark:border-rose-800">
+                  Can't submit: the employee is inactive
+                </div>
+              ) : (
                 <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                   <button
                     type="button"
                     disabled={saving}
                     onClick={() => handleSaveScores(true)}
-                    className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                    <span>Save Draft</span>
+                    <span>Save draft</span>
                   </button>
 
                   {review.status !== 'HR_COMPLETED' && (
@@ -985,7 +1353,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                       type="button"
                       disabled={saving}
                       onClick={() => setShowStatusModal('HR_COMPLETED')}
-                      className="px-3.5 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-800 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="px-3.5 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-800 rounded-xl transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserCheck className="w-3.5 h-3.5" />}
                       <span>Approve (HR)</span>
@@ -996,35 +1364,22 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                     type="button"
                     disabled={saving}
                     onClick={() => setShowStatusModal('CLOSED')}
-                    className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer ring-2 ring-indigo-500/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
-                    <span>Final Lock & Close</span>
+                    <span>Final lock & close</span>
                   </button>
                 </div>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => handleSaveScores(true)}
-                    className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                    <span>Save Draft</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => handleSaveScores(false)}
-                    className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                    <span>Submit Evaluation</span>
-                  </button>
-                </>
               )
+            ) : wizardStep < 4 ? (
+              <button
+                type="button"
+                onClick={() => setWizardStep((prev) => (prev + 1) as 1 | 2 | 3 | 4)}
+                className="px-4 py-2 text-xs font-bold text-white bg-slate-900 dark:bg-indigo-600 hover:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl transition-colors flex items-center space-x-1.5 cursor-pointer"
+              >
+                <span>Continue to Step {wizardStep + 1}</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             ) : null}
           </div>
         </div>
@@ -1036,18 +1391,25 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
           review={review}
           remarks={statusModalRemarks}
           setRemarks={setStatusModalRemarks}
-          onClose={() => {
-            setShowStatusModal(null);
-            setIsHodReturnFlow(false);
-          }}
-          onConfirm={(st) =>
-            isHodReturnFlow ? handleHodReturn(statusModalRemarks) : handleStatusTransition(st)
-          }
+          onClose={() => setShowStatusModal(null)}
+          onConfirm={(st) => handleStatusTransition(st)}
           saving={saving}
-          showTargetSelector={!isHodReturnFlow && showStatusModal === 'RETURNED'}
-          returnTarget={hrReturnTarget}
-          setReturnTarget={setHrReturnTarget}
-          hodAvailable={Boolean(review.hodId)}
+        />
+
+        {/* KRA-LEVEL RETURN DIALOG (HOD -> Manager, HR -> Manager/HOD) */}
+        <ReturnReviewModal
+          isOpen={!!returnModalMode}
+          review={review}
+          snapshots={snapshots}
+          mode={returnModalMode || 'HR'}
+          isPrivileged={isHrOrAdmin}
+          saving={saving}
+          onClose={() => {
+            setReturnModalMode(null);
+            setReturnPreselect(undefined);
+          }}
+          onConfirm={handleReturnConfirm}
+          initialKraIds={returnModalMode === 'HR' ? returnPreselect : undefined}
         />
 
         {/* AUDIT TRAIL DRAWER OVERLAY */}
@@ -1070,18 +1432,15 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
         {showUnsavedAlert && (
           <div
             className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 modal-backdrop-enter"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setShowUnsavedAlert(false);
-            }}
           >
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 text-slate-900 dark:text-white modal-card-enter">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 text-slate-900 dark:text-white modal-card-enter">
               <div className="flex items-start space-x-4">
-                <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-2xl border border-amber-500/20 shrink-0">
+                <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl border border-amber-500/20 shrink-0">
                   <AlertTriangle className="w-6 h-6" />
                 </div>
                 <div className="flex-1">
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Unsaved Review Progress
+                    Unsaved review progress
                   </h3>
                   <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                     You have unsaved changes in this evaluation. If you exit now without saving, your entered scores and feedback will be lost.
@@ -1095,7 +1454,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                   onClick={() => setShowUnsavedAlert(false)}
                   className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
                 >
-                  Keep Editing
+                  Keep editing
                 </button>
                 <button
                   type="button"
@@ -1105,7 +1464,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                   }}
                   className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-900/60 rounded-xl transition-colors cursor-pointer"
                 >
-                  Discard & Exit
+                  Discard & exit
                 </button>
                 <button
                   type="button"
@@ -1121,7 +1480,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                   className="w-full sm:w-auto px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
                 >
                   <Save className="w-3.5 h-3.5" />
-                  <span>Save Draft & Exit</span>
+                  <span>Save draft & exit</span>
                 </button>
               </div>
             </div>

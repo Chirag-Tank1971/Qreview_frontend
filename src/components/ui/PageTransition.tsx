@@ -1,4 +1,5 @@
 import React from 'react';
+import { m } from '../../animations';
 
 interface PageTransitionProps {
   children: React.ReactNode;
@@ -7,8 +8,7 @@ interface PageTransitionProps {
 }
 
 /**
- * GPU-accelerated page entrance container.
- * Promotes page view to its own compositor layer for fluid 60-120fps transitions.
+ * GPU-accelerated page entrance container with spring physics.
  */
 export const PageTransition: React.FC<PageTransitionProps> = ({
   children,
@@ -16,11 +16,14 @@ export const PageTransition: React.FC<PageTransitionProps> = ({
   className = '',
 }) => {
   return (
-    <div
+    <m.div
       key={viewKey}
-      className={`w-full min-h-full animate-page-enter ${className}`}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+      className={`w-full min-h-full ${className}`}
     >
       {children}
-    </div>
+    </m.div>
   );
 };

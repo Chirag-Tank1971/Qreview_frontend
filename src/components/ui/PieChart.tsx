@@ -82,14 +82,14 @@ export const PieChart: React.FC<PieChartProps> = ({
 
   return (
     <div
-      className={`bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 shadow-2xs transition-all duration-500 hover:shadow-xs hover:border-slate-300 dark:hover:border-slate-700 ${
+      className={`bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 transition-all duration-500 hover:shadow-xs hover:border-slate-300 dark:hover:border-slate-700 ${
         isAnimated ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-[0.99]'
       } ${className}`}
     >
       {(title || subtitle) && (
         <div className="mb-3">
           {title && (
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
               {title}
             </h3>
           )}
@@ -157,25 +157,25 @@ export const PieChart: React.FC<PieChartProps> = ({
           >
             {activeItem ? (
               <>
-                <span className="text-xl font-bold font-mono tracking-tight text-slate-900 dark:text-white leading-tight animate-in fade-in zoom-in-95 duration-150">
+                <span className="text-xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white leading-tight animate-in fade-in zoom-in-95 duration-150">
                   {formatValue(activeItem.value)}
                 </span>
-                <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 truncate max-w-[80px]">
+                <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate max-w-[80px]">
                   {activeItem.label}
                 </span>
-                <span className="text-[9px] font-medium text-slate-400 mt-0.5">
+                <span className="text-[11px] font-medium text-slate-400 mt-0.5">
                   {activePercent}% of total
                 </span>
               </>
             ) : (
               <>
                 {centerValue !== undefined && (
-                  <span className="text-xl font-bold font-mono tracking-tight text-slate-900 dark:text-white leading-tight">
+                  <span className="text-xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white leading-tight">
                     {centerValue}
                   </span>
                 )}
                 {centerLabel && (
-                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate max-w-[85px]">
+                  <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate max-w-[85px]">
                     {centerLabel}
                   </span>
                 )}
@@ -210,11 +210,11 @@ export const PieChart: React.FC<PieChartProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-semibold text-slate-900 dark:text-white font-mono text-xs">
+                  <span className="font-semibold text-slate-900 dark:text-white tabular-nums text-xs">
                     {formatValue(item.value)}
                   </span>
                   {showShare && (
-                    <span className="text-[10px] text-slate-400 font-mono w-7 text-right">
+                    <span className="text-[11px] text-slate-400 tabular-nums w-7 text-right">
                       {percent}%
                     </span>
                   )}

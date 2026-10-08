@@ -21,6 +21,7 @@ import { EmployeeReview, ReviewKraSnapshot } from '../types';
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
 import { useModalAnimation } from '../hooks/useModalAnimation';
+import { RatingJustificationInput } from './reviews/RatingJustificationInput';
 
 interface SelfAssessmentModalProps {
   review: EmployeeReview;
@@ -54,6 +55,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
       selfRating: number;
       selfAchievement: string;
       selfComments: string;
+      selfJustification?: string;
       rating?: number;
       achievement?: string;
       comments?: string;
@@ -71,6 +73,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
       selfRating: k.selfRating || (k.rating ? k.rating : 3),
       selfAchievement: k.selfAchievement || k.achievement || '',
       selfComments: k.selfComments || '',
+      selfJustification: k.selfJustification || '',
       rating: k.rating,
       achievement: k.achievement,
       comments: k.comments,
@@ -82,6 +85,26 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
   const [selfObstacles, setSelfObstacles] = useState(review.selfObstacles || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [highlightedKraId, setHighlightedKraId] = useState<string | null>(null);
+
+  const missingJustificationsCount = useMemo(() => {
+    return kraStates.filter(
+      (k) => [1, 2, 5].includes(k.selfRating) && (!k.selfJustification || k.selfJustification.trim().length < 15)
+    ).length;
+  }, [kraStates]);
+
+  const firstInvalidKra = useMemo(() => {
+    return kraStates.find(
+      (k) => [1, 2, 5].includes(k.selfRating) && (!k.selfJustification || k.selfJustification.trim().length < 15)
+    );
+  }, [kraStates]);
+
+  const scrollToKra = (kraId: string) => {
+    const el = document.getElementById(`self-kra-card-${kraId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   const isClosed = review.isClosed;
   const isAlreadySubmitted = review.isSelfSubmitted;
@@ -109,6 +132,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
       if ((k.selfRating || 0) !== (orig.selfRating || 0)) return true;
       if ((k.selfAchievement || '') !== (orig.selfAchievement || '')) return true;
       if ((k.selfComments || '') !== (orig.selfComments || '')) return true;
+      if ((k.selfJustification || '') !== (orig.selfJustification || '')) return true;
     }
     return false;
   }, [isReadOnly, selfStrengths, selfImprovements, selfObstacles, kraStates, review]);
@@ -159,6 +183,17 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
     );
   };
 
+  const handleJustificationChange = (id: string, text: string) => {
+    if (isReadOnly) return;
+    setKraStates((prev) =>
+      prev.map((k) => (k.id === id ? { ...k, selfJustification: text } : k))
+    );
+    if (highlightedKraId === id && text.trim().length >= 15) {
+      setHighlightedKraId(null);
+      setError(null);
+    }
+  };
+
   const handleSubmit = async (isDraft: boolean) => {
     if (isReadOnly) return;
     try {
@@ -171,8 +206,29 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
         if (unratedKra) {
           const warnMsg = `Please provide a self-rating for "${unratedKra.kraName || unratedKra.title}".`;
           setError(warnMsg);
-          toast.warning(warnMsg, 'Self-Rating Required');
+          toast.warning(warnMsg, 'Self-rating required');
           setIsSubmitting(false);
+          return;
+        }
+
+        const invalidJustification = kraStates.find(
+          (k) => [1, 2, 5].includes(k.selfRating) && (!k.selfJustification || k.selfJustification.trim().length < 15)
+        );
+        if (invalidJustification) {
+          const targetId = invalidJustification.id || (invalidJustification as any).kraId || '';
+          const warnMsg = `Add a justification of at least 15 characters for "${invalidJustification.kraName || invalidJustification.title}", which you rated ${invalidJustification.selfRating}.`;
+          setError(warnMsg);
+          setHighlightedKraId(targetId);
+          toast.warning(warnMsg, 'Mandatory justification required');
+          setIsSubmitting(false);
+
+          // Auto-scroll to the invalid KRA card smoothly
+          setTimeout(() => {
+            const el = document.getElementById(`self-kra-card-${targetId}`);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }, 80);
           return;
         }
       }
@@ -186,9 +242,9 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
       });
 
       if (isDraft) {
-        toast.info('Self-assessment draft saved.', 'Draft Saved');
+        toast.info('Self-assessment draft saved.', 'Draft saved');
       } else {
-        toast.success('Self-assessment submitted to your manager!', 'Evaluation Submitted');
+        toast.success('Self-assessment submitted to your manager!', 'Evaluation submitted');
       }
 
       onSuccess(updated);
@@ -197,7 +253,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
       console.error('Error submitting self evaluation:', err);
       const errMsg = err.message || 'Failed to submit self-assessment.';
       setError(errMsg);
-      toast.error(errMsg, 'Submission Error');
+      toast.error(errMsg, 'Submission error');
     } finally {
       setIsSubmitting(false);
     }
@@ -208,17 +264,12 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
   return createPortal(
     <div
       className={`fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto ${backdropClass}`}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) handleAttemptClose();
-      }}
     >
-      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[96vh] sm:max-h-[92vh] flex flex-col overflow-hidden my-auto ${cardClass}`}>
+      <div className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[96vh] sm:max-h-[92vh] flex flex-col overflow-clip my-auto ${cardClass}`}>
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-              <Sparkles className="w-5 h-5" />
-            </div>
+            <Sparkles className="w-5 h-5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -236,6 +287,12 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                     ✓ Submitted to Manager
                   </span>
                 ) : null}
+                {!isReadOnly && missingJustificationsCount > 0 && (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                    <span>{missingJustificationsCount} Justification{missingJustificationsCount > 1 ? 's' : ''} Needed</span>
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {review.employeeName} ({review.employeeCode}) • {review.designationName} • {review.departmentName}
@@ -264,20 +321,20 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
             <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center space-x-2.5 text-xs text-emerald-800 dark:text-emerald-300">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span>
-                <strong>Evaluation Submitted:</strong> Your reporting manager has submitted their evaluation for this quarterly review. Self-ratings and reflection are now locked and in read-only mode.
+                <strong>Evaluation submitted:</strong> Your reporting manager has submitted their evaluation for this quarterly review. Self-ratings and reflection are now locked and in read-only mode.
               </span>
             </div>
           )}
 
           {/* Quick Score Banner */}
-          <div className="bg-gradient-to-r from-slate-900 to-indigo-950 dark:from-slate-950 dark:to-indigo-950 rounded-2xl p-4 sm:p-5 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm border border-slate-800">
+          <div className="bg-slate-900 dark:bg-slate-950 rounded-xl p-4 sm:p-5 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm border border-slate-800">
             <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
-                  Your Self-Rating Score
+                <span className="text-[11px] font-bold text-indigo-300">
+                  Your self-rating score
                 </span>
                 <div className="flex items-baseline space-x-2">
-                  <span className="text-3xl font-extrabold tracking-tight font-mono">
+                  <span className="text-3xl font-bold tracking-tight tabular-nums">
                     {calculatedSelfScore.toFixed(2)}
                   </span>
                   <span className="text-sm text-indigo-300">/ 5.00</span>
@@ -295,11 +352,11 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
 
               {hasManagerSubmitted && review.finalScore ? (
                 <div className="space-y-1 border-t sm:border-t-0 sm:border-l border-slate-700 pt-3 sm:pt-0 sm:pl-6">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                    Final Manager Score
+                  <span className="text-[11px] font-bold text-emerald-400">
+                    Final manager score
                   </span>
                   <div className="flex items-baseline space-x-2">
-                    <span className="text-3xl font-extrabold tracking-tight font-mono text-emerald-400">
+                    <span className="text-3xl font-bold tracking-tight tabular-nums text-emerald-400">
                       {review.finalScore.toFixed(2)}
                     </span>
                     <span className="text-sm text-emerald-300">/ 5.00</span>
@@ -318,23 +375,42 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
           {/* KRAs Self-Evaluation List */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <Layers className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span>Assigned KRAs & Self-Ratings</span>
+                <span>Assigned KRAs & self-ratings</span>
               </h4>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+              <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
                 {kraStates.length} Key Result Areas
               </span>
             </div>
 
             {kraStates.map((kra, index) => {
               const currentDesc = RATING_DESCRIPTIONS[kra.selfRating] || RATING_DESCRIPTIONS[3];
+              const kraDomId = kra.id || (kra as any).kraId || String(index);
+              const isMissingJustification =
+                [1, 2, 5].includes(kra.selfRating) &&
+                (!kra.selfJustification || kra.selfJustification.trim().length < 15);
+              const isCardHighlighted = highlightedKraId === kraDomId || highlightedKraId === kra.id;
 
               return (
                 <div
                   key={kra.id || index}
-                  className="p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 transition-all space-y-3.5 shadow-2xs"
+                  id={`self-kra-card-${kraDomId}`}
+                  className={`p-4 sm:p-5 rounded-xl border transition-all space-y-3.5 ${
+                    isCardHighlighted
+                      ? 'border-rose-500 ring-2 ring-rose-500/50 bg-rose-50/15 dark:bg-rose-950/20'
+                      : isMissingJustification
+                      ? 'border-amber-400 dark:border-amber-600/80 ring-1 ring-amber-400/30 bg-amber-50/10 dark:bg-amber-950/10'
+                      : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700'
+                  }`}
                 >
+                  {isCardHighlighted && (
+                    <div className="p-2.5 rounded-lg bg-rose-100/90 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs font-bold flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                      <span>Add a justification of at least 15 characters below for your rating of {kra.selfRating}.</span>
+                    </div>
+                  )}
+
                   {/* KRA Title & Weight Header */}
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                     <div className="space-y-1">
@@ -352,7 +428,13 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2 self-start pl-7 sm:pl-0">
-                      <span className="text-[11px] font-bold px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700/60 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-mono">
+                      {isMissingJustification && (
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                          <span>Justification required</span>
+                        </span>
+                      )}
+                      <span className="text-[11px] font-bold px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700/60 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 tabular-nums">
                         Weight: {kra.weight}%
                       </span>
                     </div>
@@ -361,7 +443,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   {/* Target and Rubric Details */}
                   <div className="bg-slate-50 dark:bg-slate-900/60 p-3 rounded-lg border border-slate-100 dark:border-slate-800 text-xs space-y-1">
                     <div className="flex items-start gap-1.5">
-                      <span className="font-semibold text-slate-700 dark:text-slate-300 shrink-0">Target Metric:</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300 shrink-0">Target metric:</span>
                       <span className="text-slate-600 dark:text-slate-400">{kra.targetSnapshot}</span>
                     </div>
                     {kra.measurementCriteria && (
@@ -376,10 +458,10 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   <div className="space-y-2 pt-1">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                        <span>Your Self-Rating:</span>
-                        <span className="text-indigo-600 dark:text-indigo-400 font-mono">{kra.selfRating} / 5</span>
+                        <span>Your self-rating:</span>
+                        <span className="text-indigo-600 dark:text-indigo-400 tabular-nums">{kra.selfRating} / 5</span>
                       </label>
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${currentDesc.color}`}>
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${currentDesc.color}`}>
                         {currentDesc.title}
                       </span>
                     </div>
@@ -397,7 +479,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                               isReadOnly ? 'cursor-default' : 'cursor-pointer'
                             } ${
                               isSelected
-                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs scale-102'
+                                ? 'bg-indigo-600 border-indigo-600 text-white scale-102'
                                 : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 hover:border-slate-300'
                             }`}
                           >
@@ -405,7 +487,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                               <Star className={`w-3 h-3 ${isSelected ? 'fill-white text-white' : 'text-slate-400'}`} />
                               <span>{ratingVal}</span>
                             </div>
-                            <div className={`text-[9px] truncate hidden sm:block ${isSelected ? 'text-indigo-100' : 'text-slate-400'}`}>
+                            <div className={`text-[11px] truncate hidden sm:block ${isSelected ? 'text-indigo-100' : 'text-slate-400'}`}>
                               {RATING_DESCRIPTIONS[ratingVal].title.split(' ')[0]}
                             </div>
                           </button>
@@ -414,10 +496,30 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                     </div>
                   </div>
 
+                  {/* Mandatory Self Rating Justification for 1, 2, 5 */}
+                  <RatingJustificationInput
+                    rating={kra.selfRating}
+                    value={kra.selfJustification || ''}
+                    onChange={(val) => handleJustificationChange(kra.id, val)}
+                    disabled={isReadOnly}
+                    roleLabel="Self-Assessment"
+                    minChars={15}
+                  />
+
+                  {/* Read-Only Justification Display when completed */}
+                  {isReadOnly && [1, 2, 5].includes(kra.selfRating) && kra.selfJustification && (
+                    <div className="p-3 bg-amber-50/60 dark:bg-amber-950/30 rounded-xl border border-amber-200/80 dark:border-amber-900/50 text-xs">
+                      <span className="font-bold text-amber-800 dark:text-amber-300 block mb-0.5">
+                        Your justification for a {kra.selfRating}:
+                      </span>
+                      <p className="text-slate-700 dark:text-slate-300 italic">{kra.selfJustification}</p>
+                    </div>
+                  )}
+
                   {/* Self Achievement Notes */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                      Key Deliverables & Milestones Achieved (Self-Reflection):
+                      Key deliverables & milestones achieved (self-reflection):
                     </label>
                     {isReadOnly ? (
                       kra.selfAchievement ? (
@@ -447,9 +549,9 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                       <div className="flex items-center justify-between font-semibold text-indigo-950 dark:text-indigo-200">
                         <span className="flex items-center gap-1.5">
                           <UserCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                          <span>Manager Calibrated Score: <strong>{kra.rating} / 5</strong></span>
+                          <span>Manager calibrated score: <strong>{kra.rating} / 5</strong></span>
                         </span>
-                        <span className="text-[10px] text-indigo-700 dark:text-indigo-300 font-mono px-2 py-0.5 rounded-md bg-indigo-100/60 dark:bg-indigo-900/40">
+                        <span className="text-[11px] text-indigo-700 dark:text-indigo-300 tabular-nums px-2 py-0.5 rounded-md bg-indigo-100/60 dark:bg-indigo-900/40">
                           Variance: {kra.selfRating - kra.rating > 0 ? `+${(kra.selfRating - kra.rating).toFixed(1)}` : (kra.selfRating - kra.rating).toFixed(1)}
                         </span>
                       </div>
@@ -468,15 +570,13 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
           {/* MANAGER EVALUATION & GROWTH FEEDBACK (Submitted by Manager) */}
           {(hasManagerSubmitted || review.strengths || review.improvements || review.managerOverallComments || (review as any).managerComments) && (
             <div className="space-y-4 pt-2 border-t border-slate-200 dark:border-slate-800">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-gradient-to-r from-indigo-50/80 via-white to-indigo-50/40 dark:from-slate-850 dark:via-slate-800 dark:to-slate-850 p-3.5 rounded-2xl border border-indigo-100 dark:border-slate-700">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-indigo-50/60 dark:bg-slate-850 p-3.5 rounded-xl border border-indigo-100 dark:border-slate-700">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <TrendingUp className="w-4 h-4" />
-                  </div>
+                  <TrendingUp className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
                   <div>
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                      <span>Manager Evaluation & Growth Feedback</span>
-                      <span className="text-[10px] normal-case font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <span>Manager evaluation & growth feedback</span>
+                      <span className="text-[11px] normal-case font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                         ✓ Verified
                       </span>
                     </h4>
@@ -488,8 +588,8 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
 
                 {review.finalScore ? (
                   <div className="flex items-center gap-2 self-start sm:self-auto">
-                    <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-mono shadow-2xs">
-                      Live Weighted: <span className="text-emerald-600 dark:text-emerald-400">{review.finalScore.toFixed(2)}</span> / 5.00
+                    <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 tabular-nums">
+                      Live weighted: <span className="text-emerald-600 dark:text-emerald-400">{review.finalScore.toFixed(2)}</span> / 5.00
                     </span>
                   </div>
                 ) : null}
@@ -497,14 +597,14 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
 
               <div className="space-y-3.5">
                 {/* 1. Key Strengths & Core Contributions */}
-                <div className="p-4 rounded-xl border border-emerald-200/90 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-2.5 shadow-2xs">
+                <div className="p-4 rounded-xl border border-emerald-200/90 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-emerald-950 dark:text-emerald-200 flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                      <span>Key Strengths & Core Contributions</span>
+                      <span>Key strengths & core contributions</span>
                     </label>
-                    <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-900/50 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-800/40">
-                      Manager Feedback
+                    <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-900/50 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-800/40">
+                      Manager feedback
                     </span>
                   </div>
                   {review.strengths ? (
@@ -517,14 +617,14 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                 </div>
 
                 {/* 2. Development Areas & Growth Opportunities */}
-                <div className="p-4 rounded-xl border border-amber-200/90 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20 space-y-2.5 shadow-2xs">
+                <div className="p-4 rounded-xl border border-amber-200/90 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-amber-950 dark:text-amber-200 flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                      <span>Development Areas & Growth Opportunities</span>
+                      <span>Development areas & growth opportunities</span>
                     </label>
-                    <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-900/50 px-2 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-800/40">
-                      Growth Roadmap
+                    <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-900/50 px-2 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-800/40">
+                      Growth roadmap
                     </span>
                   </div>
                   {review.improvements ? (
@@ -538,14 +638,14 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
 
                 {/* 3. Manager Overall Summary & Appraisal Recommendations */}
                 {(review.managerOverallComments || (review as any).managerComments) && (
-                  <div className="p-4 rounded-xl border border-indigo-200/90 dark:border-indigo-800/60 bg-indigo-50/40 dark:bg-indigo-950/20 space-y-2.5 shadow-2xs">
+                  <div className="p-4 rounded-xl border border-indigo-200/90 dark:border-indigo-800/60 bg-indigo-50/40 dark:bg-indigo-950/20 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
                         <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                        <span>Manager Overall Summary & Appraisal Recommendations</span>
+                        <span>Manager overall summary & appraisal recommendations</span>
                       </label>
-                      <span className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100/70 dark:bg-indigo-900/50 px-2 py-0.5 rounded-md border border-indigo-200/60 dark:border-indigo-800/40">
-                        Overarching Calibration Note
+                      <span className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-100/70 dark:bg-indigo-900/50 px-2 py-0.5 rounded-md border border-indigo-200/60 dark:border-indigo-800/40">
+                        Overarching calibration note
                       </span>
                     </div>
                     <div className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line bg-white dark:bg-slate-800/90 p-3.5 rounded-lg border border-indigo-100 dark:border-indigo-900/40 font-normal italic">
@@ -559,9 +659,9 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
 
           {/* Qualitative Reflection */}
           <div className="space-y-4 pt-2 border-t border-slate-200 dark:border-slate-800">
-            <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+            <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
               <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <span>Strategic Self-Reflection & Growth</span>
+              <span>Strategic self-reflection & growth</span>
             </h4>
 
             {isReadOnly ? (
@@ -570,7 +670,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
                       <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                        Key Strengths & Major Accomplishments:
+                        Key strengths & major accomplishments:
                       </label>
                       {selfStrengths ? (
                         <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line">{selfStrengths}</p>
@@ -581,7 +681,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
 
                     <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
                       <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                        Areas for Growth & Skill Acquisition:
+                        Areas for growth & skill acquisition:
                       </label>
                       {selfImprovements ? (
                         <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line">{selfImprovements}</p>
@@ -593,7 +693,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
 
                   <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
                     <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
-                      Blockers, Dependencies & Manager Support Needed:
+                      Blockers, dependencies & manager support needed:
                     </label>
                     {selfObstacles ? (
                       <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line">{selfObstacles}</p>
@@ -604,7 +704,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                 </div>
               ) : (
                 <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center space-y-1">
-                  <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">No Employee Self-Reflection Submitted</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">No employee self-reflection submitted</p>
                   <p className="text-[11px] text-slate-400 dark:text-slate-500">Employee did not submit self-reflection remarks prior to manager evaluation.</p>
                 </div>
               )
@@ -613,7 +713,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                      Key Strengths & Major Accomplishments:
+                      Key strengths & major accomplishments:
                     </label>
                     <textarea
                       disabled={isReadOnly}
@@ -627,7 +727,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                      Areas for Growth & Skill Acquisition:
+                      Areas for growth & skill acquisition:
                     </label>
                     <textarea
                       disabled={isReadOnly}
@@ -642,7 +742,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                    Blockers, Dependencies & Manager Support Needed:
+                    Blockers, dependencies & manager support needed:
                   </label>
                   <textarea
                     disabled={isReadOnly}
@@ -657,6 +757,55 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
             )}
           </div>
         </div>
+
+        {/* Sticky Inline In-Modal Warning Banner pinned right above the footer */}
+        {(error || (!isReadOnly && missingJustificationsCount > 0)) && (
+          <div
+            className={`px-4 sm:px-6 py-3 border-t flex flex-wrap items-center justify-between gap-3 text-xs animate-in fade-in slide-in-from-bottom-2 shrink-0 ${
+              error
+                ? 'bg-rose-50 dark:bg-rose-950/95 border-rose-200 dark:border-rose-900/80 text-rose-800 dark:text-rose-200'
+                : 'bg-amber-50 dark:bg-amber-950/95 border-amber-200 dark:border-amber-900/80 text-amber-900 dark:text-amber-200'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <AlertTriangle
+                className={`w-4 h-4 shrink-0 ${
+                  error ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'
+                }`}
+              />
+              <span className="font-semibold">
+                {error ||
+                  `${missingJustificationsCount} KRA${
+                    missingJustificationsCount > 1 ? 's' : ''
+                  } rated 1, 2 or 5 need a justification of at least 15 characters before you submit.`}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {firstInvalidKra && (
+                <button
+                  type="button"
+                  onClick={() => scrollToKra(firstInvalidKra.id || (firstInvalidKra as any).kraId || '')}
+                  className={`text-xs font-bold underline cursor-pointer shrink-0 ${
+                    error
+                      ? 'text-rose-700 hover:text-rose-900 dark:text-rose-300'
+                      : 'text-amber-800 hover:text-amber-950 dark:text-amber-300'
+                  }`}
+                >
+                  Jump to KRA →
+                </button>
+              )}
+              {error && (
+                <button
+                  type="button"
+                  onClick={() => setError(null)}
+                  className="text-slate-500 hover:text-slate-700 dark:text-slate-400 text-xs ml-1 cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Footer Actions */}
         <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -676,7 +825,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full sm:w-auto px-5 py-2 text-xs font-bold text-white bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 rounded-xl transition-all shadow-xs cursor-pointer"
+                className="w-full sm:w-auto px-5 py-2 text-xs font-bold text-white bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 rounded-xl transition-all cursor-pointer"
               >
                 Close
               </button>
@@ -694,17 +843,17 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => handleSubmit(true)}
-                  className="flex-1 sm:flex-none flex items-center justify-center space-x-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="flex-1 sm:flex-none flex items-center justify-center space-x-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                  <span>Save Draft</span>
+                  <span>Save draft</span>
                 </button>
 
                 <button
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => handleSubmit(false)}
-                  className="w-full sm:w-auto flex items-center justify-center space-x-1.5 px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl transition-all shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto flex items-center justify-center space-x-1.5 px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                   <span>{isSubmitting ? 'Submitting...' : isAlreadySubmitted ? 'Update Self-Assessment' : 'Submit to Manager'}</span>
@@ -718,18 +867,15 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
         {showUnsavedAlert && (
           <div
             className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 modal-backdrop-enter"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setShowUnsavedAlert(false);
-            }}
           >
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 text-slate-900 dark:text-white modal-card-enter">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 text-slate-900 dark:text-white modal-card-enter">
               <div className="flex items-start space-x-4">
-                <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-2xl border border-amber-500/20 shrink-0">
+                <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl border border-amber-500/20 shrink-0">
                   <AlertTriangle className="w-6 h-6" />
                 </div>
                 <div className="flex-1">
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Unsaved Self-Assessment
+                    Unsaved self-assessment
                   </h3>
                   <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                     You have unsaved changes in your self-evaluation. If you exit now without saving, your self-ratings and reflection entries will be lost.
@@ -743,7 +889,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   onClick={() => setShowUnsavedAlert(false)}
                   className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
                 >
-                  Keep Editing
+                  Keep editing
                 </button>
                 <button
                   type="button"
@@ -753,7 +899,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   }}
                   className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-900/60 rounded-xl transition-colors cursor-pointer"
                 >
-                  Discard & Exit
+                  Discard & exit
                 </button>
                 <button
                   type="button"
@@ -765,7 +911,7 @@ export const SelfAssessmentModal: React.FC<SelfAssessmentModalProps> = ({
                   className="w-full sm:w-auto px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 rounded-xl shadow-sm transition-colors flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
                 >
                   <Save className="w-3.5 h-3.5" />
-                  <span>Save Draft & Exit</span>
+                  <span>Save draft & exit</span>
                 </button>
               </div>
             </div>

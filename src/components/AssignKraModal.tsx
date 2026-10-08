@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, UserPlus, Search } from 'lucide-react';
-import { Employee, Cycle } from '../types';
+import { Employee, Cycle, KraTemplate, Kra } from '../types';
 import { CustomKraScorecardModal, CustomKraRow } from './CustomKraScorecardModal';
 import { useModalAnimation } from '../hooks/useModalAnimation';
 import { api } from '../services/api';
@@ -14,6 +14,10 @@ interface AssignKraModalProps {
   employees: Employee[];
   /** Used to resolve a reliable cycle display name — an employee's own denormalized cycleName can be stale/empty. */
   cycles: Cycle[];
+  /** All available KRA templates to choose from or auto-apply */
+  templates?: KraTemplate[];
+  /** Master standard KRA catalog */
+  kraLibrary?: Kra[];
   /** Called after a scorecard is successfully created/updated, so the caller can refresh master data. */
   onAssigned: () => void;
   /**
@@ -39,6 +43,8 @@ export const AssignKraModal: React.FC<AssignKraModalProps> = ({
   onClose,
   employees,
   cycles,
+  templates,
+  kraLibrary,
   onAssigned,
   preselectedEmployee = null,
   initialKras = [],
@@ -46,9 +52,8 @@ export const AssignKraModal: React.FC<AssignKraModalProps> = ({
   const [search, setSearch] = useState('');
   const [pickedEmployee, setPickedEmployee] = useState<Employee | null>(null);
   const [resolvedKras, setResolvedKras] = useState<CustomKraRow[]>(initialKras);
-  const [loadingKras, setLoadingKras] = useState<boolean>(false);
 
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+  const { isMounted, handleClose, backdropClass, cardClass } =
     useModalAnimation({ isOpen, onClose });
 
   useEffect(() => {
@@ -74,7 +79,6 @@ export const AssignKraModal: React.FC<AssignKraModalProps> = ({
     }
 
     let isSubscribed = true;
-    setLoadingKras(true);
 
     (async () => {
       try {
@@ -92,7 +96,6 @@ export const AssignKraModal: React.FC<AssignKraModalProps> = ({
                 measurementCriteria: it.measurementCriteria,
               }))
             );
-            setLoadingKras(false);
             return;
           }
         }
@@ -115,7 +118,28 @@ export const AssignKraModal: React.FC<AssignKraModalProps> = ({
               measurementCriteria: it.measurementCriteria,
             }))
           );
-          setLoadingKras(false);
+          return;
+        }
+
+        // 2.5 Try shared blueprint template by designation and/or department
+        const isShared = (t: KraTemplate) => !t.employeeId && t.items?.length > 0;
+        const sharedMatch =
+          (activeEmployee.designationId &&
+            allTemplates.find((t) => isShared(t) && t.designationId === activeEmployee.designationId)) ||
+          (activeEmployee.departmentId &&
+            allTemplates.find((t) => isShared(t) && t.departmentId === activeEmployee.departmentId)) ||
+          undefined;
+        if (isSubscribed && sharedMatch?.items?.length) {
+          setResolvedKras(
+            sharedMatch.items.map((it, idx) => ({
+              id: it.id || `kra_${idx}`,
+              title: it.title || '',
+              weight: it.weight ?? 0,
+              target: it.target || '100% Target SLA',
+              description: it.description,
+              measurementCriteria: it.measurementCriteria,
+            }))
+          );
           return;
         }
 
@@ -139,8 +163,6 @@ export const AssignKraModal: React.FC<AssignKraModalProps> = ({
       } catch (err) {
         console.warn('Could not auto-fetch employee KRA template:', err);
         if (isSubscribed) setResolvedKras([]);
-      } finally {
-        if (isSubscribed) setLoadingKras(false);
       }
     })();
 
@@ -188,6 +210,8 @@ export const AssignKraModal: React.FC<AssignKraModalProps> = ({
         managerName={activeEmployee.managerName}
         hodName={activeEmployee.hodName}
         cycleName={resolvedCycleName}
+        templates={templates}
+        kraLibrary={kraLibrary}
       />
     );
   }
@@ -202,16 +226,13 @@ export const AssignKraModal: React.FC<AssignKraModalProps> = ({
   return createPortal(
     <div
       className={`fixed inset-0 z-[9994] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 ${backdropClass}`}
-      onClick={handleBackdropClick}
     >
-      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[85vh] flex flex-col ${cardClass}`}>
+      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-lg shadow-2xl overflow-hidden max-h-[85vh] flex flex-col ${cardClass}`}>
         <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center">
-              <UserPlus className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            </div>
+            <UserPlus className="w-5 h-5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">Assign New KRA Scorecard</h2>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Assign new KRA scorecard</h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Pick an employee who doesn't have a KRA scorecard yet.
               </p>

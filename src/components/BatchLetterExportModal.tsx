@@ -54,7 +54,7 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } =
+  const { isMounted, handleClose, backdropClass, cardClass } =
     useModalAnimation({ onClose });
 
   useEffect(() => {
@@ -278,23 +278,18 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
   return createPortal(
     <div
       className={`fixed inset-0 z-[9990] overflow-y-auto bg-slate-950/70 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 ${backdropClass}`}
-      onClick={(e) => {
-        if (!isExportingZip) {
-          handleBackdropClick(e);
-        }
-      }}
     >
-      <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 my-auto ${cardClass}`}>
+      <div className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 my-auto ${cardClass}`}>
         {/* Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-indigo-500/20 rounded-xl border border-indigo-400/30 text-indigo-300">
               <Archive className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-white">Batch Appraisal Letter & Payroll Export Engine</h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                <h3 className="text-base font-bold text-white">Export letters and payroll</h3>
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
                   Automated
                 </span>
               </div>
@@ -347,36 +342,36 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
           {/* Summary Metric Strip */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-xl">
-              <span className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider block">
-                Selected for Export
+              <span className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 block">
+                Selected for export
               </span>
-              <div className="text-xl font-extrabold text-indigo-950 dark:text-white font-mono mt-0.5">
+              <div className="text-xl font-bold text-indigo-950 dark:text-white tabular-nums mt-0.5">
                 {selectedAppraisalsList.length}{' '}
                 <span className="text-xs font-normal text-slate-500 dark:text-slate-400">/ {filteredAppraisals.length}</span>
               </div>
             </div>
 
             <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 rounded-xl">
-              <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider block">
-                Avg Increment
+              <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 block">
+                Avg increment
               </span>
-              <div className="text-xl font-extrabold text-emerald-700 dark:text-emerald-400 font-mono mt-0.5">+{avgIncrement}%</div>
+              <div className="text-xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums mt-0.5">+{avgIncrement}%</div>
             </div>
 
             <div className="p-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl">
-              <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">
-                Annual Payroll Impact
+              <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 block">
+                Annual payroll impact
               </span>
-              <div className="text-lg font-bold text-slate-900 dark:text-white font-mono mt-0.5">
+              <div className="text-lg font-bold text-slate-900 dark:text-white tabular-nums mt-0.5">
                 +₹{(totalBudgetImpact / 100000).toFixed(2)} Lakhs
               </div>
             </div>
 
             <div className="p-3 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/50 rounded-xl">
-              <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wider block">
+              <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 block">
                 Promotions
               </span>
-              <div className="text-xl font-extrabold text-amber-800 dark:text-amber-400 font-mono mt-0.5">
+              <div className="text-xl font-bold text-amber-800 dark:text-amber-400 tabular-nums mt-0.5">
                 {promotionCount}{' '}
                 <span className="text-xs font-normal text-amber-600 dark:text-amber-400">employees</span>
               </div>
@@ -389,24 +384,24 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
               <div className="flex flex-wrap items-center gap-3">
                 {/* Status Filter */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                    Workflow Status
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                    Workflow status
                   </label>
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value as any)}
                     className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500"
                   >
-                    <option value="LOCKED_OR_APPROVED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Locked & HR Approved (Ready for Letters)</option>
-                    <option value="LOCKED_ONLY" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Locked & Released Only</option>
-                    <option value="HR_APPROVED_ONLY" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">HR Approved Only</option>
-                    <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All Appraisals (Including Pending)</option>
+                    <option value="LOCKED_OR_APPROVED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Locked & HR approved (ready for letters)</option>
+                    <option value="LOCKED_ONLY" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Locked & released only</option>
+                    <option value="HR_APPROVED_ONLY" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">HR approved only</option>
+                    <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All appraisals (including pending)</option>
                   </select>
                 </div>
 
                 {/* Department Filter */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
                     Department
                   </label>
                   <select
@@ -414,7 +409,7 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
                     onChange={(e) => setFilterDept(e.target.value)}
                     className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500"
                   >
-                    <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All Departments</option>
+                    <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All departments</option>
                     {departments.map((d) => (
                       <option key={d.id} value={d.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                         {d.name}
@@ -425,15 +420,15 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
 
                 {/* Cycle Filter */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                    Cohort Cycle
+                  <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1">
+                    Cohort cycle
                   </label>
                   <select
                     value={filterCycle}
                     onChange={(e) => setFilterCycle(e.target.value)}
                     className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg text-xs font-medium focus:ring-1 focus:ring-indigo-500"
                   >
-                    <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All Cycles</option>
+                    <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All cycles</option>
                     {cycles.filter((c) => c.active !== false).map((c) => (
                       <option key={c.id} value={c.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                         {c.name} (Month {c.appraisalMonth})
@@ -454,7 +449,7 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
                 }`}
               >
                 <Sliders className="w-3.5 h-3.5" />
-                <span>Letterhead & Format Settings</span>
+                <span>Letterhead & format settings</span>
               </button>
             </div>
 
@@ -463,12 +458,12 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
               <div className="p-4 bg-white dark:bg-slate-850 rounded-xl border border-indigo-200 dark:border-indigo-800 space-y-3 mt-3 animate-in fade-in duration-150">
                 <div className="font-bold text-xs text-indigo-950 dark:text-indigo-300 flex items-center gap-1.5">
                   <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  <span>Corporate Letterhead & Signatory Customization</span>
+                  <span>Corporate letterhead & signatory customization</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Company / Entity Name</label>
+                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Company / entity name</label>
                     <input
                       type="text"
                       value={settings.companyName}
@@ -477,7 +472,7 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Division / Org Header</label>
+                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Division / org header</label>
                     <input
                       type="text"
                       value={settings.divisionName}
@@ -486,7 +481,7 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Authorized Signatory Name</label>
+                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Authorized signatory name</label>
                     <input
                       type="text"
                       value={settings.signatoryName}
@@ -495,7 +490,7 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Signatory Title</label>
+                    <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Signatory title</label>
                     <input
                       type="text"
                       value={settings.signatoryTitle}
@@ -513,7 +508,7 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
                       onChange={(e) => setSettings({ ...settings, includeBreakdown: e.target.checked })}
                       className="rounded text-indigo-600 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                     />
-                    <span>Include 5-Component CTC Breakdown (Basic, HRA, Special Allowance, PF)</span>
+                    <span>Include 5-component CTC breakdown (basic, HRA, special allowance, PF)</span>
                   </label>
 
                   <label className="flex items-center gap-2 cursor-pointer text-slate-700 dark:text-slate-300 font-medium text-xs">
@@ -523,7 +518,7 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
                       onChange={(e) => setSettings({ ...settings, includeQuarterlyHistory: e.target.checked })}
                       className="rounded text-indigo-600 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                     />
-                    <span>Include Rolling 4-Quarter Review Scorecard</span>
+                    <span>Include rolling 4-quarter review scorecard</span>
                   </label>
                 </div>
               </div>
@@ -545,14 +540,14 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
                   style={{ width: `${(exportProgress.current / exportProgress.total) * 100}%` }}
                 />
               </div>
-              <p className="text-[10px] text-indigo-700 dark:text-indigo-300">
+              <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
                 Packaging formatted PDF documents and payroll CSV into .zip archive.
               </p>
             </div>
           )}
 
           {/* Table of Appraisals with Checkboxes */}
-          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
             <div className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <input
@@ -565,7 +560,7 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
                   Select All Filtered ({selectedAppraisalsList.length} / {filteredAppraisals.length} selected)
                 </span>
               </div>
-              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
                 Cohort: {filterCycle === 'ALL' ? 'All Cycles' : filterCycle}
               </span>
             </div>
@@ -602,16 +597,16 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
                         <div className="min-w-0">
                           <div className="font-semibold text-slate-900 dark:text-white truncate flex items-center gap-1.5">
                             <span>{appraisal.employeeName}</span>
-                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                            <span className="text-[11px] tabular-nums px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                               {appraisal.employeeCode}
                             </span>
                             {appraisal.promotionRecommended && (
-                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-bold">
+                              <span className="text-[11px] px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 font-bold">
                                 Promoted
                               </span>
                             )}
                           </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 truncate">
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 truncate">
                             <span>{appraisal.departmentName}</span>
                             <span>•</span>
                             <span>{appraisal.designationName}</span>
@@ -625,16 +620,16 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
 
                       <div className="flex items-center gap-4 shrink-0 text-right">
                         <div>
-                          <div className="font-mono font-bold text-slate-900 dark:text-white">
+                          <div className="tabular-nums font-bold text-slate-900 dark:text-white">
                             ₹{revisedCtc.toLocaleString()}
                           </div>
-                          <div className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                          <div className="text-[11px] tabular-nums text-emerald-600 dark:text-emerald-400 font-bold">
                             +{incPct}% (₹{currentCtc.toLocaleString()} prev)
                           </div>
                         </div>
 
                         <span
-                          className={`text-[9px] px-2 py-0.5 rounded-full font-bold border shrink-0 ${
+                          className={`text-[11px] px-2 py-0.5 rounded-full font-bold border shrink-0 ${
                             appraisal.status === 'LOCKED'
                               ? 'bg-slate-900 dark:bg-slate-700 text-white border-slate-900 dark:border-slate-600'
                               : appraisal.status === 'HR_APPROVED'
@@ -669,7 +664,7 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
               title="Download detailed payroll reconciliation CSV"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>Export Payroll CSV</span>
+              <span>Export payroll CSV</span>
             </button>
 
             {/* Action 2: Multi-Page Print Preview */}
@@ -689,7 +684,7 @@ export const BatchLetterExportModal: React.FC<BatchLetterExportModalProps> = ({
               type="button"
               disabled={selectedAppraisalsList.length === 0 || isExportingZip}
               onClick={handleDownloadZip}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all cursor-pointer disabled:opacity-50"
             >
               {isExportingZip ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

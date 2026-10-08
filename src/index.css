@@ -3,112 +3,71 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* Surface & Canvas */
   --bg-app: #f8fafc;
-  --bg-surface: #ffffff;
-  --bg-surface-subtle: #f1f5f9;
-  --bg-surface-hover: #f8fafc;
-  
-  /* Borders */
-  --border-subtle: #e2e8f0;
-  --border-default: #cbd5e1;
-  --border-strong: #94a3b8;
-
-  /* Typography */
   --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --text-faint: #94a3b8;
-
-  /* Brand Accent (Single restrained accent — indigo, used strictly for primary actions & active state) */
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
-  --accent-subtle: #eef2ff;
-  --accent-border: #c7d2fe;
-  --accent-text: #ffffff;
-
-  /* Semantic Colors - Strictly reserved for meaningful indicators */
-  --semantic-success: #16a34a;
-  --semantic-success-subtle: #f0fdf4;
-  --semantic-success-border: #bbf7d0;
-  --semantic-success-text: #166534;
-
-  --semantic-warning: #d97706;
-  --semantic-warning-subtle: #fffbeb;
-  --semantic-warning-border: #fde68a;
-  --semantic-warning-text: #92400e;
-
-  --semantic-danger: #dc2626;
-  --semantic-danger-subtle: #fef2f2;
-  --semantic-danger-border: #fecaca;
-  --semantic-danger-text: #991b1b;
-
-  --semantic-info: #0284c7;
-  --semantic-info-subtle: #f0f9ff;
-  --semantic-info-border: #bae6fd;
-  --semantic-info-text: #075985;
-
-  /* Elevation (Reserved strictly for overlays) */
-  --shadow-overlay: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  --shadow-dropdown: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
 }
 
 .dark {
-  /* Surface & Canvas (Genuine remap with #0b1120 base) */
-  --bg-app: #0b1120;
-  --bg-surface: #0f172a;
-  --bg-surface-subtle: #1e293b;
-  --bg-surface-hover: #1e293b;
-  
-  /* Borders */
-  --border-subtle: #1e293b;
-  --border-default: #334155;
-  --border-strong: #475569;
-
-  /* Typography */
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --text-faint: #64748b;
-
-  /* Brand Accent */
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-subtle: #1e1b4b;
-  --accent-border: #4338ca;
-  --accent-text: #ffffff;
-
-  /* Semantic Colors */
-  --semantic-success: #22c55e;
-  --semantic-success-subtle: #052e16;
-  --semantic-success-border: #14532d;
-  --semantic-success-text: #86efac;
-
-  --semantic-warning: #f59e0b;
-  --semantic-warning-subtle: #451a03;
-  --semantic-warning-border: #78350f;
-  --semantic-warning-text: #fde68a;
-
-  --semantic-danger: #ef4444;
-  --semantic-danger-subtle: #450a0a;
-  --semantic-danger-border: #7f1d1d;
-  --semantic-danger-text: #fca5a5;
-
-  --semantic-info: #38bdf8;
-  --semantic-info-subtle: #082f49;
-  --semantic-info-border: #0c4a6e;
-  --semantic-info-text: #7dd3fc;
-
-  /* Elevation */
-  --shadow-overlay: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
-  --shadow-dropdown: 0 4px 6px -1px rgba(0, 0, 0, 0.25), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  --bg-app: #020617;
+  --text-primary: #f1f5f9;
 }
 
 @theme {
-  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Numbers use the body face with tabular figures (see .font-mono below); the UI has no code font. */
+  --font-mono: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
   --color-slate-750: #243044;
   --color-slate-850: #172033;
+
+  /* Brand accent: MintReview green. Components use the `indigo-*` utilities for the accent,
+     so the accent is defined here once instead of in every component. */
+  --color-indigo-50: #eef8f3;
+  --color-indigo-100: #d6efe2;
+  --color-indigo-200: #b0dec8;
+  --color-indigo-300: #7fc6a7;
+  --color-indigo-400: #4aa984;
+  --color-indigo-500: #23916b;
+  --color-indigo-600: #12805c;
+  --color-indigo-700: #0b6a4c;
+  --color-indigo-800: #0b553e;
+  --color-indigo-900: #0a4634;
+  --color-indigo-950: #04271d;
+
+  /* No violet / purple / fuchsia in the palette: those utilities render as neutral slate. */
+  --color-violet-50: var(--color-slate-50);
+  --color-violet-100: var(--color-slate-100);
+  --color-violet-200: var(--color-slate-200);
+  --color-violet-300: var(--color-slate-300);
+  --color-violet-400: var(--color-slate-400);
+  --color-violet-500: var(--color-slate-500);
+  --color-violet-600: var(--color-slate-600);
+  --color-violet-700: var(--color-slate-700);
+  --color-violet-800: var(--color-slate-800);
+  --color-violet-900: var(--color-slate-900);
+  --color-violet-950: var(--color-slate-950);
+  --color-purple-50: var(--color-slate-50);
+  --color-purple-100: var(--color-slate-100);
+  --color-purple-200: var(--color-slate-200);
+  --color-purple-300: var(--color-slate-300);
+  --color-purple-400: var(--color-slate-400);
+  --color-purple-500: var(--color-slate-500);
+  --color-purple-600: var(--color-slate-600);
+  --color-purple-700: var(--color-slate-700);
+  --color-purple-800: var(--color-slate-800);
+  --color-purple-900: var(--color-slate-900);
+  --color-purple-950: var(--color-slate-950);
+  --color-fuchsia-50: var(--color-slate-50);
+  --color-fuchsia-100: var(--color-slate-100);
+  --color-fuchsia-200: var(--color-slate-200);
+  --color-fuchsia-300: var(--color-slate-300);
+  --color-fuchsia-400: var(--color-slate-400);
+  --color-fuchsia-500: var(--color-slate-500);
+  --color-fuchsia-600: var(--color-slate-600);
+  --color-fuchsia-700: var(--color-slate-700);
+  --color-fuchsia-800: var(--color-slate-800);
+  --color-fuchsia-900: var(--color-slate-900);
+  --color-fuchsia-950: var(--color-slate-950);
 }
 
 @layer base {
@@ -123,16 +82,13 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     transition: background-color 150ms ease-out, color 150ms ease-out;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
   body.dark {
-    background-color: var(--bg-app);
-    color: var(--text-primary);
     color-scheme: dark;
   }
 
-  /* Universal numeric formatting standard */
+  /* Numbers line up in columns wherever they're marked as numeric */
   .tabular-nums,
   [data-numeric="true"],
   .font-mono {
@@ -159,7 +115,7 @@
 
   .dark option {
     color: #f1f5f9;
-    background-color: #1e293b;
+    background-color: #0f172a;
   }
 
   /* Universal table styling safety */
@@ -169,95 +125,19 @@
   }
 
   th, td {
-    border-color: var(--border-subtle);
+    border-color: #e2e8f0;
   }
 
-  .dark th, .dark td {
-    border-color: var(--border-subtle);
-  }
-
-  /* Subtle, sleek scrollbar */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.35);
-    border-radius: 9999px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(100, 116, 139, 0.55);
-  }
-
-  .dark ::-webkit-scrollbar-thumb {
-    background: rgba(71, 85, 105, 0.45);
-  }
-
-  .dark ::-webkit-scrollbar-thumb:hover {
-    background: rgba(100, 116, 139, 0.7);
+  .dark th,
+  .dark td {
+    border-color: rgba(255, 255, 255, 0.08);
   }
 }
 
 /* ==========================================================================
-   Enterprise SaaS Primitives: Surface, Card, Transitions
-   Replaces legacy glassmorphism & heavy shadows with crisp 1px bordered surfaces.
+   Transitions: opacity & subtle translate only, in response to navigation
    ========================================================================== */
 
-/* Flat Card Surface (8px radius, 1px border, flat) */
-.surface,
-.glass-panel {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-}
-
-.surface-subtle,
-.glass-panel-subtle {
-  background-color: var(--bg-surface-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-}
-
-/* Subtle Hover Tint (Flat, no scale, no colored glow) */
-.surface-hover,
-.saas-card-hover {
-  transition: border-color 150ms ease-out, background-color 150ms ease-out;
-}
-
-.surface-hover:hover,
-.saas-card-hover:hover {
-  border-color: var(--border-default);
-}
-
-/* Modals (10px radius, 1px border, low opacity backdrop with subtle blur) */
-.modal-surface {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: 10px;
-  box-shadow: var(--shadow-overlay);
-}
-
-/* Form Controls (6px radius) */
-.control-surface {
-  border-radius: 6px;
-  border: 1px solid var(--border-default);
-  background-color: var(--bg-surface);
-  transition: border-color 150ms ease-out, box-shadow 150ms ease-out;
-}
-
-.control-surface:focus-visible {
-  border-color: var(--accent);
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-/* Transitions: 120-180ms ease-out, opacity & subtle translate only */
 @keyframes fadeIn {
   0% {
     opacity: 0;
@@ -323,11 +203,23 @@
   animation: toastSlideOut 200ms cubic-bezier(0.4, 0, 1, 1) both;
 }
 
-.animate-entrance,
-.animate-entrance-scale,
-.animate-badge-in,
 .animate-fadeIn {
   animation: fadeIn 150ms ease-out both;
+}
+
+/* Login example card: the rating bar fills left to right once, as if being scored */
+@keyframes loginFill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.login-fill {
+  transform-origin: left;
+  animation: loginFill 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
 /* Shimmer Loading Effect (Calm neutral) */
@@ -373,116 +265,7 @@
 }
 
 /* ==========================================================================
-   Login Page: ambient background motion & staggered entrance choreography.
-   Scoped to .login-* classes so it never leaks into the rest of the app,
-   which intentionally stays flat/static per REDESIGN_NOTES.md.
-   ========================================================================== */
-
-@keyframes loginBlobFloat {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(4%, -5%) scale(1.08); }
-  66% { transform: translate(-4%, 4%) scale(0.95); }
-}
-
-.login-blob {
-  animation: loginBlobFloat 16s ease-in-out infinite;
-}
-
-.login-blob-delay {
-  animation-delay: -8s;
-}
-
-@keyframes loginFadeUp {
-  0% {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.login-fade-up {
-  animation: loginFadeUp 650ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.login-delay-1 { animation-delay: 80ms; }
-.login-delay-2 { animation-delay: 160ms; }
-.login-delay-3 { animation-delay: 240ms; }
-.login-delay-4 { animation-delay: 320ms; }
-.login-delay-5 { animation-delay: 400ms; }
-.login-delay-6 { animation-delay: 480ms; }
-
-@keyframes loginLogoGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.35); }
-  50% { box-shadow: 0 0 0 9px rgba(79, 70, 229, 0); }
-}
-
-.login-logo-glow {
-  animation: loginLogoGlow 2.8s ease-out infinite;
-}
-
-/* Sign-in button sheen sweep on hover */
-.login-btn-sheen {
-  position: relative;
-  overflow: hidden;
-}
-
-.login-btn-sheen::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -60%;
-  width: 40%;
-  height: 100%;
-  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.35), transparent);
-  transform: skewX(-20deg);
-  transition: left 550ms ease;
-  pointer-events: none;
-}
-
-.login-btn-sheen:hover::after {
-  left: 130%;
-}
-
-/* Cycle-progress bar: fills from 0 to its target width on mount, then a soft */
-/* highlight sweeps across it once, like a "line filling" load-in. */
-@keyframes loginProgressFill {
-  0% { width: 0%; }
-  100% { width: var(--login-progress-target, 85%); }
-}
-
-.login-progress-fill {
-  animation: loginProgressFill 1.3s cubic-bezier(0.16, 1, 0.3, 1) 900ms both;
-}
-
-@keyframes loginProgressSheen {
-  0%, 60% { transform: translateX(-100%); opacity: 0; }
-  70% { opacity: 1; }
-  100% { transform: translateX(220%); opacity: 0; }
-}
-
-.login-progress-fill::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
-  animation: loginProgressSheen 1.3s ease-out 900ms both;
-}
-
-/* Faint dotted grid backdrop */
-.login-grid-backdrop {
-  background-image: radial-gradient(circle, rgba(100, 116, 139, 0.18) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
-.dark .login-grid-backdrop {
-  background-image: radial-gradient(circle, rgba(148, 163, 184, 0.14) 1px, transparent 1px);
-}
-
-/* ==========================================================================
-   MODAL & OVERLAY ANIMATIONS (SMOOTH HARDWARE-ACCELERATED)
+   MODAL & OVERLAY ANIMATIONS
    ========================================================================== */
 
 @keyframes modalBackdropFadeIn {
@@ -613,7 +396,7 @@
   pointer-events: none;
 }
 
-/* Backwards compatibility / alias for any standard Tailwind utility animation in existing templates */
+/* Aliases for the Tailwind-animate class names used across existing components */
 .animate-in.fade-in {
   animation: modalBackdropFadeIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -621,10 +404,6 @@
 .animate-in.fade-in.zoom-in-95,
 .animate-in.zoom-in-95 {
   animation: modalCardScaleIn 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.animate-fade-in {
-  animation: modalBackdropFadeIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Accessibility: Honour prefers-reduced-motion by strictly disabling transforms & animations */
@@ -645,7 +424,7 @@
   }
 }
 
-/* Custom slim modern scrollbar with breathing room */
+/* Slim scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -666,4 +445,23 @@
 }
 .dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.45);
+}
+
+/* Notification bell: one short ring when a new notification arrives */
+@keyframes bellRing {
+  0% { transform: rotate(0); }
+  12% { transform: rotate(16deg); }
+  24% { transform: rotate(-14deg); }
+  36% { transform: rotate(12deg); }
+  48% { transform: rotate(-10deg); }
+  60% { transform: rotate(6deg); }
+  72% { transform: rotate(-4deg); }
+  84% { transform: rotate(2deg); }
+  92% { transform: rotate(-1deg); }
+  100% { transform: rotate(0); }
+}
+
+.animate-bell-ring {
+  transform-origin: top center;
+  animation: bellRing 1.1s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }

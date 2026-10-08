@@ -12,12 +12,14 @@ import {
 } from '../types';
 import { api } from '../services/api';
 import { ReviewScoringModal } from './ReviewScoringModal';
+import { SelfAssessmentModal } from './SelfAssessmentModal';
 import { BatchGenerateReviewsModal } from './BatchGenerateReviewsModal';
 import { InitiateReviewModal } from './InitiateReviewModal';
 import { AssignKraModal } from './AssignKraModal';
 import { CustomKraRow } from './CustomKraScorecardModal';
 import { CycleBadge } from './ui/CycleBadge';
 import { StatusBadge, EmployeeStatusBadge } from './ui/StatusBadge';
+import { ReturnCountBadge } from './reviews/ReviewScoringModal/ReturnCountBadge';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 import { toast } from '../context/ToastContext';
 import { useModalAnimation } from '../hooks/useModalAnimation';
@@ -47,7 +49,6 @@ import {
   Lock,
   ChevronRight,
   ChevronLeft,
-  ChevronDown,
   UserCheck,
   LayoutGrid,
   List,
@@ -58,11 +59,14 @@ import {
   UserPlus,
   MoreVertical,
   Plus,
-  Check,
   Filter,
   X,
-  BarChart2,
+  Star,
+  Eye,
 } from 'lucide-react';
+import { PageHeader } from './ui/PageHeader';
+import { Button } from './ui/Button';
+import { SELECT_CLASS } from './ui/formStyles';
 
 export interface ReviewViewConfig {
   status?: string;
@@ -71,6 +75,7 @@ export interface ReviewViewConfig {
   cycleId?: string;
   reviewId?: string;
   myReportsOnly?: boolean;
+  openSelfAssess?: boolean;
 }
 
 interface QuarterlyReviewViewProps {
@@ -106,7 +111,6 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   const [myReportsOnly, setMyReportsOnly] = useState<boolean>(false);
   const [hideInactive, setHideInactive] = useState<boolean>(false);
   const [showMoreFilters, setShowMoreFilters] = useState<boolean>(false);
-  const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
 
   // View & Pagination
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
@@ -121,6 +125,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
 
   // Modals
   const [activeReviewForScoring, setActiveReviewForScoring] = useState<EmployeeReview | null>(null);
+  const [activeReviewForSelfAssess, setActiveReviewForSelfAssess] = useState<EmployeeReview | null>(null);
   const [isScoringModalOpen, setIsScoringModalOpen] = useState<boolean>(false);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState<boolean>(false);
   const [isInitiateModalOpen, setIsInitiateModalOpen] = useState<boolean>(false);
@@ -195,7 +200,32 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       if (!initialConfig.reviewId && initialConfig.departmentId) setFilterDepartmentId(initialConfig.departmentId);
       if (!initialConfig.reviewId && initialConfig.myReportsOnly !== undefined) setMyReportsOnly(initialConfig.myReportsOnly);
 
-      if (initialConfig.reviewId && initialConfig.reviewId !== handledReviewIdRef.current) {
+      if (initialConfig.openSelfAssess) {
+        (async () => {
+          try {
+            if (initialConfig.reviewId) {
+              const single = await api.getReviewById(initialConfig.reviewId);
+              if (single) {
+                setActiveReviewForSelfAssess(single);
+                return;
+              }
+            }
+            const res = await api.getReviews();
+            const myEmpId = (currentUser as any)?.employeeId || currentUser?.id;
+            const target = res?.find(
+              (r) =>
+                (r.employeeId === myEmpId || currentUser?.role === 'EMPLOYEE') &&
+                !r.isClosed &&
+                r.status !== 'CLOSED'
+            );
+            if (target) {
+              setActiveReviewForSelfAssess(target);
+            }
+          } catch (err) {
+            console.warn('Could not auto-open self assessment', err);
+          }
+        })();
+      } else if (initialConfig.reviewId && initialConfig.reviewId !== handledReviewIdRef.current) {
         handledReviewIdRef.current = initialConfig.reviewId;
         const targetId = initialConfig.reviewId;
         (async () => {
@@ -223,7 +253,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       }
       onClearInitialConfig?.();
     }
-  }, [initialConfig, onClearInitialConfig]);
+  }, [initialConfig, onClearInitialConfig, currentUser]);
 
   // Load Review Periods on Mount or when currentUser changes
   useEffect(() => {
@@ -632,16 +662,19 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   // Score badge helper
   const renderScoreBadge = (score?: number) => {
     if (!score || score === 0) {
-      return <span className="text-xs text-slate-400 font-mono">—</span>;
+      return <span className="text-xs text-slate-400 tabular-nums">—</span>;
     }
-    let color = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700';
-    if (score >= 4.5) color = 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60';
-    else if (score >= 3.5) color = 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60';
-    else if (score >= 2.5) color = 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800/60';
-    else color = 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/60';
+    const color =
+      score >= 4.5
+        ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60'
+        : score >= 3.5
+        ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60'
+        : score >= 2.5
+        ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800/60'
+        : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/60';
 
     return (
-      <span className={`inline-flex items-center text-xs font-bold font-mono px-2 py-0.5 rounded-md border ${color}`}>
+      <span className={`inline-flex items-center text-xs font-bold tabular-nums px-2 py-0.5 rounded-md border ${color}`}>
         {score.toFixed(2)}
       </span>
     );
@@ -669,7 +702,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   // Batch Reminder
   const handleBatchSendReminder = () => {
     if (selectedReviewIds.length === 0) return;
-    toast.success(`Reminder notifications sent to ${selectedReviewIds.length} review participant(s).`, 'Reminders Dispatched');
+    toast.success(`Reminder notifications sent to ${selectedReviewIds.length} review participant(s).`, 'Reminders dispatched');
     setSelectedReviewIds([]);
   };
 
@@ -714,6 +747,18 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       const fresh = await api.getReviewById(review.id);
       if (fresh) {
         setActiveReviewForScoring(fresh);
+      }
+    } catch {
+      // quiet fallback
+    }
+  };
+
+  const handleOpenSelfAssess = async (review: EmployeeReview) => {
+    setActiveReviewForSelfAssess(review);
+    try {
+      const fresh = await api.getReviewById(review.id);
+      if (fresh) {
+        setActiveReviewForSelfAssess(fresh);
       }
     } catch {
       // quiet fallback
@@ -776,7 +821,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success(`Exported ${displayedReviews.length} reviews to CSV.`, 'Export Complete');
+    toast.success(`Exported ${displayedReviews.length} reviews to CSV.`, 'Export complete');
   };
 
   // Period Status Change
@@ -814,211 +859,146 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
         </div>
       )}
 
-      {/* 1. COMPACT PAGE HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
-            {isEmployeeRole ? 'My Reviews' : 'Quarterly Reviews'}
-          </h1>
-
-          {/* Active Period Status Pill */}
-          {selectedPeriod && (
-            <span
-              className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-semibold rounded-full border shadow-2xs ${
-                selectedPeriod.status === 'ACTIVE'
-                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60'
-                  : selectedPeriod.status === 'LOCKED'
-                  ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800/60'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
-              }`}
-            >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  selectedPeriod.status === 'ACTIVE'
-                    ? 'bg-emerald-500 animate-pulse'
-                    : selectedPeriod.status === 'LOCKED'
-                    ? 'bg-amber-500'
-                    : 'bg-slate-400'
-                }`}
-              />
-              <span>{selectedPeriod.name}</span>
-            </span>
-          )}
-        </div>
-
-        {/* PERIOD SELECTOR & ACTIONS */}
-        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-          {/* Period Selector Dropdown */}
-          <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 shadow-2xs">
-            <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+      <PageHeader
+        title={isEmployeeRole ? 'My reviews' : 'Quarterly reviews'}
+        meta={
+          selectedPeriod && (
+            <StatusBadge
+              status={selectedPeriod.name}
+              tone={selectedPeriod.status === 'ACTIVE' ? 'success' : selectedPeriod.status === 'LOCKED' ? 'warning' : 'default'}
+            />
+          )
+        }
+        description={
+          isEmployeeRole
+            ? 'Your self-assessments and review results for each quarter.'
+            : 'Start reviews, see where each one is, and export the results.'
+        }
+        actions={
+          <>
             <select
               value={selectedPeriodId}
               onChange={(e) => setSelectedPeriodId(e.target.value)}
               disabled={periods.length === 0}
               aria-label="Select quarterly review period"
-              className="text-xs font-semibold text-slate-800 dark:text-slate-200 bg-transparent border-0 focus:ring-0 focus:outline-none cursor-pointer pr-1 disabled:opacity-50"
+              className={SELECT_CLASS}
             >
               {periods.length === 0 ? (
-                <option value="">No Active Periods</option>
+                <option value="">No active periods</option>
               ) : (
                 periods.map((p) => (
-                  <option key={p.id} value={p.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+                  <option key={p.id} value={p.id}>
                     {p.name} {p.status === 'ACTIVE' ? '• Active' : `(${p.status})`}
                   </option>
                 ))
               )}
             </select>
-          </div>
-
-          {/* Refresh */}
-          <button
-            onClick={() => loadReviewPeriods()}
-            title="Refresh review records"
-            className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs transition-colors cursor-pointer"
-          >
-            <RotateCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-
-          {/* Export */}
-          <button
-            onClick={handleExportCSV}
-            disabled={reviews.length === 0}
-            className="px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-lg shadow-2xs transition-colors flex items-center space-x-1 disabled:opacity-50 cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5 text-slate-400" />
-            <span>Export</span>
-          </button>
-
-          {isSuperAdminOrHr && (
-            <>
-              {/* Periods Control */}
-              <button
-                onClick={() => setIsPeriodModalOpen(true)}
-                title="Manage Review Period Lifecycles"
-                className="px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 rounded-lg shadow-2xs transition-colors flex items-center space-x-1 cursor-pointer"
-              >
-                <Settings2 className="w-3.5 h-3.5 text-slate-400" />
-                <span>Periods</span>
-              </button>
-
-              {/* Initiate Batch */}
-              <button
-                onClick={() => setIsBatchModalOpen(true)}
-                className="px-3 py-1 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white rounded-lg shadow-2xs transition-colors flex items-center space-x-1 cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-400 dark:text-amber-600" />
-                <span>Initiate Batch</span>
-              </button>
-
-              {/* Initiate Single Review */}
-              <button
-                onClick={() => setIsInitiateModalOpen(true)}
-                className="px-3 py-1 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition-colors flex items-center space-x-1 cursor-pointer"
-                title="Initiate single employee review"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-indigo-200" />
-                <span>Initiate Review</span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+            <Button variant="ghost" icon={RotateCw} iconSpin={loading} onClick={() => loadReviewPeriods()} title="Refresh" aria-label="Refresh reviews" />
+            <Button icon={Download} onClick={handleExportCSV} disabled={reviews.length === 0}>
+              Export
+            </Button>
+            {isSuperAdminOrHr && (
+              <>
+                <Button icon={Settings2} onClick={() => setIsPeriodModalOpen(true)} title="Open, lock or close review periods">
+                  Periods
+                </Button>
+                <Button icon={Users} onClick={() => setIsBatchModalOpen(true)} title="Start reviews for many employees at once">
+                  Start in bulk
+                </Button>
+                <Button variant="primary" icon={UserCheck} onClick={() => setIsInitiateModalOpen(true)} title="Start a review for one employee">
+                  Start review
+                </Button>
+              </>
+            )}
+          </>
+        }
+      />
 
       {/* 2. COMPACT 5-CARD KPI STRIP (FITS IN SINGLE TIGHT ROW) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
         {/* Card 1: Total Reviews */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 shadow-2xs flex items-center justify-between gap-2">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block truncate">Total Reviews</span>
+            <span className="text-[11px] font-semibold text-slate-400 block truncate">Total reviews</span>
             <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-xl font-bold text-slate-900 dark:text-white font-mono leading-none">{liveMetrics.total}</span>
-              <span className="text-[10px] text-slate-400 font-medium">({liveMetrics.cohortCoveragePct}% cov)</span>
+              <span className="text-xl font-bold text-slate-900 dark:text-white tabular-nums leading-none">{liveMetrics.total}</span>
+              <span className="text-[11px] text-slate-400 font-medium">({liveMetrics.cohortCoveragePct}% cov)</span>
             </div>
           </div>
-          <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-            <Users className="w-3.5 h-3.5" />
-          </div>
+          <Users className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
         </div>
 
         {/* Card 2: Completion Rate */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 shadow-2xs flex items-center justify-between gap-2">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 flex items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block truncate">Completion</span>
+            <span className="text-[11px] font-semibold text-slate-400 block truncate">Completion</span>
             <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-xl font-bold text-slate-900 dark:text-white font-mono leading-none">{liveMetrics.completionRate}%</span>
-              <span className="text-[10px] text-slate-400">({liveMetrics.completedCount}/{liveMetrics.total})</span>
+              <span className="text-xl font-bold text-slate-900 dark:text-white tabular-nums leading-none">{liveMetrics.completionRate}%</span>
+              <span className="text-[11px] text-slate-400">({liveMetrics.completedCount}/{liveMetrics.total})</span>
             </div>
             <div className="mt-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1 overflow-hidden">
               <div className="bg-emerald-500 h-1 rounded-full transition-all duration-500" style={{ width: `${liveMetrics.completionRate}%` }} />
             </div>
           </div>
-          <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-          </div>
+          <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
         </div>
 
         {/* Card 3: Pending Reviews */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 shadow-2xs flex items-center justify-between gap-2">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block truncate">Pending Action</span>
+            <span className="text-[11px] font-semibold text-slate-400 block truncate">Pending action</span>
             <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-xl font-bold text-slate-900 dark:text-white font-mono leading-none">{liveMetrics.totalPending}</span>
-              <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">{liveMetrics.pendingRate}%</span>
+              <span className="text-xl font-bold text-slate-900 dark:text-white tabular-nums leading-none">{liveMetrics.totalPending}</span>
+              <span className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold">{liveMetrics.pendingRate}%</span>
             </div>
           </div>
-          <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-            <Clock className="w-3.5 h-3.5" />
-          </div>
+          <Clock className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
         </div>
 
         {/* Card 4: Overdue Reviews */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 shadow-2xs flex items-center justify-between gap-2">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block truncate">Overdue</span>
+            <span className="text-[11px] font-semibold text-slate-400 block truncate">Overdue</span>
             <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-xl font-bold text-slate-900 dark:text-white font-mono leading-none">{liveMetrics.overdueCount}</span>
-              <span className={`text-[10px] font-semibold ${liveMetrics.overdueCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+              <span className="text-xl font-bold text-slate-900 dark:text-white tabular-nums leading-none">{liveMetrics.overdueCount}</span>
+              <span className={`text-[11px] font-semibold ${liveMetrics.overdueCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                 {liveMetrics.overdueCount > 0 ? `${liveMetrics.overdueRate}%` : 'On schedule'}
               </span>
             </div>
           </div>
-          <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
-            <AlertTriangle className="w-3.5 h-3.5" />
-          </div>
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
         </div>
 
         {/* Card 5: Average Score */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 shadow-2xs flex items-center justify-between gap-2">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block truncate">Avg Score</span>
+            <span className="text-[11px] font-semibold text-slate-400 block truncate">Avg score</span>
             <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-xl font-bold text-slate-900 dark:text-white font-mono leading-none">
+              <span className="text-xl font-bold text-slate-900 dark:text-white tabular-nums leading-none">
                 {liveMetrics.avgScore > 0 ? liveMetrics.avgScore.toFixed(2) : '—'}
               </span>
-              <span className="text-[10px] text-slate-400 font-mono">/ 5.00</span>
+              <span className="text-[11px] text-slate-400 tabular-nums">/ 5.00</span>
             </div>
           </div>
-          <div className="w-7 h-7 rounded-lg bg-violet-50 dark:bg-violet-950/60 flex items-center justify-center text-violet-600 dark:text-violet-400 shrink-0">
-            <Award className="w-3.5 h-3.5" />
-          </div>
+          <Award className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
         </div>
       </div>
 
       {/* 3. VISUAL ANALYTICS PANELS (FIXED COMPACT LAYOUT WITH PROMINENT CHARTS) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* Panel 1: Review Stage Progress */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3.5 shadow-2xs flex flex-col justify-between space-y-2">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3.5 flex flex-col justify-between space-y-2">
           <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-            <h3 className="text-xs font-bold text-slate-900 dark:text-white">Stage Progress</h3>
-            <span className="text-[10px] text-slate-400 font-mono">{liveMetrics.total} total</span>
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white">Stage progress</h3>
+            <span className="text-[11px] text-slate-400 tabular-nums">{liveMetrics.total} total</span>
           </div>
 
           <div className="space-y-2 py-0.5">
             {/* Stage 1: Self Review */}
             <div className="space-y-0.5">
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-600 dark:text-slate-400">Self Review</span>
-                <span className="font-mono text-slate-500 dark:text-slate-400 text-[10px]">
+                <span className="text-slate-600 dark:text-slate-400">Self review</span>
+                <span className="tabular-nums text-slate-500 dark:text-slate-400 text-[11px]">
                   <strong>{stageProgress.self.count}</strong> / {liveMetrics.total} ({stageProgress.self.pct}%)
                 </span>
               </div>
@@ -1030,8 +1010,8 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
             {/* Stage 2: Manager Review */}
             <div className="space-y-0.5">
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-600 dark:text-slate-400">Manager Review</span>
-                <span className="font-mono text-slate-500 dark:text-slate-400 text-[10px]">
+                <span className="text-slate-600 dark:text-slate-400">Manager review</span>
+                <span className="tabular-nums text-slate-500 dark:text-slate-400 text-[11px]">
                   <strong>{stageProgress.manager.count}</strong> / {liveMetrics.total} ({stageProgress.manager.pct}%)
                 </span>
               </div>
@@ -1043,8 +1023,8 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
             {/* Stage 3: HR Review */}
             <div className="space-y-0.5">
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-600 dark:text-slate-400">HR Calibration</span>
-                <span className="font-mono text-slate-500 dark:text-slate-400 text-[10px]">
+                <span className="text-slate-600 dark:text-slate-400">HR calibration</span>
+                <span className="tabular-nums text-slate-500 dark:text-slate-400 text-[11px]">
                   <strong>{stageProgress.hr.count}</strong> / {liveMetrics.total} ({stageProgress.hr.pct}%)
                 </span>
               </div>
@@ -1056,8 +1036,8 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
             {/* Stage 4: Finalized */}
             <div className="space-y-0.5">
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-600 dark:text-slate-400">Finalized & Locked</span>
-                <span className="font-mono text-slate-500 dark:text-slate-400 text-[10px]">
+                <span className="text-slate-600 dark:text-slate-400">Finalized & locked</span>
+                <span className="tabular-nums text-slate-500 dark:text-slate-400 text-[11px]">
                   <strong>{stageProgress.finalized.count}</strong> / {liveMetrics.total} ({stageProgress.finalized.pct}%)
                 </span>
               </div>
@@ -1069,16 +1049,16 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
         </div>
 
         {/* Panel 2: Review Health */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3.5 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3.5 flex flex-col justify-between">
           <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-            <h3 className="text-xs font-bold text-slate-900 dark:text-white">Review Health</h3>
-            <span className="text-[10px] text-slate-400">Due: {selectedPeriod?.dueDate || '—'}</span>
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white">Review health</h3>
+            <span className="text-[11px] text-slate-400">Due: {selectedPeriod?.dueDate || '—'}</span>
           </div>
 
           <div className="flex items-center gap-4 py-1">
             <div className="relative w-32 h-32 shrink-0 flex items-center justify-center">
               {healthData.total === 0 ? (
-                <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-[10px] text-slate-400">
+                <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-[11px] text-slate-400">
                   No data
                 </div>
               ) : (
@@ -1104,11 +1084,11 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-base font-bold text-slate-900 dark:text-white font-mono leading-none">
+                    <span className="text-base font-bold text-slate-900 dark:text-white tabular-nums leading-none">
                       {healthData.onTrackPct}%
                     </span>
-                    <span className="text-[10px] text-slate-400 font-medium mt-1 leading-none">
-                      On Track
+                    <span className="text-[11px] text-slate-400 font-medium mt-1 leading-none">
+                      On track
                     </span>
                   </div>
                 </>
@@ -1119,43 +1099,43 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                  <span>On Track</span>
+                  <span>On track</span>
                 </span>
-                <span className="font-mono text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.onTrack}</span>
+                <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.onTrack}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
                   <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                  <span>Due Soon</span>
+                  <span>Due soon</span>
                 </span>
-                <span className="font-mono text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.dueSoon}</span>
+                <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.dueSoon}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
                   <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
                   <span>Overdue</span>
                 </span>
-                <span className="font-mono text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.overdue}</span>
+                <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.overdue}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
                   <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
-                  <span>Not Started</span>
+                  <span>Not started</span>
                 </span>
-                <span className="font-mono text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.notStarted}</span>
+                <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.notStarted}</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Panel 3: KRA Coverage */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3.5 shadow-2xs flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3.5 flex flex-col justify-between">
           <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-            <h3 className="text-xs font-bold text-slate-900 dark:text-white">KRA Coverage</h3>
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white">KRA coverage</h3>
             {isSuperAdminOrHr && kraCoverageData.withoutKra > 0 && (
               <button
                 onClick={() => handleOpenAssignKra()}
-                className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
               >
                 + Assign
               </button>
@@ -1165,7 +1145,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
           <div className="flex items-center gap-4 py-1">
             <div className="relative w-32 h-32 shrink-0 flex items-center justify-center">
               {kraCoverageData.total === 0 ? (
-                <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-[10px] text-slate-400">
+                <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-[11px] text-slate-400">
                   No data
                 </div>
               ) : (
@@ -1191,10 +1171,10 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-base font-bold text-slate-900 dark:text-white font-mono leading-none">
+                    <span className="text-base font-bold text-slate-900 dark:text-white tabular-nums leading-none">
                       {kraCoverageData.withKraPct}%
                     </span>
-                    <span className="text-[10px] text-slate-400 font-medium mt-1 leading-none">
+                    <span className="text-[11px] text-slate-400 font-medium mt-1 leading-none">
                       Covered
                     </span>
                   </div>
@@ -1208,16 +1188,16 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                   <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
                   <span>With KRA</span>
                 </span>
-                <span className="font-mono text-slate-700 dark:text-slate-300 font-bold text-[11px]">{kraCoverageData.withKra}</span>
+                <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{kraCoverageData.withKra}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
                   <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
                   <span>Without KRA</span>
                 </span>
-                <span className="font-mono text-slate-700 dark:text-slate-300 font-bold text-[11px]">{kraCoverageData.withoutKra}</span>
+                <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{kraCoverageData.withoutKra}</span>
               </div>
-              <div className="text-[10px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-md border border-slate-100 dark:border-slate-800 leading-tight">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-md border border-slate-100 dark:border-slate-800 leading-tight">
                 {kraCoverageData.withoutKra === 0 ? '100% scorecards assigned' : `${kraCoverageData.withoutKra} pending scorecard`}
               </div>
             </div>
@@ -1226,7 +1206,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       </div>
 
       {/* 4. COMPACT SEARCH, FILTERS & BATCH OPERATIONS TOOLBAR */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3 py-2 shadow-2xs space-y-2">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3 py-2 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           {/* Search Box */}
           <div className="relative flex-1 min-w-[180px]">
@@ -1256,7 +1236,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               onChange={(e) => setFilterDepartmentId(e.target.value)}
               className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 focus:border-indigo-500 cursor-pointer"
             >
-              <option value="ALL">All Departments</option>
+              <option value="ALL">All departments</option>
               {departments.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
@@ -1273,7 +1253,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               onChange={(e) => setFilterManagerId(e.target.value)}
               className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 focus:border-indigo-500 cursor-pointer max-w-[130px]"
             >
-              <option value="ALL">All Managers</option>
+              <option value="ALL">All managers</option>
               {availableManagers.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -1290,15 +1270,15 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               onChange={(e) => setFilterStatus(e.target.value)}
               className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 focus:border-indigo-500 cursor-pointer"
             >
-              <option value="ALL">All Statuses</option>
-              <option value="MANAGER_PENDING">Manager Pending</option>
-              <option value="MANAGER_COMPLETED">Manager Completed</option>
-              <option value="HOD_PENDING">HOD Pending</option>
-              <option value="HR_PENDING">HR Calibration</option>
+              <option value="ALL">All statuses</option>
+              <option value="MANAGER_PENDING">Manager pending</option>
+              <option value="MANAGER_COMPLETED">Manager completed</option>
+              <option value="HOD_PENDING">HOD pending</option>
+              <option value="HR_PENDING">HR calibration</option>
               <option value="HR_COMPLETED">Finalized</option>
-              <option value="ASSIGNED">Not Started</option>
+              <option value="ASSIGNED">Not started</option>
               <option value="RETURNED">Returned</option>
-              <option value="CLOSED">Closed & Locked</option>
+              <option value="CLOSED">Closed & locked</option>
               <option value="DRAFT">Draft</option>
             </select>
           </div>
@@ -1322,7 +1302,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               onClick={() => setViewMode('table')}
               className={`px-2 py-0.5 text-xs font-semibold rounded-md flex items-center gap-1 transition-colors cursor-pointer ${
                 viewMode === 'table'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-900 dark:text-indigo-300 shadow-2xs font-bold'
+                  ? 'bg-white dark:bg-slate-900 text-indigo-900 dark:text-indigo-300 font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
               title="Table View"
@@ -1334,7 +1314,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               onClick={() => setViewMode('cards')}
               className={`px-2 py-0.5 text-xs font-semibold rounded-md flex items-center gap-1 transition-colors cursor-pointer ${
                 viewMode === 'cards'
-                  ? 'bg-white dark:bg-slate-900 text-indigo-900 dark:text-indigo-300 shadow-2xs font-bold'
+                  ? 'bg-white dark:bg-slate-900 text-indigo-900 dark:text-indigo-300 font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
               title="Card View"
@@ -1357,7 +1337,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               }`}
             >
               <Sparkles className="w-3 h-3 text-amber-500" />
-              <span>Appraisal Due Only</span>
+              <span>Appraisal due only</span>
             </button>
 
             {currentUser?.role === 'MANAGER' && (
@@ -1369,7 +1349,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                     : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
                 }`}
               >
-                My Direct Reports
+                My direct reports
               </button>
             )}
 
@@ -1381,7 +1361,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                   : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
               }`}
             >
-              <span>Hide Inactive</span>
+              <span>Hide inactive</span>
             </button>
 
             {(filterStatus !== 'ALL' ||
@@ -1403,7 +1383,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                 }}
                 className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold ml-2 cursor-pointer"
               >
-                Reset All Filters
+                Reset all filters
               </button>
             )}
           </div>
@@ -1411,7 +1391,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
 
         {/* BATCH OPERATIONS BAR (Active when rows selected) */}
         {selectedReviewIds.length > 0 && (
-          <div className="bg-indigo-50/90 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/80 rounded-lg p-2 flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+          <div className="bg-indigo-50/90 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/80 rounded-lg p-2 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center space-x-2">
               <span className="text-xs font-bold text-indigo-900 dark:text-indigo-200">
                 {selectedReviewIds.length} review(s) selected
@@ -1420,7 +1400,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                 onClick={() => setSelectedReviewIds([])}
                 className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-medium cursor-pointer"
               >
-                Deselect All
+                Deselect all
               </button>
             </div>
 
@@ -1440,7 +1420,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                 className="px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 rounded-lg transition-colors flex items-center space-x-1 cursor-pointer"
               >
                 <Mail className="w-3 h-3 text-slate-500" />
-                <span>Send Reminder</span>
+                <span>Send reminder</span>
               </button>
             </div>
           </div>
@@ -1448,7 +1428,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       </div>
 
       {/* 5. DATA TABLE & CARDS VIEW (PROMINENTLY DISPLAYED ON LOAD) */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
+      <div className="bg-white dark:bg-[#121215] rounded-xl border border-slate-200/80 dark:border-white/[0.08] shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.4)] overflow-hidden">
         {loading && reviews.length === 0 ? (
           <div className="p-4">
             <PageSkeletonLoader variant="table" rowCount={6} />
@@ -1465,16 +1445,16 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
             {isSuperAdminOrHr && !searchQuery && filterStatus === 'ALL' && (
               <button
                 onClick={() => setIsBatchModalOpen(true)}
-                className="mt-1 px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs cursor-pointer flex items-center space-x-1.5"
+                className="mt-1 px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg cursor-pointer flex items-center space-x-1.5"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                <span>Generate Reviews Now</span>
+                <span>Generate reviews now</span>
               </button>
             )}
           </div>
         ) : effectiveViewMode === 'cards' ? (
           /* Cards View */
-          <div className="p-3.5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 bg-slate-50/50 dark:bg-slate-950/40">
+          <div className="p-3.5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 bg-slate-50/50 dark:bg-[#0c0c0e]/60">
             {paginatedReviews.map((r) => {
               const isPendingMyAction =
                 (r.status === 'MANAGER_PENDING' && (r.managerId === currentUser?.employeeId || r.managerId === currentUser?.id)) ||
@@ -1483,22 +1463,27 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               const totalKras = r.kraSnapshot?.length || 0;
               const stage = getReviewStage(r);
               const dueInfo = getDueDateInfo(r);
+              const isMyReview =
+                r.employeeId === (currentUser as any)?.employeeId ||
+                r.employeeId === currentUser?.id ||
+                currentUser?.role === 'EMPLOYEE';
+              const canSelfAssess = isMyReview && !r.isClosed && r.status !== 'CLOSED';
 
               return (
                 <div
                   key={r.id}
-                  onClick={() => handleOpenScoring(r)}
-                  className={`bg-white dark:bg-slate-900 rounded-xl border p-3.5 shadow-2xs hover:shadow-md transition-all duration-150 cursor-pointer flex flex-col justify-between space-y-3 group ${
+                  onClick={() => (canSelfAssess && !r.isSelfSubmitted ? handleOpenSelfAssess(r) : handleOpenScoring(r))}
+                  className={`bg-white dark:bg-[#18181d] rounded-xl border p-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-150 cursor-pointer flex flex-col justify-between space-y-3 group ${
                     isPendingMyAction
-                      ? 'border-indigo-300 dark:border-indigo-600 ring-2 ring-indigo-500/10'
-                      : 'border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                      ? 'border-indigo-300 dark:border-indigo-500/60 ring-2 ring-indigo-500/10'
+                      : 'border-slate-200/90 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/[0.15]'
                   }`}
                 >
                   <div className="space-y-2.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2.5">
                         <div
-                          className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-xs shadow-2xs shrink-0"
+                          className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-xs shrink-0"
                           style={{ backgroundColor: r.cycleColor || '#4f46e5' }}
                         >
                           {r.employeeName.charAt(0)}
@@ -1509,11 +1494,12 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                               {r.employeeName}
                             </h4>
                             <EmployeeStatusBadge status={r.employeeStatus} />
+                            <ReturnCountBadge review={r} />
                             {r.isAppraisalMonthDue && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" title="Appraisal Due this Quarter" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Appraisal Due this Quarter" />
                             )}
                           </div>
-                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 tabular-nums">
                             {r.employeeCode} • {r.designationName}
                           </p>
                         </div>
@@ -1532,10 +1518,10 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
 
                     {/* Stage & Manager */}
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold border ${stage.className}`}>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] font-semibold border ${stage.className}`}>
                         {stage.label}
                       </span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[140px]">
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[140px]">
                         Mgr: <strong className="text-slate-700 dark:text-slate-300">{r.managerName || '—'}</strong>
                       </span>
                     </div>
@@ -1544,16 +1530,16 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                     <div className="bg-slate-50 dark:bg-slate-800/60 rounded-lg p-2 border border-slate-100 dark:border-slate-800 space-y-1.5">
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider block">
-                            Weighted Score
+                          <span className="text-[11px] text-slate-400 font-semibold block">
+                            Weighted score
                           </span>
                           <div className="mt-0.5">{renderScoreBadge(r.finalScore)}</div>
                         </div>
                         <div className="text-right">
-                          <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider block">
-                            KRAs Scored
+                          <span className="text-[11px] text-slate-400 font-semibold block">
+                            KRAs scored
                           </span>
-                          <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                          <span className="text-xs tabular-nums font-bold text-slate-700 dark:text-slate-300">
                             <strong>{scoredKraCount}</strong> / {totalKras}
                           </span>
                         </div>
@@ -1570,7 +1556,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                     </div>
 
                     {/* Due Date Indicator */}
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3 text-slate-400" />
                         <span>Due: {dueInfo.text}</span>
@@ -1585,26 +1571,48 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                   </div>
 
                   <div onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => handleOpenScoring(r)}
-                      className={`w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                        isPendingMyAction
-                          ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-2xs'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700'
-                      }`}
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      <span>
-                        {currentUser?.role === 'HOD'
-                          ? isPendingMyAction
-                            ? 'Review Now'
-                            : 'View Review'
-                          : isPendingMyAction
-                          ? 'Score Review'
-                          : 'Open Sheet'}
-                      </span>
-                      <ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
-                    </button>
+                    {canSelfAssess ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenSelfAssess(r)}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all cursor-pointer"
+                        >
+                          <Star className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                          <span>{r.isSelfSubmitted ? 'Edit Self-Assessment' : 'Start Self-Assessment'}</span>
+                          <ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenScoring(r)}
+                          className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
+                          title="Open Sheet / View Details"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleOpenScoring(r)}
+                        className={`w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                          isPendingMyAction
+                            ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        <span>
+                          {currentUser?.role === 'HOD'
+                            ? isPendingMyAction
+                              ? 'Review Now'
+                              : 'View Review'
+                            : isPendingMyAction
+                            ? 'Score Review'
+                            : 'Open Sheet'}
+                        </span>
+                        <ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -1614,7 +1622,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
           /* Table View */
           <div className="overflow-x-auto overscroll-x-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="w-full text-left text-xs">
-              <thead className="sticky top-0 z-10 backdrop-blur-md bg-slate-50/95 dark:bg-slate-800/95 text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800 shadow-2xs">
+              <thead className="sticky top-0 z-10 backdrop-blur-md bg-slate-50/95 dark:bg-[#18181d]/95 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200/80 dark:border-white/[0.06]">
                 <tr>
                   <th className="py-2.5 px-3 w-8">
                     <input
@@ -1628,15 +1636,15 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                   <th className="py-2.5 px-3">Employee</th>
                   <th className="py-2.5 px-3">Department</th>
                   <th className="py-2.5 px-3">Manager</th>
-                  <th className="py-2.5 px-3">Review Stage</th>
+                  <th className="py-2.5 px-3">Review stage</th>
                   <th className="py-2.5 px-3">Status</th>
                   <th className="py-2.5 px-3">KRAs</th>
                   <th className="py-2.5 px-3">Score</th>
-                  <th className="py-2.5 px-3">Due Date</th>
+                  <th className="py-2.5 px-3">Due date</th>
                   <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04]">
                 {paginatedReviews.map((r) => {
                   const isPendingMyAction =
                     (r.status === 'MANAGER_PENDING' && (r.managerId === currentUser?.employeeId || r.managerId === currentUser?.id)) ||
@@ -1646,12 +1654,17 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                   const dueInfo = getDueDateInfo(r);
                   const totalKras = r.kraSnapshot?.length || 0;
                   const scoredKraCount = r.kraSnapshot?.filter((k) => (k.rating || 0) > 0).length || 0;
+                  const isMyReview =
+                    r.employeeId === (currentUser as any)?.employeeId ||
+                    r.employeeId === currentUser?.id ||
+                    currentUser?.role === 'EMPLOYEE';
+                  const canSelfAssess = isMyReview && !r.isClosed && r.status !== 'CLOSED';
 
                   return (
                     <tr
                       key={r.id}
-                      onClick={() => handleOpenScoring(r)}
-                      className={`hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors group cursor-pointer ${
+                      onClick={() => (canSelfAssess && !r.isSelfSubmitted ? handleOpenSelfAssess(r) : handleOpenScoring(r))}
+                      className={`hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors group cursor-pointer ${
                         isSelected ? 'bg-indigo-50/40 dark:bg-indigo-950/20' : ''
                       }`}
                     >
@@ -1670,7 +1683,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                       <td className="py-2 px-3">
                         <div className="flex items-center space-x-2">
                           <div
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs shadow-2xs shrink-0"
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0"
                             style={{ backgroundColor: r.cycleColor || '#4f46e5' }}
                           >
                             {r.employeeName.charAt(0)}
@@ -1681,11 +1694,12 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                                 {r.employeeName}
                               </span>
                               <EmployeeStatusBadge status={r.employeeStatus} />
+                            <ReturnCountBadge review={r} />
                               {r.isAppraisalMonthDue && (
-                                <span title="Appraisal Due this Quarter" className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                <span title="Appraisal Due this Quarter" className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                               )}
                             </div>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500 tabular-nums">
                               {r.employeeCode || '—'}
                             </span>
                           </div>
@@ -1697,7 +1711,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                         <div className="text-slate-800 dark:text-slate-200 font-medium truncate max-w-[130px]">
                           {r.departmentName}
                         </div>
-                        <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate max-w-[130px]">
+                        <div className="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-[130px]">
                           {r.designationName}
                         </div>
                       </td>
@@ -1705,7 +1719,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                       {/* Manager */}
                       <td className="py-2 px-3">
                         <div className="flex items-center space-x-1.5">
-                          <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[9px] font-bold text-slate-600 dark:text-slate-300 shrink-0">
+                          <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[11px] font-bold text-slate-600 dark:text-slate-300 shrink-0">
                             {r.managerName?.charAt(0) || 'M'}
                           </div>
                           <span className="text-slate-700 dark:text-slate-300 font-medium truncate max-w-[120px]">
@@ -1716,7 +1730,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
 
                       {/* Review Stage */}
                       <td className="py-2 px-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${stage.className}`}>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${stage.className}`}>
                           {stage.label}
                         </span>
                       </td>
@@ -1729,11 +1743,11 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                       {/* KRAs */}
                       <td className="py-2 px-3">
                         {totalKras === 0 ? (
-                          <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.2 rounded-full border border-amber-200 dark:border-amber-800/60">
+                          <span className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.2 rounded-full border border-amber-200 dark:border-amber-800/60">
                             0 KRAs
                           </span>
                         ) : (
-                          <span className="text-xs font-mono text-slate-700 dark:text-slate-300">
+                          <span className="text-xs tabular-nums text-slate-700 dark:text-slate-300">
                             <strong className="text-indigo-600 dark:text-indigo-400 font-bold">{scoredKraCount}</strong> / {totalKras}
                           </span>
                         )}
@@ -1746,7 +1760,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                       <td className="py-2 px-3">
                         <div className="flex items-center space-x-1">
                           <Calendar className={`w-3 h-3 ${dueInfo.isOverdue ? 'text-rose-500' : dueInfo.isSoon ? 'text-amber-500' : 'text-slate-400'}`} />
-                          <span className={`font-mono text-xs ${dueInfo.isOverdue ? 'text-rose-600 dark:text-rose-400 font-bold' : dueInfo.isSoon ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-slate-600 dark:text-slate-400'}`}>
+                          <span className={`tabular-nums text-xs ${dueInfo.isOverdue ? 'text-rose-600 dark:text-rose-400 font-bold' : dueInfo.isSoon ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-slate-600 dark:text-slate-400'}`}>
                             {dueInfo.text}
                           </span>
                         </div>
@@ -1755,6 +1769,20 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                       {/* Actions */}
                       <td className="py-2 px-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end space-x-1">
+                          {canSelfAssess && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenSelfAssess(r);
+                              }}
+                              className="px-2 py-0.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 border border-indigo-600 transition-colors flex items-center space-x-1 cursor-pointer"
+                              title={r.isSelfSubmitted ? 'Edit Self-Assessment' : 'Start Self-Assessment'}
+                            >
+                              <Star className="w-3 h-3 text-amber-300 fill-amber-300" />
+                              <span>{r.isSelfSubmitted ? 'Edit Self' : 'Self-Assess'}</span>
+                            </button>
+                          )}
                           {totalKras === 0 && isSuperAdminOrHr ? (
                             <button
                               onClick={() => handleOpenAssignKra(r.employeeId)}
@@ -1769,7 +1797,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                               onClick={() => handleOpenScoring(r)}
                               className={`px-2 py-0.5 text-xs font-semibold rounded-lg border transition-colors flex items-center space-x-1 cursor-pointer ${
                                 isPendingMyAction
-                                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 border-indigo-600 shadow-2xs'
+                                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 border-indigo-600'
                                   : 'text-indigo-700 dark:text-indigo-300 bg-indigo-50/70 dark:bg-indigo-950/40 hover:bg-indigo-100 rounded-lg border border-indigo-200 dark:border-indigo-800'
                               }`}
                             >
@@ -1821,12 +1849,12 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
 
         {/* 6. COMPACT PAGINATION CONTROLS */}
         {displayedReviews.length > 0 && (
-          <div className="px-3.5 py-2 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <div className="px-3.5 py-2.5 border-t border-slate-200/80 dark:border-white/[0.06] bg-slate-50/50 dark:bg-[#121215] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
             <div className="flex items-center space-x-2">
               <span>
-                Showing <strong>{(currentPage - 1) * pageSize + 1}</strong> to{' '}
-                <strong>{Math.min(currentPage * pageSize, displayedReviews.length)}</strong> of{' '}
-                <strong>{displayedReviews.length}</strong> employees
+                Showing <strong className="text-slate-700 dark:text-slate-200">{(currentPage - 1) * pageSize + 1}</strong> to{' '}
+                <strong className="text-slate-700 dark:text-slate-200">{Math.min(currentPage * pageSize, displayedReviews.length)}</strong> of{' '}
+                <strong className="text-slate-700 dark:text-slate-200">{displayedReviews.length}</strong> employees
               </span>
             </div>
 
@@ -1839,7 +1867,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                     setPageSize(Number(e.target.value));
                     setCurrentPage(1);
                   }}
-                  className="bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-0.5 focus:border-indigo-500 cursor-pointer text-xs"
+                  className="bg-white dark:bg-[#18181d] border border-slate-200 dark:border-white/[0.08] text-slate-900 dark:text-slate-100 rounded-lg px-2 py-0.5 focus:border-indigo-500 cursor-pointer text-xs"
                 >
                   <option value={10}>10</option>
                   <option value={25}>25</option>
@@ -1852,7 +1880,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                 <button
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
+                  className="p-1 rounded-lg border border-slate-200 dark:border-white/[0.08] disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-white/[0.04] cursor-pointer disabled:cursor-not-allowed text-slate-700 dark:text-slate-300"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
@@ -1866,8 +1894,8 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                         onClick={() => setCurrentPage(p)}
                         className={`w-6 h-6 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                           currentPage === p
-                            ? 'bg-indigo-600 text-white shadow-2xs'
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'
+                            ? 'bg-indigo-600 text-white'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08]'
                         }`}
                       >
                         {p}
@@ -1878,7 +1906,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                 <button
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="p-1 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed"
+                  className="p-1 rounded-lg border border-slate-200 dark:border-white/[0.08] disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-white/[0.04] cursor-pointer disabled:cursor-not-allowed text-slate-700 dark:text-slate-300"
                 >
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
@@ -1913,7 +1941,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               className="w-full px-3.5 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700/60 flex items-center space-x-2.5 transition-colors cursor-pointer"
             >
               <Edit3 className="w-3.5 h-3.5 text-slate-400" />
-              <span>Open Evaluation</span>
+              <span>Open evaluation</span>
             </button>
 
             {isSuperAdminOrHr && (
@@ -1935,7 +1963,7 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                 className="w-full px-3.5 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700/60 flex items-center space-x-2.5 transition-colors cursor-pointer"
               >
                 <UserPlus className="w-3.5 h-3.5 text-slate-400" />
-                <span>Assign / Edit KRA</span>
+                <span>Assign / edit KRA</span>
               </button>
             )}
 
@@ -1944,18 +1972,39 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               onClick={() => {
                 const target = menuAnchor.review;
                 setMenuAnchor(null);
-                toast.success(`Reminder sent to ${target.employeeName} and manager.`, 'Reminder Sent');
+                toast.success(`Reminder sent to ${target.employeeName} and manager.`, 'Reminder sent');
               }}
               className="w-full px-3.5 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700/60 flex items-center space-x-2.5 transition-colors cursor-pointer"
             >
               <Mail className="w-3.5 h-3.5 text-slate-400" />
-              <span>Send Reminder</span>
+              <span>Send reminder</span>
             </button>
           </div>,
           document.body
         )}
 
       {/* 7. MODALS */}
+      {/* Self-Assessment Modal */}
+      {activeReviewForSelfAssess && (
+        <SelfAssessmentModal
+          review={activeReviewForSelfAssess}
+          onClose={() => {
+            setActiveReviewForSelfAssess(null);
+            handledReviewIdRef.current = null;
+            onClearInitialConfig?.();
+            loadReviewsAndStats();
+          }}
+          onSuccess={(updated) => {
+            setActiveReviewForSelfAssess(null);
+            handledReviewIdRef.current = null;
+            onClearInitialConfig?.();
+            setReviews((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+            loadReviewsAndStats();
+            toast.success('Self-assessment submitted successfully!');
+          }}
+        />
+      )}
+
       {/* Scoring Modal */}
       {isScoringModalOpen && activeReviewForScoring && (
         <ReviewScoringModal
@@ -2052,7 +2101,7 @@ const PeriodLifecycleModal: React.FC<PeriodLifecycleModalProps> = ({
   updatingTargetStatus,
   handleUpdatePeriodStatus,
 }) => {
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+  const { isMounted, handleClose, backdropClass, cardClass } = useModalAnimation({
     isOpen,
     onClose,
   });
@@ -2071,9 +2120,8 @@ const PeriodLifecycleModal: React.FC<PeriodLifecycleModalProps> = ({
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs ${backdropClass}`}
-      onClick={handleBackdropClick}
     >
-      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-6 ${cardClass}`}>
+      <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl max-w-2xl w-full p-6 shadow-2xl space-y-6 ${cardClass}`}>
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
           <div className="flex items-center space-x-3">
             <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/50 rounded-xl text-indigo-600 dark:text-indigo-400">
@@ -2081,7 +2129,7 @@ const PeriodLifecycleModal: React.FC<PeriodLifecycleModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Review Period Lifecycle Control
+                Review period lifecycle control
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Activate the current quarter, lock historical periods, or stage upcoming evaluation cycles.
@@ -2106,7 +2154,7 @@ const PeriodLifecycleModal: React.FC<PeriodLifecycleModalProps> = ({
                 key={period.id}
                 className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 ${
                   period.status === 'ACTIVE'
-                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/80 shadow-2xs'
+                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/80'
                     : period.status === 'LOCKED'
                     ? 'bg-amber-50/30 dark:bg-amber-950/10 border-amber-200/80 dark:border-amber-800/40'
                     : 'bg-slate-50 dark:bg-slate-850/50 border-slate-200 dark:border-slate-800'
@@ -2129,7 +2177,7 @@ const PeriodLifecycleModal: React.FC<PeriodLifecycleModalProps> = ({
                       {period.status}
                     </span>
                     {isCurrentSelected && (
-                      <span className="text-[10px] bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded font-medium border border-indigo-200 dark:border-indigo-800">
+                      <span className="text-[11px] bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded font-medium border border-indigo-200 dark:border-indigo-800">
                         Viewing
                       </span>
                     )}
@@ -2153,7 +2201,7 @@ const PeriodLifecycleModal: React.FC<PeriodLifecycleModalProps> = ({
                       ) : (
                         <Play className="w-3.5 h-3.5" />
                       )}
-                      <span>Make Active</span>
+                      <span>Make active</span>
                     </button>
                   )}
 
@@ -2168,7 +2216,7 @@ const PeriodLifecycleModal: React.FC<PeriodLifecycleModalProps> = ({
                       ) : (
                         <Lock className="w-3.5 h-3.5" />
                       )}
-                      <span>Lock Period</span>
+                      <span>Lock period</span>
                     </button>
                   )}
 
@@ -2181,7 +2229,7 @@ const PeriodLifecycleModal: React.FC<PeriodLifecycleModalProps> = ({
                       {isUpdating && updatingTargetStatus === 'UPCOMING' && (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       )}
-                      <span>Set Upcoming</span>
+                      <span>Set upcoming</span>
                     </button>
                   )}
                 </div>
@@ -2193,14 +2241,14 @@ const PeriodLifecycleModal: React.FC<PeriodLifecycleModalProps> = ({
         <div className="bg-slate-50 dark:bg-slate-850 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-start space-x-3 text-xs text-slate-600 dark:text-slate-400">
           <AlertCircle className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
           <p>
-            <strong>Enterprise Policy:</strong> When setting a period to <strong>ACTIVE</strong>, any currently active period is automatically safely transitioned to <strong>LOCKED</strong>. All existing employee evaluation submissions and manager appraisals remain permanently archived.
+            <strong>Enterprise policy:</strong> When setting a period to <strong>ACTIVE</strong>, any currently active period is automatically safely transitioned to <strong>LOCKED</strong>. All existing employee evaluation submissions and manager appraisals remain permanently archived.
           </p>
         </div>
 
         <div className="flex justify-end pt-2">
           <button
             onClick={handleClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg shadow-2xs transition-colors cursor-pointer"
+            className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
           >
             Close
           </button>

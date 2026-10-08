@@ -15,11 +15,12 @@ import {
   ShieldCheck,
   RotateCcw,
 } from 'lucide-react';
-import { Appraisal, Designation, User as AuthUser, EmployeeStatus, DepartmentBudgetSnapshot } from '../types';
+import { Appraisal, Designation, User as AuthUser, DepartmentBudgetSnapshot } from '../types';
 import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
 import { AppraisalLetterModal } from './AppraisalLetterModal';
 import { useModalAnimation } from '../hooks/useModalAnimation';
+import { EmployeeStatusBadge } from './ui/StatusBadge';
 
 interface AppraisalDetailModalProps {
   appraisal: Appraisal;
@@ -36,7 +37,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
   onClose,
   onRefresh,
 }) => {
-  const { isMounted, handleClose, handleBackdropClick, backdropClass, cardClass } = useModalAnimation({
+  const { isMounted, handleClose, backdropClass, cardClass } = useModalAnimation({
     isOpen: true,
     onClose,
   });
@@ -174,32 +175,6 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
     promotionDesignationId,
   ]);
 
-  // Helper for employment status badge
-  const getEmployeeStatusBadge = (empStatus?: EmployeeStatus) => {
-    if (!empStatus || empStatus === 'ACTIVE') return null;
-    if (empStatus === 'INACTIVE') {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-          OFFBOARDED / INACTIVE
-        </span>
-      );
-    }
-    if (empStatus === 'NOTICE') {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-          SERVING NOTICE
-        </span>
-      );
-    }
-    if (empStatus === 'PROBATION') {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-          PROBATION
-        </span>
-      );
-    }
-    return null;
-  };
 
   const isRestrictedFromIncrement = appraisal.employeeStatus === 'INACTIVE' || appraisal.employeeStatus === 'NOTICE';
 
@@ -417,22 +392,19 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
     <>
       <div
         className={`fixed inset-0 z-[9990] overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 ${backdropClass}`}
-        onClick={handleBackdropClick}
       >
-        <div className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col ${cardClass}`}>
+        <div className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 dark:border-slate-800 max-h-[92vh] flex flex-col ${cardClass}`}>
           {/* Header */}
-          <div className="px-4 sm:px-6 py-4 bg-slate-900 dark:bg-slate-950 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 border-b border-slate-800">
+          <div className="px-4 sm:px-6 py-4 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 border-b border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-400/30">
-                <Award className="w-5 h-5" />
-              </div>
+              <Award className="w-5 h-5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-base font-bold text-white">{appraisal.employeeName}</h3>
-                  <span className="text-xs px-2 py-0.5 rounded-md font-mono bg-white/10 text-slate-300">
+                  <h3 className="text-base font-semibold text-slate-900 dark:text-white">{appraisal.employeeName}</h3>
+                  <span className="text-xs px-2 py-0.5 rounded-md tabular-nums bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                     {appraisal.employeeCode}
                   </span>
-                  {getEmployeeStatusBadge(appraisal.employeeStatus)}
+                  <EmployeeStatusBadge status={appraisal.employeeStatus} />
                   <span
                     className="text-[11px] px-2 py-0.5 rounded-full font-semibold border"
                     style={{
@@ -444,9 +416,9 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                     {appraisal.cycleName} • {appraisal.appraisalYear}
                   </span>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-600 dark:text-slate-400">
                   {appraisal.designationName} • {appraisal.departmentName} • Rolling Score:{' '}
-                  <strong className="text-indigo-300 font-mono">{appraisal.averageQuarterlyScore.toFixed(2)} / 5.0</strong>
+                  <strong className="text-slate-900 dark:text-white tabular-nums">{appraisal.averageQuarterlyScore.toFixed(2)} / 5.0</strong>
                 </p>
               </div>
             </div>
@@ -456,16 +428,17 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowLetterModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-xs cursor-pointer whitespace-nowrap"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap"
                 >
                   <FileText className="w-3.5 h-3.5 shrink-0" />
-                  <span className="hidden sm:inline">View Appraisal Letter</span>
+                  <span className="hidden sm:inline">View appraisal letter</span>
                   <span className="sm:hidden">Letter</span>
                 </button>
               )}
               <button
                 onClick={handleClose}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                aria-label="Close"
+                className="p-1 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -499,7 +472,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                     : 'Employee is Serving Notice Period'}
                 </p>
                 <p className="text-amber-800 dark:text-amber-300 text-[11px] mt-0.5">
-                  Annual salary increment recommendations, budget calibration, and promotions are restricted for employees with employment status <strong className="uppercase">{appraisal.employeeStatus}</strong>. Historical performance records remain accessible for audit and compliance.
+                  Annual salary increment recommendations, budget calibration, and promotions are restricted for employees with employment status <strong>{appraisal.employeeStatus}</strong>. Historical performance records remain accessible for audit and compliance.
                 </p>
               </div>
             </div>
@@ -513,12 +486,12 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                 onClick={() => setActiveTab('calibrate')}
                 className={`flex items-center gap-1.5 sm:gap-2 py-3 px-2.5 sm:px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   activeTab === 'calibrate'
-                    ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-white dark:bg-slate-800 shadow-2xs'
+                    ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-white dark:bg-slate-800'
                     : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 <Sliders className="w-3.5 h-3.5 shrink-0" />
-                <span>Salary Calibration & Recommendation</span>
+                <span>Salary calibration & recommendation</span>
               </button>
 
               <button
@@ -526,7 +499,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                 onClick={() => setActiveTab('breakdown')}
                 className={`flex items-center gap-1.5 sm:gap-2 py-3 px-2.5 sm:px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   activeTab === 'breakdown'
-                    ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-white dark:bg-slate-800 shadow-2xs'
+                    ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-white dark:bg-slate-800'
                     : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
@@ -539,12 +512,12 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                 onClick={() => setActiveTab('audit')}
                 className={`flex items-center gap-1.5 sm:gap-2 py-3 px-2.5 sm:px-3 text-xs font-semibold border-b-2 transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   activeTab === 'audit'
-                    ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-white dark:bg-slate-800 shadow-2xs'
+                    ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400 bg-white dark:bg-slate-800'
                     : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-                <span>Multi-Stage Sign-Off Audit Trail</span>
+                <span>Multi-stage sign-off audit trail</span>
               </button>
             </div>
 
@@ -582,16 +555,14 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
               <div className="space-y-6">
                 {/* When Locked: Prominent Approved & Locked Master Banner */}
                 {isLocked && (
-                  <div className="p-4 bg-slate-900 dark:bg-slate-950 text-white rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="p-4 bg-slate-900 dark:bg-slate-950 text-white rounded-xl shadow-md border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div className="flex items-center gap-3.5">
-                      <div className="w-11 h-11 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shrink-0">
-                        <Lock className="w-5 h-5" />
-                      </div>
+                      <Lock className="w-5 h-5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-bold text-white">Appraisal Approved & Locked</h4>
-                          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                            Immutable Record
+                          <h4 className="text-sm font-bold text-white">Appraisal approved & locked</h4>
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            Locked record
                           </span>
                         </div>
                         <p className="text-xs text-slate-300">
@@ -603,10 +574,10 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowLetterModal(true)}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer shrink-0"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer shrink-0"
                     >
                       <FileText className="w-4 h-4" />
-                      <span>View Official Appraisal Letter</span>
+                      <span>View official appraisal letter</span>
                     </button>
                   </div>
                 )}
@@ -614,11 +585,11 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                 {/* Rolling Score & Recommended Matrix Guideline Banner */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800/60 rounded-xl space-y-1">
-                    <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
-                      Rolling 4-Quarter Score
+                    <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+                      Rolling 4-quarter score
                     </span>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-indigo-950 dark:text-indigo-100 font-mono">
+                      <span className="text-2xl font-bold text-indigo-950 dark:text-indigo-100 tabular-nums">
                         {appraisal.averageQuarterlyScore.toFixed(2)}
                       </span>
                       <span className="text-xs text-indigo-700 dark:text-indigo-300">/ 5.00</span>
@@ -638,8 +609,8 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                   </div>
 
                   <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-800/60 rounded-xl space-y-1">
-                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                      Rating & Increment Matrix
+                    <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      Rating and increment guide
                     </span>
                     <div className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
                       {(appraisal.recommendedRating || 'N/A').replace(/_/g, ' ')}
@@ -653,10 +624,10 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                   </div>
 
                   <div className="p-4 bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl space-y-1">
-                    <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      Current Compensation
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                      Current compensation
                     </span>
-                    <div className="text-xl font-bold text-slate-900 dark:text-white font-mono">
+                    <div className="text-xl font-bold text-slate-900 dark:text-white tabular-nums">
                       {currencySymbol}{currentCtc.toLocaleString()}
                     </div>
                     <p className="text-[11px] text-slate-600 dark:text-slate-400">
@@ -666,16 +637,16 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                 </div>
 
                 {/* Live Salary Calibration Playground / Approved Settings */}
-                <div className="p-5 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 rounded-2xl shadow-xs space-y-5">
+                <div className="p-5 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 rounded-xl space-y-5">
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        <span>Compensation & Increment Calibration</span>
+                        <span>Compensation & increment calibration</span>
                         {isLocked && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 flex items-center gap-1">
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 flex items-center gap-1">
                             <Lock className="w-3 h-3 text-slate-600 dark:text-slate-400" />
-                            <span>Approved & Locked</span>
+                            <span>Approved & locked</span>
                           </span>
                         )}
                       </h4>
@@ -690,7 +661,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                       <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                         {isLocked ? 'Approved Increment' : 'Proposed Increment'}
                       </div>
-                      <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400 font-mono">+{incrementPercent.toFixed(1)}%</div>
+                      <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">+{incrementPercent.toFixed(1)}%</div>
                     </div>
                   </div>
 
@@ -732,7 +703,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                         <span className="text-slate-600 dark:text-slate-300">
                           {budget.departmentName} budget ({budget.appraisalYear}): {projectedSpendPercent.toFixed(2)}% of {budget.budgetCapPercent}% cap used
                         </span>
-                        <span className="font-mono text-slate-500 dark:text-slate-400">
+                        <span className="tabular-nums text-slate-500 dark:text-slate-400">
                           {currencySymbol}{Math.round(projectedSpend).toLocaleString()} / {currencySymbol}{Math.round(budget.allocatedAmount).toLocaleString()}
                         </span>
                       </div>
@@ -758,48 +729,48 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                   {/* Compensation Breakdown Cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                     <div className="p-3 bg-slate-50 dark:bg-slate-850 rounded-xl border border-slate-200/80 dark:border-slate-700/80 space-y-1">
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase flex items-center justify-between">
-                        <span>Annual Increment</span>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold flex items-center justify-between">
+                        <span>Annual increment</span>
                         {isLocked && <Lock className="w-3 h-3 text-slate-400" />}
                       </div>
-                      <div className="text-base font-bold text-emerald-700 dark:text-emerald-400 font-mono">
+                      <div className="text-base font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
                         +{currencySymbol}{incrementAmount.toLocaleString()}
                       </div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400">+{currencySymbol}{monthlyIncrement.toLocaleString()} / mo</div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">+{currencySymbol}{monthlyIncrement.toLocaleString()} / mo</div>
                     </div>
 
                     <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-800/60 space-y-1">
-                      <div className="text-[10px] text-indigo-700 dark:text-indigo-300 font-semibold uppercase flex items-center justify-between">
-                        <span>Revised Annual CTC</span>
+                      <div className="text-[11px] text-indigo-700 dark:text-indigo-300 font-semibold flex items-center justify-between">
+                        <span>Revised annual CTC</span>
                         {isLocked && <Lock className="w-3 h-3 text-indigo-400" />}
                       </div>
-                      <div className="text-lg font-bold text-indigo-950 dark:text-white font-mono">
+                      <div className="text-lg font-bold text-indigo-950 dark:text-white tabular-nums">
                         {currencySymbol}{calculatedRevisedCtc.toLocaleString()}
                       </div>
-                      <div className="text-[10px] text-indigo-700 dark:text-indigo-300">Gross annual fixed salary</div>
+                      <div className="text-[11px] text-indigo-700 dark:text-indigo-300">Gross annual fixed salary</div>
                     </div>
 
                     <div className="p-3 bg-slate-50 dark:bg-slate-850 rounded-xl border border-slate-200/80 dark:border-slate-700/80 space-y-1">
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase flex items-center justify-between">
-                        <span>Revised Monthly</span>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold flex items-center justify-between">
+                        <span>Revised monthly</span>
                         {isLocked && <Lock className="w-3 h-3 text-slate-400" />}
                       </div>
-                      <div className="text-base font-bold text-slate-900 dark:text-white font-mono">
+                      <div className="text-base font-bold text-slate-900 dark:text-white tabular-nums">
                         {currencySymbol}{revisedMonthly.toLocaleString()}
                       </div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400">Gross monthly pre-tax</div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">Gross monthly pre-tax</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Promotion Section */}
-                <div className="p-5 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 rounded-2xl shadow-xs space-y-4">
+                <div className="p-5 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 rounded-xl space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Award className="w-4 h-4 text-amber-500" />
-                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">Promotion Recommendation</h4>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">Promotion recommendation</h4>
                       {isLocked && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 flex items-center gap-1">
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-600 flex items-center gap-1">
                           <Lock className="w-3 h-3 text-slate-500 dark:text-slate-400" />
                           <span>Locked</span>
                         </span>
@@ -817,7 +788,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                         }`}
                       />
                       <span className="text-xs font-semibold text-slate-700 select-none">
-                        Recommend for Promotion
+                        Recommend for promotion
                       </span>
                     </label>
                   </div>
@@ -827,9 +798,9 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
                           <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
-                            Proposed Promoted Designation <span className="text-red-500">*</span>
+                            Proposed promoted designation <span className="text-red-500">*</span>
                           </label>
-                          <span className="text-[10px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/60 border border-amber-200/60 dark:border-amber-700/60 px-2 py-0.5 rounded-md">
+                          <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/60 border border-amber-200/60 dark:border-amber-700/60 px-2 py-0.5 rounded-md">
                             {appraisal.departmentName || 'Current Department'} Track
                           </span>
                         </div>
@@ -841,7 +812,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                             !canEdit ? 'cursor-not-allowed bg-slate-100 dark:bg-slate-850 opacity-90' : 'focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500'
                           }`}
                         >
-                          <option value="">-- Select Next Designation Level in {appraisal.departmentName || 'Department'} --</option>
+                          <option value="">-- Select next designation level in {appraisal.departmentName || 'department'} --</option>
                           {departmentDesignations.map((d) => (
                             <option key={d.id} value={d.id}>
                               {d.name} (Level {d.level})
@@ -863,11 +834,11 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
-                        Manager Recommendation Justification <span className="text-red-500">*</span>
+                        Manager recommendation justification <span className="text-red-500">*</span>
                       </label>
                       {isLocked && (
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
-                          <Lock className="w-3 h-3" /> Locked Record
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+                          <Lock className="w-3 h-3" /> Locked record
                         </span>
                       )}
                     </div>
@@ -889,11 +860,11 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
-                          HOD Departmental Calibration & Budget Notes
+                          HOD departmental calibration & budget notes
                         </label>
                         {isLocked && (
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
-                            <Lock className="w-3 h-3" /> Locked Record
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+                            <Lock className="w-3 h-3" /> Locked record
                           </span>
                         )}
                       </div>
@@ -916,9 +887,9 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">Effective Date</label>
+                          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">Effective date</label>
                           {isLocked && (
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
                               <Lock className="w-3 h-3" /> Locked
                             </span>
                           )}
@@ -937,9 +908,9 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                       </div>
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">HR Compliance Notes</label>
+                          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">HR compliance notes</label>
                           {isLocked && (
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
                               <Lock className="w-3 h-3" /> Locked
                             </span>
                           )}
@@ -963,7 +934,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
 
                 {/* Workflow Actions */}
                 {!isLocked ? (
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
                     <div className="text-xs text-slate-500 dark:text-slate-400">
                       Current Action Gate:{' '}
                       <strong className="text-slate-800 dark:text-slate-200">
@@ -984,7 +955,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                         </div>
                       ) : appraisal.status === 'MANAGER_RECOMMENDED' && !appraisal.hodId ? (
                         <div className="text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-800">
-                          No HOD assigned — assign one via Employee Master to unblock calibration
+                          No HOD assigned — assign one via employee master to unblock calibration
                         </div>
                       ) : (
                         <>
@@ -993,10 +964,10 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                               type="button"
                               disabled={isSubmitting}
                               onClick={() => handleOpenConfirm('MANAGER')}
-                              className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer"
+                              className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                             >
                               {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                              <span>Submit Manager Recommendation</span>
+                              <span>Submit manager recommendation</span>
                             </button>
                           )}
 
@@ -1005,10 +976,10 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                               type="button"
                               disabled={isSubmitting}
                               onClick={() => handleOpenConfirm('HOD_RETURN')}
-                              className="flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer border border-rose-200 dark:border-rose-800"
+                              className="flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-xs font-semibold rounded-xl transition-colors cursor-pointer border border-rose-200 dark:border-rose-800"
                             >
                               <RotateCcw className="w-3.5 h-3.5" />
-                              <span>Return to Manager</span>
+                              <span>Return to manager</span>
                             </button>
                           )}
 
@@ -1017,10 +988,10 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                               type="button"
                               disabled={isSubmitting}
                               onClick={() => handleOpenConfirm('HOD')}
-                              className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer"
+                              className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                             >
                               {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                              <span>Submit HOD Calibration</span>
+                              <span>Submit HOD calibration</span>
                             </button>
                           )}
 
@@ -1029,10 +1000,10 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                               type="button"
                               disabled={isSubmitting}
                               onClick={() => handleOpenConfirm('HR_APPROVE')}
-                              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer"
+                              className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                             >
                               {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
-                              <span>HR Final Approval & Generate Letter</span>
+                              <span>HR final approval & generate letter</span>
                             </button>
                           )}
 
@@ -1041,16 +1012,16 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                               type="button"
                               disabled={isSubmitting}
                               onClick={() => handleOpenConfirm('LOCK')}
-                              className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer"
+                              className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                             >
                               {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
-                              <span>Lock Appraisal & Release to Employee</span>
+                              <span>Lock appraisal & release to employee</span>
                             </button>
                           )}
 
                           {appraisal.status === 'HR_APPROVED' && !isSuperAdmin && (
                             <div className="text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
-                              Awaiting Super Admin final lock
+                              Awaiting super admin final lock
                             </div>
                           )}
                         </>
@@ -1058,15 +1029,13 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="p-4 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold">
-                        <CheckCircle2 className="w-5 h-5" />
-                      </div>
+                      <CheckCircle2 className="w-5 h-5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
                       <div>
-                        <div className="font-bold text-emerald-950 dark:text-emerald-100">Appraisal Finalized & Fully Approved</div>
+                        <div className="font-bold text-emerald-950 dark:text-emerald-100">Appraisal finalized & fully approved</div>
                         <div className="text-emerald-800 dark:text-emerald-300 text-[11px]">
-                          All stages passed • Employee profile updated • Settings permanently locked
+                          All stages passed • employee profile updated • settings permanently locked
                         </div>
                       </div>
                     </div>
@@ -1074,10 +1043,10 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowLetterModal(true)}
-                      className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-xl transition-colors shadow-2xs cursor-pointer"
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-xl transition-colors cursor-pointer"
                     >
                       <FileText className="w-3.5 h-3.5" />
-                      <span>Open Appraisal Letter</span>
+                      <span>Open appraisal letter</span>
                     </button>
                   </div>
                 )}
@@ -1095,8 +1064,8 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Annual Composite Score:</span>
-                    <div className="text-base font-bold text-indigo-600 dark:text-indigo-400 font-mono">
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Annual composite score:</span>
+                    <div className="text-base font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">
                       {appraisal.averageQuarterlyScore.toFixed(2)} / 5.00
                     </div>
                   </div>
@@ -1105,7 +1074,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                 {appraisal.quarterlyHistory && appraisal.quarterlyHistory.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {appraisal.quarterlyHistory.map((q, idx) => (
-                      <div key={idx} className="p-4 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 rounded-2xl shadow-xs space-y-3">
+                      <div key={idx} className="p-4 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 rounded-xl space-y-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-center">
@@ -1114,20 +1083,20 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                             <span className="font-bold text-slate-900 dark:text-white text-xs">{q.periodName}</span>
                           </div>
                           {q.score > 0 ? (
-                            <div className="flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-lg font-mono font-bold text-xs border border-indigo-100 dark:border-indigo-800/60">
+                            <div className="flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-lg tabular-nums font-bold text-xs border border-indigo-100 dark:border-indigo-800/60">
                               <span>{q.score.toFixed(2)}</span>
-                              <span className="text-[10px] text-indigo-400">/ 5.0</span>
+                              <span className="text-[11px] text-indigo-400">/ 5.0</span>
                             </div>
                           ) : (
                             <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-lg font-medium text-xs border border-slate-200 dark:border-slate-600">
-                              <span>Not Yet Evaluated</span>
+                              <span>Not yet evaluated</span>
                             </div>
                           )}
                         </div>
 
                         {q.strengths && (
                           <div className="space-y-1">
-                            <span className="text-[10px] uppercase font-semibold text-emerald-700 dark:text-emerald-400">Key Achievements / Strengths:</span>
+                            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Key achievements / strengths:</span>
                             <p className="text-xs text-slate-700 dark:text-slate-300 bg-emerald-50/50 dark:bg-emerald-950/30 p-2 rounded-lg border border-emerald-100 dark:border-emerald-800/60">
                               {q.strengths}
                             </p>
@@ -1136,7 +1105,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
 
                         {q.managerComments && (
                           <div className="space-y-1">
-                            <span className="text-[10px] uppercase font-semibold text-slate-500 dark:text-slate-400">Manager Evaluation:</span>
+                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Manager evaluation:</span>
                             <p className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-850 p-2 rounded-lg border border-slate-200/60 dark:border-slate-700/60">
                               {q.managerComments}
                             </p>
@@ -1157,7 +1126,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
             {activeTab === 'audit' && (
               <div className="space-y-4">
                 <div className="space-y-3">
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Multi-Stage Calibration Sign-Off Trail</h4>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Sign-off history</h4>
                   
                   {/* Stage 1: Manager */}
                   <div className="p-4 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 rounded-xl space-y-2">
@@ -1166,7 +1135,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                         <span className="w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 font-bold text-xs flex items-center justify-center">
                           1
                         </span>
-                        <span className="text-xs font-bold text-slate-900 dark:text-white">Stage 1: Reporting Manager Recommendation</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">Stage 1: reporting manager recommendation</span>
                       </div>
                       <span className="text-[11px] text-slate-500 dark:text-slate-400">
                         {appraisal.managerRecommendation ? '✓ Completed' : 'Pending'}
@@ -1174,8 +1143,8 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                     </div>
                     {appraisal.managerRecommendation && (
                       <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1 bg-slate-50 dark:bg-slate-850 p-3 rounded-lg border border-slate-100 dark:border-slate-700/60">
-                        <div>Recommended By: <strong>{appraisal.managerRecommendation.recommendedByName}</strong></div>
-                        <div>Suggested Increment: <strong>+{appraisal.managerRecommendation.suggestedIncrementPercent}%</strong></div>
+                        <div>Recommended by: <strong>{appraisal.managerRecommendation.recommendedByName}</strong></div>
+                        <div>Suggested increment: <strong>+{appraisal.managerRecommendation.suggestedIncrementPercent}%</strong></div>
                         <div>Promotion: <strong>{appraisal.managerRecommendation.promotionRecommended ? 'YES' : 'NO'}</strong></div>
                         <div>Justification: <em>"{appraisal.managerRecommendation.justification}"</em></div>
                       </div>
@@ -1189,7 +1158,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                         <span className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 font-bold text-xs flex items-center justify-center">
                           2
                         </span>
-                        <span className="text-xs font-bold text-slate-900 dark:text-white">Stage 2: HOD Departmental Calibration</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">Stage 2: HOD departmental calibration</span>
                       </div>
                       <span className="text-[11px] text-slate-500 dark:text-slate-400">
                         {appraisal.hodCalibration ? '✓ Completed' : 'Pending'}
@@ -1197,8 +1166,8 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                     </div>
                     {appraisal.hodCalibration && (
                       <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1 bg-purple-50/50 dark:bg-purple-950/30 p-3 rounded-lg border border-purple-100 dark:border-purple-800/60">
-                        <div>Calibrated By: <strong>{appraisal.hodCalibration.calibratedByName}</strong></div>
-                        <div>Calibrated Increment: <strong>+{appraisal.hodCalibration.calibratedIncrementPercent}%</strong></div>
+                        <div>Calibrated by: <strong>{appraisal.hodCalibration.calibratedByName}</strong></div>
+                        <div>Calibrated increment: <strong>+{appraisal.hodCalibration.calibratedIncrementPercent}%</strong></div>
                         <div>Notes: <em>"{appraisal.hodCalibration.notes}"</em></div>
                       </div>
                     )}
@@ -1211,7 +1180,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                         <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center justify-center">
                           3
                         </span>
-                        <span className="text-xs font-bold text-slate-900 dark:text-white">Stage 3: HR Final Approval & Release</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">Stage 3: HR final approval & release</span>
                       </div>
                       <span className="text-[11px] text-slate-500 dark:text-slate-400">
                         {appraisal.hrApproval ? '✓ Approved' : 'Pending'}
@@ -1219,10 +1188,10 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                     </div>
                     {appraisal.hrApproval && (
                       <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1 bg-indigo-50/50 dark:bg-indigo-950/30 p-3 rounded-lg border border-indigo-100 dark:border-indigo-800/60">
-                        <div>Approved By: <strong>{appraisal.hrApproval.approvedByName}</strong></div>
-                        <div>Final Increment: <strong>+{appraisal.hrApproval.finalIncrementPercent}%</strong></div>
+                        <div>Approved by: <strong>{appraisal.hrApproval.approvedByName}</strong></div>
+                        <div>Final increment: <strong>+{appraisal.hrApproval.finalIncrementPercent}%</strong></div>
                         <div>Revised CTC: <strong>{currencySymbol}{appraisal.hrApproval.revisedCtc.toLocaleString()}</strong></div>
-                        <div>Letter Released: <strong>{appraisal.hrApproval.letterGenerated ? 'YES' : 'NO'}</strong></div>
+                        <div>Letter released: <strong>{appraisal.hrApproval.letterGenerated ? 'YES' : 'NO'}</strong></div>
                       </div>
                     )}
                   </div>
@@ -1234,7 +1203,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                         <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center">
                           4
                         </span>
-                        <span className="text-xs font-bold text-slate-900 dark:text-white">Stage 4: Final Lock (Super Admin)</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">Stage 4: final lock (super admin)</span>
                       </div>
                       <span className="text-[11px] text-slate-500 dark:text-slate-400">
                         {appraisal.isLocked ? '✓ Locked' : 'Pending'}
@@ -1242,8 +1211,8 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                     </div>
                     {appraisal.isLocked && (
                       <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1 bg-slate-50 dark:bg-slate-850 p-3 rounded-lg border border-slate-100 dark:border-slate-700/60">
-                        <div>Locked By: <strong>{appraisal.lockedByName || 'Super Admin'}</strong></div>
-                        <div>Locked At: <strong>{appraisal.lockedAt ? new Date(appraisal.lockedAt).toLocaleString() : '—'}</strong></div>
+                        <div>Locked by: <strong>{appraisal.lockedByName || 'Super Admin'}</strong></div>
+                        <div>Locked at: <strong>{appraisal.lockedAt ? new Date(appraisal.lockedAt).toLocaleString() : '—'}</strong></div>
                       </div>
                     )}
                   </div>
@@ -1267,21 +1236,16 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
         createPortal(
           <div
             className="fixed inset-0 z-[10000] overflow-y-auto bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4 modal-backdrop-enter"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setConfirmActionType(null);
-            }}
           >
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800 modal-card-enter">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800 modal-card-enter">
               {confirmActionType === 'HOD_RETURN' ? (
                 <div className="p-6 space-y-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400">
-                      <RotateCcw className="w-6 h-6" />
-                    </div>
+                    <RotateCcw className="w-6 h-6 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
                     <div>
-                      <h3 className="text-base font-bold text-slate-900 dark:text-white">Return to Manager</h3>
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">Return to manager</h3>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        Sends this appraisal back to the Reporting Manager for rework.
+                        Sends this appraisal back to the reporting manager for rework.
                       </p>
                     </div>
                   </div>
@@ -1328,10 +1292,10 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                       type="button"
                       disabled={isSubmitting || !hodReturnReason.trim()}
                       onClick={handleExecuteConfirmAction}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                     >
                       {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
-                      <span>Confirm & Return to Manager</span>
+                      <span>Confirm & return to manager</span>
                     </button>
                   </div>
                 </div>
@@ -1340,7 +1304,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                 {/* Header */}
                 <div className="flex items-center gap-3">
                   <div
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border ${
                       confirmActionType === 'MANAGER'
                         ? 'bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400'
                         : confirmActionType === 'HOD'
@@ -1364,7 +1328,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                         {confirmActionType === 'LOCK' && 'Confirm Final Lock & Release'}
                       </h3>
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                           confirmActionType === 'MANAGER'
                             ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300'
                             : confirmActionType === 'HOD'
@@ -1396,24 +1360,24 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                   <span className="font-semibold text-slate-800 dark:text-slate-200">{appraisal.employeeName} ({appraisal.employeeCode})</span>
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-slate-700/60">
-                  <span className="text-slate-500 dark:text-slate-400">Cycle / Cohort</span>
+                  <span className="text-slate-500 dark:text-slate-400">Cycle / cohort</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">{appraisal.cycleName} • {appraisal.appraisalYear}</span>
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-slate-700/60">
                   <span className="text-slate-500 dark:text-slate-400">
                     {confirmActionType === 'MANAGER' ? 'Proposed Increment' : confirmActionType === 'HOD' ? 'Calibrated Increment' : 'Final Increment'}
                   </span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
                     +{incrementPercent}% (+{currencySymbol}{incrementAmount.toLocaleString()})
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-slate-700/60">
-                  <span className="text-slate-500 dark:text-slate-400">Revised Annual CTC</span>
-                  <span className="font-bold text-slate-900 dark:text-white font-mono">{currencySymbol}{calculatedRevisedCtc.toLocaleString()}</span>
+                  <span className="text-slate-500 dark:text-slate-400">Revised annual CTC</span>
+                  <span className="font-bold text-slate-900 dark:text-white tabular-nums">{currencySymbol}{calculatedRevisedCtc.toLocaleString()}</span>
                 </div>
                 {effectiveDate && (confirmActionType === 'HR_APPROVE' || confirmActionType === 'LOCK') && (
                   <div className="flex justify-between items-center py-1 border-b border-slate-200/60 dark:border-slate-700/60">
-                    <span className="text-slate-500 dark:text-slate-400">Effective Date</span>
+                    <span className="text-slate-500 dark:text-slate-400">Effective date</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200">{effectiveDate}</span>
                   </div>
                 )}
@@ -1451,13 +1415,13 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                 )}
                 {confirmActionType === 'HR_APPROVE' && (
                   <p className="text-indigo-700 dark:text-indigo-300">
-                    Authorizes the final revised CTC and prepares the official printable appraisal letter. Next, HR can execute the final Lock & Release.
+                    Authorizes the final revised CTC and prepares the official printable appraisal letter. Next, HR can execute the final lock & release.
                   </p>
                 )}
                 {confirmActionType === 'LOCK' && (
                   <ul className="list-disc list-inside text-amber-800 dark:text-amber-300 space-y-0.5 pl-1">
                     <li><strong>Locks all approved settings</strong> permanently in the system (no further modifications).</li>
-                    <li><strong>Updates Employee Profile</strong> master data with the new CTC ({currencySymbol}{calculatedRevisedCtc.toLocaleString()}) and new designation.</li>
+                    <li><strong>Updates employee profile</strong> master data with the new CTC ({currencySymbol}{calculatedRevisedCtc.toLocaleString()}) and new designation.</li>
                     <li><strong>Releases official appraisal letter</strong> to employee portal.</li>
                   </ul>
                 )}
@@ -1484,7 +1448,7 @@ export const AppraisalDetailModal: React.FC<AppraisalDetailModalProps> = ({
                   type="button"
                   disabled={isSubmitting}
                   onClick={handleExecuteConfirmAction}
-                  className={`flex items-center gap-1.5 px-4 py-2 text-white text-xs font-semibold rounded-xl transition-colors shadow-xs cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-4 py-2 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer ${
                     confirmActionType === 'MANAGER'
                       ? 'bg-amber-600 hover:bg-amber-700'
                       : confirmActionType === 'HOD'

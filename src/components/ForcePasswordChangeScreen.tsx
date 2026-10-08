@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
-  Layers,
   Lock,
   Eye,
   EyeOff,
@@ -12,6 +11,7 @@ import {
   KeyRound,
 } from 'lucide-react';
 
+import { AppLogo } from './ui/AppLogo';
 export const ForcePasswordChangeScreen: React.FC = () => {
   const { changePassword, logout, user, isLoading } = useAuth();
   const [newPassword, setNewPassword] = useState('');
@@ -57,21 +57,19 @@ export const ForcePasswordChangeScreen: React.FC = () => {
       </div>
       <div className="relative z-10 w-full max-w-md">
         <div className="flex items-center gap-3 mb-8 justify-center">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <Layers className="w-5 h-5" />
-          </div>
+          <AppLogo className="w-10 h-10" />
           <div>
-            <p className="text-sm font-bold text-white tracking-tight leading-none">MintReview System</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Enterprise Calibration System</p>
+            <p className="text-sm font-bold text-white tracking-tight leading-none">MintReview system</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">MintReview</p>
           </div>
         </div>
-        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl shadow-black/50 border border-slate-100 dark:border-slate-800 p-8 space-y-6">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 p-8 space-y-6">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
               <KeyRound className="w-3.5 h-3.5" />
-              <span>Action Required — First Login</span>
+              <span>Action required — first login</span>
             </div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Set Your New Password</h2>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Set your new password</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
               Hi <strong className="text-slate-700 dark:text-slate-300">{user?.name}</strong>, your account was provisioned with a temporary password.
               For your security, you must set a new password before accessing the system.
@@ -85,7 +83,7 @@ export const ForcePasswordChangeScreen: React.FC = () => {
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">New Password</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">New password</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                   <Lock className="w-4 h-4 text-slate-400" />
@@ -99,7 +97,7 @@ export const ForcePasswordChangeScreen: React.FC = () => {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Confirm New Password</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Confirm new password</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                   <Lock className="w-4 h-4 text-slate-400" />
@@ -114,7 +112,7 @@ export const ForcePasswordChangeScreen: React.FC = () => {
             </div>
             {newPassword.length > 0 && (
               <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1.5">
-                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Password Requirements</p>
+                <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-2">Password requirements</p>
                 <Req met={hasMinLength} label="At least 8 characters" />
                 <Req met={hasNoSpaces} label="No spaces allowed" />
                 <Req met={isNotDefault} label="Not a common or default password" />
@@ -122,11 +120,11 @@ export const ForcePasswordChangeScreen: React.FC = () => {
               </div>
             )}
             <button type="submit" disabled={isLoading || isSubmitting || !isValid}
-              className="w-full mt-2 py-3 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-semibold rounded-xl text-xs transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed group">
+              className="w-full mt-2 py-3 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-semibold rounded-xl text-xs transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed group">
               {isSubmitting ? (
-                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /><span>Updating Password...</span></>
+                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /><span>Updating password...</span></>
               ) : (
-                <><ShieldCheck className="w-4 h-4" /><span>Set Password & Enter System</span><ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" /></>
+                <><ShieldCheck className="w-4 h-4" /><span>Set password & enter system</span><ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" /></>
               )}
             </button>
           </form>

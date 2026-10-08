@@ -4,7 +4,6 @@ import {
   TrendingUp,
   Search,
   RefreshCw,
-  Sparkles,
   DollarSign,
   Users,
   Lock,
@@ -19,6 +18,7 @@ import {
   LayoutGrid,
   List,
   RotateCcw,
+  Plus,
 } from 'lucide-react';
 import {
   Appraisal,
@@ -27,7 +27,6 @@ import {
   Department,
   Designation,
   User as AuthUser,
-  EmployeeStatus,
   Employee,
 } from '../types';
 import { api } from '../services/api';
@@ -39,6 +38,9 @@ import { CycleBadge } from './ui/CycleBadge';
 import { PageSkeletonLoader } from './ui/PageSkeletonLoader';
 import { downloadAppraisalPdf } from '../utils/letterExport';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { EmployeeStatusBadge } from './ui/StatusBadge';
+import { PageHeader } from './ui/PageHeader';
+import { Button } from './ui/Button';
 
 export interface AppraisalViewConfig {
   /** Legacy deep-link field; Bell Curve & Budget is now its own 'calibration' view. */
@@ -145,7 +147,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
 
   const userRole = currentUser?.role || 'EMPLOYEE';
   const canInitiate = userRole === 'SUPER_ADMIN' || userRole === 'HR';
-  const canBatchExport = userRole === 'SUPER_ADMIN' || userRole === 'HR' || userRole === 'EXECUTIVE_MANAGEMENT';
+  const canBatchExport = userRole === 'SUPER_ADMIN' || userRole === 'HR' || userRole === 'MANAGEMENT';
 
   const loadData = async () => {
     setIsLoading(true);
@@ -181,32 +183,6 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
 
   const currencySymbol = '₹';
 
-  // Helper for employment status badge
-  const getEmployeeStatusBadge = (empStatus?: EmployeeStatus) => {
-    if (!empStatus || empStatus === 'ACTIVE') return null;
-    if (empStatus === 'INACTIVE') {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-          OFFBOARDED
-        </span>
-      );
-    }
-    if (empStatus === 'NOTICE') {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-          SERVING NOTICE
-        </span>
-      );
-    }
-    if (empStatus === 'PROBATION') {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-          PROBATION
-        </span>
-      );
-    }
-    return null;
-  };
 
   // Filtered appraisals according to hideInactive
   const displayedAppraisals = appraisals.filter((a) => {
@@ -238,14 +214,14 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
               title={`Returned by ${hodReturn.returnedByName}: ${hodReturn.reason}`}
             >
               <RotateCcw className="w-3 h-3" />
-              <span>HOD Returned</span>
+              <span>HOD returned</span>
             </span>
           );
         }
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            <span>Pending Mgr</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span>Pending mgr</span>
           </span>
         );
       case 'MANAGER_RECOMMENDED':
@@ -253,35 +229,35 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
           return (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60">
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-              <span>No HOD Assigned</span>
+              <span>No HOD assigned</span>
             </span>
           );
         }
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60">
             <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
-            <span>Mgr Recommended</span>
+            <span>Mgr recommended</span>
           </span>
         );
       case 'HOD_CALIBRATED':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-purple-50 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
             <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-            <span>HOD Calibrated</span>
+            <span>HOD calibrated</span>
           </span>
         );
       case 'HR_APPROVED':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span>HR Approved</span>
+            <span>HR approved</span>
           </span>
         );
       case 'LOCKED':
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border border-slate-900 dark:border-slate-100">
             <Lock className="w-3 h-3" />
-            <span>Locked & Released</span>
+            <span>Locked & released</span>
           </span>
         );
       default:
@@ -295,119 +271,80 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
 
   return (
     <div className="space-y-6">
-      {/* Native Page Header: Title, Subtitle, and Primary Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
-              Appraisals & Increments
-            </h1>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Annual Calibration
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Rolling 4-quarter performance rollups, June/September cohort grouping, and official compensation letters.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <button
-            onClick={loadData}
-            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-            title="Refresh Appraisals"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          </button>
-
-          {canBatchExport && (
-            <button
-              onClick={() => setIsBatchExportModalOpen(true)}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-              title="Bulk export formatted PDF letters, ZIP archives, and payroll sheets"
-            >
-              <Archive className="w-3.5 h-3.5 text-slate-400" />
-              <span>Batch Export Letters</span>
-            </button>
-          )}
-
-          {canInitiate && (
-            <button
-              onClick={() => setIsInitiateModalOpen(true)}
-              className="px-3 py-1.5 text-xs font-medium text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400 dark:text-amber-600" />
-              <span>Initiate Appraisal Cohort</span>
-            </button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Appraisals and increments"
+        description="Yearly rollups of quarterly scores, increment proposals for each cohort, and appraisal letters."
+        actions={
+          <>
+            <Button variant="ghost" icon={RefreshCw} iconSpin={isLoading} onClick={loadData} title="Refresh" aria-label="Refresh appraisals" />
+            {canBatchExport && (
+              <Button icon={Archive} onClick={() => setIsBatchExportModalOpen(true)} title="Export letters as PDFs or a ZIP, plus the payroll sheet">
+                Export letters
+              </Button>
+            )}
+            {canInitiate && (
+              <Button variant="primary" icon={Plus} onClick={() => setIsInitiateModalOpen(true)}>
+                Start appraisal cohort
+              </Button>
+            )}
+          </>
+        }
+      />
 
           {/* KPI & Metric Cards */}
           {stats && (
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
               {/* Total Appraisals */}
-              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-indigo-500 rounded-lg shadow-2xs space-y-1">
+              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg space-y-1">
                 <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                  <span className="text-[11px] font-medium uppercase tracking-wider">Cohort Size</span>
-                  <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                    <Users className="w-3.5 h-3.5" />
-                  </div>
+                  <span className="text-[11px] font-medium">Cohort size</span>
+                  <Users className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
                 </div>
-                <div className="text-2xl font-bold text-slate-900 dark:text-white font-mono">{stats.total}</div>
+                <div className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">{stats.total}</div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
                   <span>{stats.locked} locked / released</span>
                 </div>
               </div>
 
               {/* Average 4-Quarter Score */}
-              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-amber-500 rounded-lg shadow-2xs space-y-1">
+              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg space-y-1">
                 <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                  <span className="text-[11px] font-medium uppercase tracking-wider">Avg 4-Qtr Score</span>
-                  <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                    <Award className="w-3.5 h-3.5" />
-                  </div>
+                  <span className="text-[11px] font-medium">Avg 4-qtr score</span>
+                  <Award className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
                 </div>
-                <div className="text-2xl font-bold text-slate-900 dark:text-white font-mono">{stats.averageScore.toFixed(2)}</div>
+                <div className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">{(stats.averageScore ?? 0).toFixed(2)}</div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400">Scale of 5.00</div>
               </div>
 
               {/* Average Increment % */}
-              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-emerald-500 rounded-lg shadow-2xs space-y-1">
+              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg space-y-1">
                 <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                  <span className="text-[11px] font-medium uppercase tracking-wider">Avg Increment</span>
-                  <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                    <TrendingUp className="w-3.5 h-3.5" />
-                  </div>
+                  <span className="text-[11px] font-medium">Avg increment</span>
+                  <TrendingUp className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
                 </div>
-                <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 font-mono">+{stats.averageIncrement}%</div>
+                <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">+{stats.averageIncrement}%</div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400">Performance-calibrated</div>
               </div>
 
               {/* Total Budget Increment Impact */}
-              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-sky-500 rounded-lg shadow-2xs space-y-1">
+              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg space-y-1">
                 <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                  <span className="text-[11px] font-medium uppercase tracking-wider">Annual CTC Revision</span>
-                  <div className="w-7 h-7 rounded-lg bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center text-sky-600 dark:text-sky-400">
-                    <DollarSign className="w-3.5 h-3.5" />
-                  </div>
+                  <span className="text-[11px] font-medium">Annual CTC revision</span>
+                  <DollarSign className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
                 </div>
-                <div className="text-xl font-bold text-slate-900 dark:text-white font-mono">
-                  +{currencySymbol}{(stats.totalIncrementBudgetImpact / 100000).toFixed(2)}L
+                <div className="text-xl font-bold text-slate-900 dark:text-white tabular-nums">
+                  +{currencySymbol}{(((stats.totalIncrementBudgetImpact ?? 0)) / 100000).toFixed(2)}L
                 </div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400">Payroll budget impact</div>
               </div>
 
               {/* Promotions */}
-              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 border-t-2 border-t-purple-500 rounded-lg shadow-2xs space-y-1 col-span-2 lg:col-span-1">
+              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg space-y-1 col-span-2 lg:col-span-1">
                 <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                  <span className="text-[11px] font-medium uppercase tracking-wider">Promotions</span>
-                  <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/60 flex items-center justify-center text-purple-600 dark:text-purple-400">
-                    <Briefcase className="w-3.5 h-3.5" />
-                  </div>
+                  <span className="text-[11px] font-medium">Promotions</span>
+                  <Briefcase className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
                 </div>
-                <div className="text-2xl font-bold text-purple-700 dark:text-purple-400 font-mono">{stats.promotionsCount}</div>
+                <div className="text-2xl font-bold text-purple-700 dark:text-purple-400 tabular-nums">{stats.promotionsCount}</div>
                 <div className="text-[11px] text-slate-500 dark:text-slate-400">Role level upgrades</div>
               </div>
             </div>
@@ -417,7 +354,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
           <div className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 rounded-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium">
               <Sliders className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span>Increment Matrix Guideline:</span>
+              <span>Increment guide:</span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 rounded-md text-[11px] font-medium">
@@ -436,11 +373,11 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
           </div>
 
           {/* Filter Bar */}
-          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-lg border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3">
+          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-lg border border-slate-200/80 dark:border-slate-800 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Cycle Selector */}
           <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
               Cycle
             </label>
             <select
@@ -448,7 +385,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
               onChange={(e) => setSelectedCycleId(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
             >
-              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Cycles</option>
+              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All cycles</option>
               {cycles.filter((c) => c.active !== false).map((c) => (
                 <option key={c.id} value={c.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                   {c.name} (Month {c.appraisalMonth})
@@ -459,8 +396,8 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
 
           {/* Year Selector */}
           <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-              Fiscal Year
+            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+              Fiscal year
             </label>
             <select
               value={selectedYear}
@@ -475,7 +412,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
 
           {/* Department Selector */}
           <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
               Department
             </label>
             <select
@@ -483,7 +420,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
               onChange={(e) => setSelectedDepartmentId(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
             >
-              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Departments</option>
+              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All departments</option>
               {departments.map((d) => (
                 <option key={d.id} value={d.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
                   {d.name}
@@ -494,27 +431,27 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
 
           {/* Status Selector */}
           <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-              Workflow Status
+            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+              Workflow status
             </label>
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
             >
-              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All Statuses</option>
-              <option value="PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Pending Manager</option>
-              <option value="MANAGER_RECOMMENDED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Manager Recommended</option>
-              <option value="HOD_CALIBRATED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HOD Calibrated</option>
-              <option value="HR_APPROVED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR Approved</option>
-              <option value="LOCKED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Locked & Released</option>
+              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All statuses</option>
+              <option value="PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Pending manager</option>
+              <option value="MANAGER_RECOMMENDED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Manager recommended</option>
+              <option value="HOD_CALIBRATED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HOD calibrated</option>
+              <option value="HR_APPROVED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR approved</option>
+              <option value="LOCKED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Locked & released</option>
             </select>
           </div>
 
           {/* Search Box */}
           <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-              Search Employee
+            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+              Search employee
             </label>
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
@@ -531,12 +468,12 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
       </div>
 
       {/* Appraisals Data List */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs overflow-hidden">
+      <div className="bg-white dark:bg-[#121215] rounded-xl border border-slate-200/80 dark:border-white/[0.08] shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.4)] overflow-hidden">
         {/* Header with Title, Count, and View Mode Switcher */}
-        <div className="px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-850/50">
+        <div className="px-5 py-3.5 border-b border-slate-100 dark:border-white/[0.06] flex flex-wrap items-center justify-between gap-3 bg-slate-50/50 dark:bg-[#18181d]/50">
           <div className="flex items-center gap-2.5 flex-wrap">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-              Appraisal Candidates & Compensation Records
+              Appraisal candidates & compensation records
             </h3>
             <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
               {displayedAppraisals.length} {displayedAppraisals.length === 1 ? 'Record' : 'Records'}
@@ -551,21 +488,21 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
               onClick={() => setHideInactive(!hideInactive)}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
                 hideInactive
-                  ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800 shadow-2xs font-bold'
-                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750'
+                  ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800 font-bold'
+                  : 'bg-white dark:bg-[#18181d] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-white/[0.08] hover:bg-slate-50 dark:hover:bg-white/[0.04]'
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              <span>Hide Inactive</span>
+              <span>Hide inactive</span>
             </button>
             {/* View Mode Switcher (Cards vs Table) — hidden on mobile since cards are forced there */}
-            <div className="hidden sm:flex items-center gap-1 bg-slate-200/70 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-white/[0.04] p-1 rounded-xl border border-slate-200/80 dark:border-white/[0.06]">
               <button
                 type="button"
                 onClick={() => setViewMode('cards')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                   viewMode === 'cards'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-2xs font-bold'
+                    ? 'bg-white dark:bg-[#18181d] text-indigo-700 dark:text-indigo-400 font-bold border border-slate-200/50 dark:border-white/[0.08]'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
@@ -577,7 +514,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                 onClick={() => setViewMode('table')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                   viewMode === 'table'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-2xs font-bold'
+                    ? 'bg-white dark:bg-[#18181d] text-indigo-700 dark:text-indigo-400 font-bold border border-slate-200/50 dark:border-white/[0.08]'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
@@ -594,28 +531,26 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
           </div>
         ) : displayedAppraisals.length === 0 ? (
           <div className="py-16 text-center space-y-4 max-w-sm mx-auto">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
-              <Award className="w-6 h-6" />
-            </div>
+            <Award className="w-6 h-6 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
             <div>
-              <h3 className="text-sm font-bold text-slate-900">No Appraisals Found</h3>
+              <h3 className="text-sm font-bold text-slate-900">No appraisals found</h3>
               <p className="text-xs text-slate-500 mt-1">
-                No active appraisal records match your filters. Click "Initiate Appraisal Cohort" to batch generate appraisals for employees in their designated appraisal month.
+                No active appraisal records match your filters. Click "initiate appraisal cohort" to batch generate appraisals for employees in their designated appraisal month.
               </p>
             </div>
             {canInitiate && (
               <button
                 onClick={() => setIsInitiateModalOpen(true)}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition-colors"
               >
-                Initiate Appraisal Cycle
+                Initiate appraisal cycle
               </button>
             )}
           </div>
         ) : effectiveViewMode === 'cards' ? (
-          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/50 dark:bg-slate-900/50">
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-slate-50/50 dark:bg-[#0c0c0e]/60">
             {displayedAppraisals.map((appr) => {
-              const incPct = appr.approvedIncrementPercentage ?? appr.proposedIncrementPercentage ?? appr.recommendedIncrementPercentage ?? 0;
+              const incPct = appr.approvedIncrementPercentage ?? appr.proposedIncrementPercentage ?? appr.incrementPercentage ?? 0;
               const currentCtc = appr.currentCtc || 0;
               const revisedCtc = appr.revisedCtc || (currentCtc + Math.round((currentCtc * incPct) / 100));
               const isEligibleForLetter = appr.status === 'HR_APPROVED' || appr.status === 'LOCKED' || appr.isLocked;
@@ -632,8 +567,8 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                 <div
                   key={appr.id}
                   onClick={() => setSelectedAppraisalForDetail(appr)}
-                  className={`bg-white dark:bg-slate-900 rounded-lg border p-4 shadow-2xs hover:shadow-sm transition-all duration-150 cursor-pointer flex flex-col justify-between space-y-4 group ${
-                    isPendingMyAction ? 'border-indigo-400 dark:border-indigo-500/50 ring-2 ring-indigo-500/10 dark:ring-indigo-500/20' : 'border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                  className={`bg-white dark:bg-[#18181d] rounded-xl border p-4 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-150 cursor-pointer flex flex-col justify-between space-y-4 group ${
+                    isPendingMyAction ? 'border-indigo-400 dark:border-indigo-500/50 ring-2 ring-indigo-500/10 dark:ring-indigo-500/20' : 'border-slate-200/80 dark:border-white/[0.08] hover:border-slate-300 dark:hover:border-white/[0.15]'
                   }`}
                 >
                   {/* Top: Identity & Status */}
@@ -641,7 +576,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-3">
                         <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-xs shrink-0"
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0"
                           style={{ backgroundColor: appr.cycleColor || '#4f46e5' }}
                         >
                           {appr.employeeName.charAt(0)}
@@ -651,14 +586,14 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                             <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                               {appr.employeeName}
                             </h4>
-                            {getEmployeeStatusBadge(appr.employeeStatus)}
-                            {appr.promoted && (
-                              <span className="text-[10px] px-1.5 py-0.2 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded font-bold uppercase tracking-wider flex items-center gap-0.5">
+                            <EmployeeStatusBadge status={appr.employeeStatus} />
+                            {(appr.promotionRecommended || appr.promotedDesignationName) && (
+                              <span className="text-[11px] px-1.5 py-0.2 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded font-bold flex items-center gap-0.5">
                                 <Briefcase className="w-2.5 h-2.5" /> Promoted
                               </span>
                             )}
                           </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
                             {appr.employeeCode} • {appr.designationName}
                           </p>
                         </div>
@@ -674,7 +609,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                       </span>
                       <div className="flex items-center gap-1">
                         <CycleBadge code={appr.cycleCode || appr.cycleName?.replace('Cycle ', '')} />
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">M{appr.appraisalMonth}</span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 tabular-nums">M{appr.appraisalMonth}</span>
                       </div>
                     </div>
 
@@ -682,11 +617,11 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                     <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3.5 border border-slate-100 dark:border-slate-800 space-y-2.5">
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider block">
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold block">
                             4-Qtr Rolling Score
                           </span>
                           <div className="flex items-baseline gap-1 mt-0.5">
-                            <span className="text-lg font-bold text-slate-900 dark:text-white font-mono">
+                            <span className="text-lg font-bold text-slate-900 dark:text-white tabular-nums">
                               {appr.averageQuarterlyScore.toFixed(2)}
                             </span>
                             <span className="text-[11px] text-slate-400 dark:text-slate-500">/ 5.00</span>
@@ -694,11 +629,11 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                         </div>
 
                         <div className="text-right">
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider block">
-                            Rating Band
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold block">
+                            Rating band
                           </span>
                           <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md border inline-block mt-0.5 ${
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-md border inline-block mt-0.5 ${
                               appr.averageQuarterlyScore <= 0 || (!appr.finalRating && (!appr.recommendedRating || appr.recommendedRating === 'PENDING'))
                                 ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
                                 : appr.averageQuarterlyScore >= 4.5
@@ -734,22 +669,22 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                       {/* Compensation revision row */}
                       <div className="pt-2 border-t border-slate-200/70 dark:border-slate-700/60 flex items-center justify-between">
                         <div>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium block">Revised CTC</span>
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium block">Revised CTC</span>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-xs text-slate-400 dark:text-slate-500 font-mono line-through">
+                            <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums line-through">
                               {currencySymbol}{(currentCtc / 100000).toFixed(2)}L
                             </span>
-                            <span className="text-xs font-bold text-slate-900 dark:text-white font-mono">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white tabular-nums">
                               → {currencySymbol}{(revisedCtc / 100000).toFixed(2)}L
                             </span>
                           </div>
                         </div>
 
                         <div className="text-right">
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium block">Increment</span>
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium block">Increment</span>
                           <div className="flex items-center justify-end gap-1 mt-0.5">
                             {incPct > 0 ? (
-                              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800 font-mono">
+                              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800 tabular-nums">
                                 +{incPct.toFixed(1)}%
                               </span>
                             ) : (
@@ -763,18 +698,22 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
 
                       {/* Quarters Pills (if available) */}
                       {appr.quarterlyHistory && appr.quarterlyHistory.length > 0 && (
-                        <div className="pt-1.5 border-t border-slate-200/50 dark:border-slate-700/60 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
-                          <span className="text-[9px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-semibold">4-Qtr Breakdown:</span>
-                          <div className="flex items-center gap-1 font-mono">
-                            {appr.quarterlyHistory.map((q, idx) => (
-                              <span
-                                key={idx}
-                                className="px-1.5 py-0.2 rounded bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 font-semibold text-[10px]"
-                                title={`${q.quarterName || `Q${idx + 1}`}: ${q.score ? q.score.toFixed(2) : '--'}`}
-                              >
-                                {q.quarterName ? q.quarterName.slice(-2) : `Q${idx + 1}`}:{q.score ? q.score.toFixed(1) : '--'}
-                              </span>
-                            ))}
+                        <div className="pt-1.5 border-t border-slate-200/50 dark:border-slate-700/60 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold">4-Qtr Breakdown:</span>
+                          <div className="flex items-center gap-1 tabular-nums">
+                            {appr.quarterlyHistory.map((q, idx) => {
+                              const qTitle = q.quarter ? `Q${q.quarter}` : (q.periodName || q.reviewPeriodName || `Q${idx + 1}`);
+                              const qShort = q.quarter ? `Q${q.quarter}` : (q.periodName?.slice(-2) || `Q${idx + 1}`);
+                              return (
+                                <span
+                                  key={idx}
+                                  className="px-1.5 py-0.2 rounded bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 font-semibold text-[11px]"
+                                  title={`${qTitle}: ${q.score ? q.score.toFixed(2) : '--'}`}
+                                >
+                                  {qShort}:{q.score ? q.score.toFixed(1) : '--'}
+                                </span>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -817,7 +756,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                       onClick={() => setSelectedAppraisalForDetail(appr)}
                       className={`flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
                         isPendingMyAction
-                          ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs'
+                          ? 'bg-indigo-600 text-white hover:bg-indigo-700'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
                       }`}
                     >
@@ -843,20 +782,20 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
         ) : (
           <div className="overflow-x-auto overscroll-x-contain max-h-[70vh]" style={{ WebkitOverflowScrolling: 'touch' }}>
             <table className="w-full text-left text-xs">
-              <thead className="sticky top-0 z-10 backdrop-blur-md bg-slate-50/95 dark:bg-slate-800/95 border-b border-slate-200 dark:border-slate-700 shadow-2xs">
+              <thead className="sticky top-0 z-10 backdrop-blur-md bg-slate-50/95 dark:bg-[#18181d]/95 border-b border-slate-200/80 dark:border-white/[0.06]">
                 <tr className="text-slate-600 dark:text-slate-300 font-semibold">
                   <th className="py-3.5 px-4">Employee</th>
                   <th className="py-3.5 px-3">Cycle</th>
                   <th className="py-3.5 px-3 text-center">4-Qtr Rolling Score</th>
-                  <th className="py-3.5 px-3">Rating Band</th>
+                  <th className="py-3.5 px-3">Rating band</th>
                   <th className="py-3.5 px-3 text-right">Current CTC</th>
                   <th className="py-3.5 px-3 text-right">Increment %</th>
                   <th className="py-3.5 px-3 text-right">Revised CTC</th>
-                  <th className="py-3.5 px-3 text-center">Workflow Stage</th>
+                  <th className="py-3.5 px-3 text-center">Workflow stage</th>
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+              <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04] text-slate-700 dark:text-slate-300">
                 {displayedAppraisals.map((appr) => {
                   const incPct = appr.approvedIncrementPercentage ?? appr.proposedIncrementPercentage ?? 0;
                   const currentCtc = appr.currentCtc || 0;
@@ -866,7 +805,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                   return (
                     <tr
                       key={appr.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors group cursor-pointer"
+                      className="hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors group cursor-pointer"
                       onClick={() => setSelectedAppraisalForDetail(appr)}
                     >
                       {/* Employee */}
@@ -876,14 +815,14 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                             <span className="font-bold text-slate-900 dark:text-white text-xs group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                               {appr.employeeName}
                             </span>
-                            {getEmployeeStatusBadge(appr.employeeStatus)}
+                            <EmployeeStatusBadge status={appr.employeeStatus} />
                           </div>
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-mono">
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 tabular-nums">
                             <span>{appr.employeeCode}</span>
                             <span>•</span>
                             <span>{appr.designationName}</span>
                           </div>
-                          <div className="text-[10px] text-slate-400 dark:text-slate-500">{appr.departmentName}</div>
+                          <div className="text-[11px] text-slate-400 dark:text-slate-500">{appr.departmentName}</div>
                         </div>
                       </td>
 
@@ -895,10 +834,10 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                       {/* 4-Quarter Rolling Score */}
                       <td className="py-3.5 px-3 text-center">
                         <div className="inline-flex flex-col items-center">
-                          <span className="font-mono font-bold text-sm text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                          <span className="tabular-nums font-bold text-sm text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
                             {appr.averageQuarterlyScore.toFixed(2)}
                           </span>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
                             {appr.quarterlyHistory?.length || 4} Quarters
                           </span>
                         </div>
@@ -908,7 +847,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                       <td className="py-3.5 px-3">
                         <div className="space-y-1">
                           <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md border inline-block ${
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-md border inline-block ${
                               appr.averageQuarterlyScore <= 0 || (!appr.finalRating && (!appr.recommendedRating || appr.recommendedRating === 'PENDING'))
                                 ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
                                 : appr.averageQuarterlyScore >= 4.5
@@ -923,7 +862,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                             {(appr.finalRating || appr.recommendedRating || 'PENDING').replace(/_/g, ' ')}
                           </span>
                           {appr.promotionRecommended && (
-                            <div className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                            <div className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-1">
                               <Award className="w-3 h-3 text-amber-500" />
                               <span>Promoted</span>
                             </div>
@@ -932,25 +871,25 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                       </td>
 
                       {/* Current CTC */}
-                      <td className="py-3.5 px-3 text-right font-mono text-slate-600 dark:text-slate-300">
+                      <td className="py-3.5 px-3 text-right tabular-nums text-slate-600 dark:text-slate-300">
                         {appr.currency || '₹'}{currentCtc.toLocaleString()}
                       </td>
 
                       {/* Increment % */}
                       <td className="py-3.5 px-3 text-right">
                         {incPct > 0 ? (
-                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-100 dark:border-emerald-800">
+                          <span className="tabular-nums font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-100 dark:border-emerald-800">
                             +{incPct.toFixed(1)}%
                           </span>
                         ) : (
-                          <span className="font-mono text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                          <span className="tabular-nums text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
                             --
                           </span>
                         )}
                       </td>
 
                       {/* Revised CTC */}
-                      <td className="py-3.5 px-3 text-right font-mono font-bold text-slate-900 dark:text-white">
+                      <td className="py-3.5 px-3 text-right tabular-nums font-bold text-slate-900 dark:text-white">
                         {appr.currency || '₹'}{revisedCtc.toLocaleString()}
                       </td>
 
