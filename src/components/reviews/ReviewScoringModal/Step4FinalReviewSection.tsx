@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, CheckCircle2, AlertTriangle, Lock, UserCheck
 import { EmployeeReview, ReviewKraSnapshot, ReviewStatus } from '../../../types';
 import { getOpenReturn, getReturnCount } from './returnUtils';
 import { TEXTAREA_CLASS } from '../../ui/formStyles';
+import { m, AnimatePresence, accordionVariants } from '../../../animations';
 
 interface Step4FinalReviewSectionProps {
   review: EmployeeReview;
@@ -336,9 +337,12 @@ export const Step4FinalReviewSection: React.FC<Step4FinalReviewSectionProps> = (
                         )}
                       </td>
                     </tr>
+                    <AnimatePresence initial={false}>
                     {isOpen && (
-                      <tr className="bg-slate-50/80 dark:bg-slate-900/40">
-                        <td colSpan={canReturn ? 8 : 7} className="px-4 py-3">
+                      <tr key="details" className="bg-slate-50/80 dark:bg-slate-900/40">
+                        <td colSpan={canReturn ? 8 : 7} className="p-0">
+                          <m.div variants={accordionVariants} initial="collapsed" animate="expanded" exit="collapsed">
+                          <div className="px-4 py-3">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                             <DetailColumn
                               title="Employee (self)"
@@ -394,9 +398,12 @@ export const Step4FinalReviewSection: React.FC<Step4FinalReviewSectionProps> = (
                               })}
                             </div>
                           )}
+                          </div>
+                          </m.div>
                         </td>
                       </tr>
                     )}
+                    </AnimatePresence>
                   </React.Fragment>
                 );
               })}

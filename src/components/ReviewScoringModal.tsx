@@ -51,6 +51,7 @@ import {
 } from './reviews/ReviewScoringModal';
 import { ReviewLetterModal } from './ReviewLetterModal';
 import { useModalAnimation } from '../hooks/useModalAnimation';
+import { m, AnimatePresence, accordionVariants } from '../animations';
 
 interface ReviewScoringModalProps {
   review: EmployeeReview | null;
@@ -68,6 +69,12 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
   onSaved,
 }) => {
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
+  // Previous step, so a step change can slide in from the direction of travel
+  const prevStepRef = React.useRef(wizardStep);
+  const stepDirection = wizardStep >= prevStepRef.current ? 1 : -1;
+  useEffect(() => {
+    prevStepRef.current = wizardStep;
+  }, [wizardStep]);
   const [snapshots, setSnapshots] = useState<ReviewKraSnapshot[]>([]);
   const [strengths, setStrengths] = useState('');
   const [improvements, setImprovements] = useState('');
@@ -875,8 +882,16 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                   </span>
                 </button>
 
+                <AnimatePresence initial={false}>
                 {returnBannerExpanded && (
-                  <div className="px-3 pb-2.5 pl-8 space-y-1.5 border-t border-amber-200/70 dark:border-amber-800/60 pt-2">
+                  <m.div
+                    key="return-details"
+                    variants={accordionVariants}
+                    initial="collapsed"
+                    animate="expanded"
+                    exit="collapsed"
+                    className="px-3 pb-2.5 pl-8 space-y-1.5 border-t border-amber-200/70 dark:border-amber-800/60 pt-2"
+                  >
                     <p className="leading-relaxed">
                       <span className="font-semibold">Reason:</span> {openReturn.reason}
                     </p>
@@ -901,8 +916,9 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                       Returned on {new Date(openReturn.createdAt).toLocaleDateString()} to {recipient}. Only the returned KRAs are editable — update each one (or keep its
                       rating with a reason) and resubmit; {nextStep}
                     </p>
-                  </div>
+                  </m.div>
                 )}
+                </AnimatePresence>
               </div>
             );
           })()
@@ -1078,7 +1094,15 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
           />
         )}
         {/* MODAL BODY */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+        <div className="p-6 overflow-y-auto flex-1">
+          {/* Enter-only slide: the new step mounts at once, so "Jump to KRA" scrolling still finds its card */}
+          <m.div
+            key={wizardStep}
+            initial={{ opacity: 0, x: stepDirection * 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-6"
+          >
           {wizardStep === 1 && (
             <Step1SelfSection review={review} snapshots={snapshots} />
           )}
@@ -1137,6 +1161,7 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               }}
             />
           )}
+          </m.div>
         </div>
 
         {/* Sticky Inline In-Modal Warning Banner pinned right above the footer */}

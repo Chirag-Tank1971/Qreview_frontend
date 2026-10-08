@@ -1,4 +1,5 @@
 import React from 'react';
+import { m, springQuick } from '../../../animations';
 
 export const RATING_RUBRIC = [
   { value: 1, label: 'Needs Improvement', desc: 'Consistently below expectations / targets not achieved' },
@@ -83,9 +84,9 @@ export const RatingScale: React.FC<RatingScaleProps> = ({ name, label, rating, m
               disabled={disabled}
               onClick={() => onSelect(r.value)}
               onKeyDown={(e) => handleKeyDown(e, r.value)}
-              className={`flex flex-col items-center sm:items-start gap-0.5 px-2 sm:px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 ${
+              className={`relative flex flex-col items-center sm:items-start gap-0.5 px-2 sm:px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 ${
                 isSelected
-                  ? 'bg-indigo-600 text-white dark:bg-indigo-500'
+                  ? 'text-white'
                   : isFilled
                   ? 'bg-indigo-50 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-200'
                   : 'bg-white text-slate-600 dark:bg-slate-900/40 dark:text-slate-300'
@@ -97,8 +98,16 @@ export const RatingScale: React.FC<RatingScaleProps> = ({ name, label, rating, m
                   : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
-              <span className="text-base font-bold tabular-nums leading-none">{r.value}</span>
-              <span className={`hidden sm:block text-[11px] leading-tight ${isSelected ? 'text-indigo-100' : 'opacity-80'}`}>
+              {isSelected && (
+                <m.span
+                  layoutId={`${name}-selected`}
+                  transition={springQuick}
+                  className="absolute inset-0 bg-indigo-600 dark:bg-indigo-500"
+                  aria-hidden="true"
+                />
+              )}
+              <span className="relative text-base font-bold tabular-nums leading-none">{r.value}</span>
+              <span className={`relative hidden sm:block text-[11px] leading-tight ${isSelected ? 'text-indigo-100' : 'opacity-80'}`}>
                 {r.label}
               </span>
             </button>

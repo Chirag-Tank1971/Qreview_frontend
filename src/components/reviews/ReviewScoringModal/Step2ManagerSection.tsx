@@ -6,6 +6,7 @@ import { ReturnedKraPanel } from './ReturnedKraPanel';
 import { RatingScale } from './RatingScale';
 import { CardStatus, KraCardHeader, LockedKraRow, LockedStatus, QuotedNote } from './KraCardParts';
 import { TEXTAREA_CLASS } from '../../ui/formStyles';
+import { m, accordionVariants } from '../../../animations';
 
 interface Step2ManagerSectionProps {
   snapshots: ReviewKraSnapshot[];
@@ -69,7 +70,10 @@ export const Step2ManagerSection: React.FC<Step2ManagerSectionProps> = ({
           }
 
           return (
-            <section
+            <m.section
+              variants={accordionVariants}
+              initial={isLocked ? 'collapsed' : false}
+              animate="expanded"
               key={item.id || idx}
               id={`mgr-kra-card-${kraDomId}`}
               aria-labelledby={`mgr-kra-title-${kraDomId}`}
@@ -197,7 +201,7 @@ export const Step2ManagerSection: React.FC<Step2ManagerSectionProps> = ({
                   />
                 </div>
               </div>
-            </section>
+            </m.section>
           );
         })}
       </div>

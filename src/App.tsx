@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
-import { LazyMotion, domAnimation } from 'framer-motion';
+import { LazyMotion, MotionConfig, domMax } from 'framer-motion';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -473,8 +473,10 @@ export default function App() {
       <ToastProvider>
         <AuthProvider>
           <NotificationsProvider>
-            <LazyMotion features={domAnimation} strict={false}>
-              <AppContent />
+            <LazyMotion features={domMax} strict={false}>
+              <MotionConfig reducedMotion="user">
+                <AppContent />
+              </MotionConfig>
             </LazyMotion>
           </NotificationsProvider>
         </AuthProvider>

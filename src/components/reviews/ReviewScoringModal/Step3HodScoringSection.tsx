@@ -6,6 +6,7 @@ import { ReturnedKraPanel } from './ReturnedKraPanel';
 import { RatingScale } from './RatingScale';
 import { CardStatus, KraCardHeader, LockedKraRow, LockedStatus, QuotedNote } from './KraCardParts';
 import { TEXTAREA_CLASS } from '../../ui/formStyles';
+import { m, accordionVariants } from '../../../animations';
 
 interface Step3HodScoringSectionProps {
   snapshots: ReviewKraSnapshot[];
@@ -110,7 +111,10 @@ export const Step3HodScoringSection: React.FC<Step3HodScoringSectionProps> = ({
           }
 
           return (
-            <section
+            <m.section
+              variants={accordionVariants}
+              initial={isLocked ? 'collapsed' : false}
+              animate="expanded"
               key={item.id || idx}
               id={`hod-kra-card-${kraDomId}`}
               aria-labelledby={`hod-kra-title-${kraDomId}`}
@@ -241,7 +245,7 @@ export const Step3HodScoringSection: React.FC<Step3HodScoringSectionProps> = ({
                   />
                 </div>
               </div>
-            </section>
+            </m.section>
           );
         })}
       </div>
