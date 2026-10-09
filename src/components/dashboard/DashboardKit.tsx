@@ -464,6 +464,8 @@ export interface PersonRow {
   stage: keyof typeof STAGE_PILL;
   score?: number;
   flag?: string;
+  pipId?: string;
+  onPipClick?: (e: React.MouseEvent) => void;
   onClick?: () => void;
 }
 
@@ -494,33 +496,65 @@ export const PeopleCard: React.FC<{
           <ul className="-mx-2 divide-y divide-slate-100 dark:divide-slate-800">
             {visible.map((p) => {
               const pill = STAGE_PILL[p.stage] || STAGE_PILL.NONE;
+              const isPip = p.flag === 'PIP';
               return (
                 <li key={p.id}>
-                  <button
-                    type="button"
-                    disabled={!p.onClick}
-                    onClick={p.onClick}
-                    className="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-left hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer disabled:cursor-default"
+                  <div
+                    className={cn(
+                      'w-full flex items-center justify-between gap-3 px-2.5 py-2 rounded-lg text-left transition-colors',
+                      isPip
+                        ? 'bg-amber-50/60 hover:bg-amber-50 dark:bg-amber-950/20 dark:hover:bg-amber-950/30'
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                    )}
                   >
-                    <span className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold flex items-center justify-center shrink-0">
-                      {initials(p.name)}
-                    </span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-sm text-slate-800 dark:text-slate-100 truncate">
-                        {p.name}
-                        {p.flag && (
-                          <span className="ml-2 text-[11px] font-semibold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300">
-                            {p.flag}
-                          </span>
+                    <button
+                      type="button"
+                      disabled={!p.onClick}
+                      onClick={p.onClick}
+                      className="flex-1 flex items-center gap-3 min-w-0 text-left cursor-pointer disabled:cursor-default"
+                    >
+                      <span
+                        className={cn(
+                          'w-8 h-8 rounded-full text-xs font-semibold flex items-center justify-center shrink-0',
+                          isPip
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-300 dark:border-amber-700'
+                            : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
                         )}
+                      >
+                        {initials(p.name)}
                       </span>
-                      {p.subtitle && <span className="block text-xs text-slate-500 dark:text-slate-400 truncate">{p.subtitle}</span>}
-                    </span>
-                    <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-md whitespace-nowrap', pill.cls)}>{pill.label}</span>
-                    <span className="w-10 text-right text-sm font-semibold tabular-nums text-slate-900 dark:text-white">
+                      <span className="flex-1 min-w-0">
+                        <span className="flex items-center gap-2 text-sm text-slate-800 dark:text-slate-100 truncate font-medium">
+                          <span className="truncate">{p.name}</span>
+                          {isPip && (
+                            <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 shrink-0">
+                              On PIP
+                            </span>
+                          )}
+                          {!isPip && p.flag && (
+                            <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 shrink-0">
+                              {p.flag}
+                            </span>
+                          )}
+                        </span>
+                        {p.subtitle && <span className="block text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{p.subtitle}</span>}
+                      </span>
+                    </button>
+                    {isPip && p.onPipClick && (
+                      <button
+                        type="button"
+                        onClick={p.onPipClick}
+                        className="px-2 py-1 text-[11px] font-medium rounded border border-amber-300 dark:border-amber-700 bg-white/90 dark:bg-slate-900/90 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors shrink-0 cursor-pointer"
+                        title="View Performance Improvement Plan"
+                      >
+                        Plan
+                      </button>
+                    )}
+                    <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-md whitespace-nowrap shrink-0', pill.cls)}>{pill.label}</span>
+                    <span className="w-10 text-right text-sm font-semibold tabular-nums text-slate-900 dark:text-white shrink-0">
                       {p.score ? p.score.toFixed(1) : <span className="text-slate-300 dark:text-slate-600">–</span>}
                     </span>
-                  </button>
+                  </div>
                 </li>
               );
             })}

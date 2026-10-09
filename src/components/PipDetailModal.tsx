@@ -15,6 +15,7 @@ import {
   Target,
   Clock,
   AlertTriangle,
+  Printer,
 } from 'lucide-react';
 import {
   PerformanceImprovementPlan,
@@ -28,6 +29,7 @@ import { api } from '../services/api';
 import { toast } from '../context/ToastContext';
 import { StatusBadge } from './ui/StatusBadge';
 import { useModalAnimation } from '../hooks/useModalAnimation';
+import { printPipLetter } from '../utils/pipLetterExport';
 
 interface PipDetailModalProps {
   plan: PerformanceImprovementPlan;
@@ -645,6 +647,17 @@ export const PipDetailModal: React.FC<PipDetailModalProps> = ({ plan, currentUse
               ))}
           </div>
           <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                if (!printPipLetter(plan)) toast.warning('Allow pop-ups for this site to open the letter.', 'Pop-up blocked');
+              }}
+              className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors cursor-pointer flex items-center gap-1.5"
+              title="Open the formal PIP letter to print or save as PDF"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Print letter
+            </button>
             <button
               type="button"
               onClick={onClose}

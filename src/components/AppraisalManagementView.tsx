@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Award,
-  TrendingUp,
   Search,
   RefreshCw,
-  DollarSign,
   Users,
   Lock,
   FileText,
@@ -19,6 +17,9 @@ import {
   List,
   RotateCcw,
   Plus,
+  ChevronDown,
+  Filter,
+  X,
 } from 'lucide-react';
 import {
   Appraisal,
@@ -41,6 +42,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import { EmployeeStatusBadge } from './ui/StatusBadge';
 import { PageHeader } from './ui/PageHeader';
 import { Button } from './ui/Button';
+import { m, AnimatePresence, accordionVariants } from '../animations';
 
 export interface AppraisalViewConfig {
   /** Legacy deep-link field; Bell Curve & Budget is now its own 'calibration' view. */
@@ -63,6 +65,26 @@ interface AppraisalManagementViewProps {
   initialConfig?: AppraisalViewConfig | null;
   onClearInitialConfig?: () => void;
 }
+
+type AppraisalQuickView = 'ALL' | 'MINE' | 'PENDING' | 'WITH_HOD' | 'WITH_HR' | 'APPROVED' | 'LOCKED';
+
+const APPRAISAL_QUICK_VIEWS: { key: AppraisalQuickView; label: string }[] = [
+  { key: 'ALL', label: 'All' },
+  { key: 'MINE', label: 'Needs my action' },
+  { key: 'PENDING', label: 'Pending manager' },
+  { key: 'WITH_HOD', label: 'With HOD' },
+  { key: 'WITH_HR', label: 'With HR' },
+  { key: 'APPROVED', label: 'Approved' },
+  { key: 'LOCKED', label: 'Locked' },
+];
+
+const APPRAISAL_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Pending manager',
+  MANAGER_RECOMMENDED: 'Manager recommended',
+  HOD_CALIBRATED: 'HOD calibrated',
+  HR_APPROVED: 'HR approved',
+  LOCKED: 'Locked & released',
+};
 
 export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = ({
   currentUser,
@@ -91,6 +113,18 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [onlyMine] =useState<boolean>(false);
   const [hideInactive, setHideInactive] = useState<boolean>(false);
+  const [showFilters, setShowFilters] = useState<boolean>(false);
+  const [showGuide, setShowGuide] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('appr_show_guide') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  // Reviewers land on their own queue; HR, admin and management see everything
+  const [quickView, setQuickView] = useState<AppraisalQuickView>(
+    ['MANAGER', 'REPORTING_MANAGER', 'HOD'].includes(currentUser?.role || '') ? 'MINE' : 'ALL'
+  );
 
   // Modals
   const [isInitiateModalOpen, setIsInitiateModalOpen] = useState<boolean>(false);
@@ -184,11 +218,85 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
   const currencySymbol = '₹';
 
 
+  const toggleGuide = () => {
+    setShowGuide((prev) => {
+      try {
+        localStorage.setItem('appr_show_guide', String(!prev));
+      } catch {
+        // storage unavailable: the toggle still works for this visit
+      }
+      return !prev;
+    });
+  };
+
+  // Same rule the cards use to highlight "pending my action"
+  const pendingMyAction = (appr: Appraisal) =>
+    (appr.status === 'PENDING' && (appr.managerId === currentUser?.employeeId || appr.managerId === currentUser?.id)) ||
+    (appr.status === 'MANAGER_RECOMMENDED' && appr.hodId === currentUser?.employeeId) ||
+    (currentUser?.role === 'HR' && appr.status === 'HOD_CALIBRATED') ||
+    (currentUser?.role === 'SUPER_ADMIN' && appr.status === 'HR_APPROVED');
+
+  const matchesQuickView = (appr: Appraisal, view: AppraisalQuickView): boolean => {
+    switch (view) {
+      case 'MINE':
+        return pendingMyAction(appr);
+      case 'PENDING':
+        return appr.status === 'PENDING';
+      case 'WITH_HOD':
+        return appr.status === 'MANAGER_RECOMMENDED';
+      case 'WITH_HR':
+        return appr.status === 'HOD_CALIBRATED';
+      case 'APPROVED':
+        return appr.status === 'HR_APPROVED';
+      case 'LOCKED':
+        return appr.status === 'LOCKED' || appr.status === 'COMPLETED' || appr.isLocked;
+      default:
+        return true;
+    }
+  };
+
   // Filtered appraisals according to hideInactive
-  const displayedAppraisals = appraisals.filter((a) => {
+  const baseAppraisals = appraisals.filter((a) => {
     if (hideInactive && a.employeeStatus === 'INACTIVE') return false;
     return true;
   });
+  const quickViewCounts = Object.fromEntries(
+    APPRAISAL_QUICK_VIEWS.map(({ key }) => [key, baseAppraisals.filter((a) => matchesQuickView(a, key)).length])
+  ) as Record<AppraisalQuickView, number>;
+  const displayedAppraisals = baseAppraisals.filter((a) => matchesQuickView(a, quickView));
+
+  const hasDetailFilters =
+    selectedCycleId !== 'ALL' || selectedYear !== 2026 || selectedDepartmentId !== 'ALL' || selectedStatus !== 'ALL';
+
+  const clearAllFilters = () => {
+    setSelectedCycleId('ALL');
+    setSelectedYear(2026);
+    setSelectedDepartmentId('ALL');
+    setSelectedStatus('ALL');
+    setSearchQuery('');
+    setHideInactive(false);
+  };
+
+  const activeFilterChips = [
+    searchQuery.trim() && { key: 'search', label: `"${searchQuery.trim()}"`, clear: () => setSearchQuery('') },
+    selectedCycleId !== 'ALL' && {
+      key: 'cycle',
+      label: cycles.find((c) => c.id === selectedCycleId)?.name || 'Cycle',
+      clear: () => setSelectedCycleId('ALL'),
+    },
+    selectedYear !== 2026 && { key: 'year', label: `FY ${selectedYear}`, clear: () => setSelectedYear(2026) },
+    selectedDepartmentId !== 'ALL' && {
+      key: 'dept',
+      label: departments.find((d) => d.id === selectedDepartmentId)?.name || 'Department',
+      clear: () => setSelectedDepartmentId('ALL'),
+    },
+    selectedStatus !== 'ALL' && {
+      key: 'status',
+      label: APPRAISAL_STATUS_LABELS[selectedStatus] || selectedStatus,
+      clear: () => setSelectedStatus('ALL'),
+    },
+    hideInactive && { key: 'inactive', label: 'Hide inactive', clear: () => setHideInactive(false) },
+  ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
 
   // Quick single PDF download helper
   const handleQuickDownloadPdf = async (appraisal: Appraisal, e: React.MouseEvent) => {
@@ -291,72 +399,57 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
         }
       />
 
-          {/* KPI & Metric Cards */}
-          {stats && (
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
-              {/* Total Appraisals */}
-              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg space-y-1">
-                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                  <span className="text-[11px] font-medium">Cohort size</span>
-                  <Users className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-                </div>
-                <div className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">{stats.total}</div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  <span>{stats.locked} locked / released</span>
-                </div>
-              </div>
+      {/* Summary line; the increment guide opens from its toggle */}
+      {stats && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-3.5 py-2.5 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 text-sm text-slate-600 dark:text-slate-400 tabular-nums">
+          <span>
+            <strong className="text-base font-semibold text-indigo-800 dark:text-indigo-300">{stats.total}</strong> in cohort ({stats.locked} locked)
+          </span>
+          <span aria-hidden="true" className="hidden sm:block h-4 w-px bg-indigo-200 dark:bg-indigo-800" />
+          <span>
+            Avg score <strong className="text-base font-semibold text-indigo-800 dark:text-indigo-300">{(stats.averageScore ?? 0).toFixed(2)}</strong> / 5
+          </span>
+          <span aria-hidden="true" className="hidden sm:block h-4 w-px bg-indigo-200 dark:bg-indigo-800" />
+          <span>
+            Avg increment <strong className="text-base font-semibold text-emerald-700 dark:text-emerald-400">+{stats.averageIncrement}%</strong>
+          </span>
+          <span aria-hidden="true" className="hidden sm:block h-4 w-px bg-indigo-200 dark:bg-indigo-800" />
+          <span>
+            CTC revision{' '}
+            <strong className="text-base font-semibold text-indigo-800 dark:text-indigo-300">
+              +{currencySymbol}{((stats.totalIncrementBudgetImpact ?? 0) / 100000).toFixed(2)}L
+            </strong>
+          </span>
+          <span aria-hidden="true" className="hidden sm:block h-4 w-px bg-indigo-200 dark:bg-indigo-800" />
+          <span>
+            <strong className="text-base font-semibold text-indigo-800 dark:text-indigo-300">{stats.promotionsCount}</strong> promotions
+          </span>
+          <button
+            type="button"
+            onClick={toggleGuide}
+            aria-expanded={showGuide}
+            aria-controls="appr-increment-guide"
+            className="sm:ml-auto inline-flex items-center gap-1 text-sm font-medium text-indigo-700 dark:text-indigo-400 hover:underline cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+          >
+            {showGuide ? 'Hide increment guide' : 'Show increment guide'}
+            <ChevronDown className={`w-4 h-4 transition-transform ${showGuide ? 'rotate-180' : ''}`} aria-hidden="true" />
+          </button>
+        </div>
+      )}
 
-              {/* Average 4-Quarter Score */}
-              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg space-y-1">
-                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                  <span className="text-[11px] font-medium">Avg 4-qtr score</span>
-                  <Award className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-                </div>
-                <div className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">{(stats.averageScore ?? 0).toFixed(2)}</div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">Scale of 5.00</div>
-              </div>
-
-              {/* Average Increment % */}
-              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg space-y-1">
-                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                  <span className="text-[11px] font-medium">Avg increment</span>
-                  <TrendingUp className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-                </div>
-                <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">+{stats.averageIncrement}%</div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">Performance-calibrated</div>
-              </div>
-
-              {/* Total Budget Increment Impact */}
-              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg space-y-1">
-                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                  <span className="text-[11px] font-medium">Annual CTC revision</span>
-                  <DollarSign className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-                </div>
-                <div className="text-xl font-bold text-slate-900 dark:text-white tabular-nums">
-                  +{currencySymbol}{(((stats.totalIncrementBudgetImpact ?? 0)) / 100000).toFixed(2)}L
-                </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">Payroll budget impact</div>
-              </div>
-
-              {/* Promotions */}
-              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-lg space-y-1 col-span-2 lg:col-span-1">
-                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                  <span className="text-[11px] font-medium">Promotions</span>
-                  <Briefcase className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-                </div>
-                <div className="text-2xl font-bold text-purple-700 dark:text-purple-400 tabular-nums">{stats.promotionsCount}</div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">Role level upgrades</div>
-              </div>
-            </div>
-          )}
-
-          {/* Standard Increment Matrix Reference Bar */}
-          <div className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 rounded-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium">
-              <Sliders className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span>Increment guide:</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
+      <AnimatePresence initial={false}>
+        {showGuide && (
+          <m.div
+            id="appr-increment-guide"
+            key="guide"
+            variants={accordionVariants}
+            initial="collapsed"
+            animate="expanded"
+            exit="collapsed"
+          >
+            <div className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 rounded-lg flex flex-col md:flex-row items-start md:items-center gap-3 text-xs">
+              <span className="text-slate-700 dark:text-slate-300 font-medium">Increment guide by rating band:</span>
+              <div className="flex flex-wrap items-center gap-2">
               <span className="px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 rounded-md text-[11px] font-medium">
                 <strong className="font-semibold">Outstanding (4.50+):</strong> 15% - 20%
               </span>
@@ -370,101 +463,167 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
                 <strong className="font-semibold">Improvement (&lt;2.80):</strong> 0% - 4%
               </span>
             </div>
-          </div>
+            </div>
+          </m.div>
+        )}
+      </AnimatePresence>
 
-          {/* Filter Bar */}
-          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-lg border border-slate-200/80 dark:border-slate-800 space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          {/* Cycle Selector */}
-          <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
-              Cycle
-            </label>
-            <select
-              value={selectedCycleId}
-              onChange={(e) => setSelectedCycleId(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-            >
-              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All cycles</option>
-              {cycles.filter((c) => c.active !== false).map((c) => (
-                <option key={c.id} value={c.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
-                  {c.name} (Month {c.appraisalMonth})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Year Selector */}
-          <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
-              Fiscal year
-            </label>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-            >
-              <option value={2026} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">2026 (Current)</option>
-              <option value={2025} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">2025</option>
-              <option value={2027} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">2027</option>
-            </select>
-          </div>
-
-          {/* Department Selector */}
-          <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
-              Department
-            </label>
-            <select
-              value={selectedDepartmentId}
-              onChange={(e) => setSelectedDepartmentId(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-            >
-              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All departments</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Status Selector */}
-          <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
-              Workflow status
-            </label>
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-            >
-              <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All statuses</option>
-              <option value="PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Pending manager</option>
-              <option value="MANAGER_RECOMMENDED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Manager recommended</option>
-              <option value="HOD_CALIBRATED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HOD calibrated</option>
-              <option value="HR_APPROVED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR approved</option>
-              <option value="LOCKED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Locked & released</option>
-            </select>
-          </div>
-
-          {/* Search Box */}
-          <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
-              Search employee
-            </label>
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-              <input
+      {/* Filters: search, quick views, and the detailed filters behind "Filters" */}
+      <div className="bg-white dark:bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" aria-hidden="true" />
+            <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Name, code, title..."
+                placeholder="Search name, code or title"
+                aria-label="Search employees"
                 className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               />
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowFilters((v) => !v)}
+            aria-expanded={showFilters}
+            className={`h-8 px-3 text-xs font-semibold rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer ${
+              showFilters || hasDetailFilters
+                ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
+                : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <Filter className="w-3.5 h-3.5" aria-hidden="true" />
+            Filters
+          </button>
+        </div>
+
+        {showFilters && (
+          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Cycle Selector */}
+            <div className="space-y-1">
+              <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+                Cycle
+              </label>
+              <select
+                value={selectedCycleId}
+                onChange={(e) => setSelectedCycleId(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              >
+                <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All cycles</option>
+                {cycles.filter((c) => c.active !== false).map((c) => (
+                  <option key={c.id} value={c.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+                    {c.name} (Month {c.appraisalMonth})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Year Selector */}
+            <div className="space-y-1">
+              <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+                Fiscal year
+              </label>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              >
+                <option value={2026} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">2026 (Current)</option>
+                <option value={2025} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">2025</option>
+                <option value={2027} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">2027</option>
+              </select>
+            </div>
+
+            {/* Department Selector */}
+            <div className="space-y-1">
+              <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+                Department
+              </label>
+              <select
+                value={selectedDepartmentId}
+                onChange={(e) => setSelectedDepartmentId(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              >
+                <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All departments</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Status Selector */}
+            <div className="space-y-1">
+              <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+                Workflow status
+              </label>
+              <select
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              >
+                <option value="ALL" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">All statuses</option>
+                <option value="PENDING" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Pending manager</option>
+                <option value="MANAGER_RECOMMENDED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Manager recommended</option>
+                <option value="HOD_CALIBRATED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HOD calibrated</option>
+                <option value="HR_APPROVED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">HR approved</option>
+                <option value="LOCKED" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100">Locked & released</option>
+              </select>
             </div>
           </div>
+        )}
+
+        {/* Quick views: one click per stage, with live counts */}
+        <div role="group" aria-label="Quick views" className="flex flex-wrap items-center gap-1.5">
+          {APPRAISAL_QUICK_VIEWS.map(({ key, label }) => {
+            const isActive = quickView === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => setQuickView(key)}
+                className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full border text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                  isActive
+                    ? 'bg-indigo-600 border-indigo-600 text-white'
+                    : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
+              >
+                {label}
+                <span className={`tabular-nums text-[11px] ${isActive ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'}`}>
+                  {quickViewCounts[key]}
+                </span>
+              </button>
+            );
+          })}
         </div>
+
+        {/* Active filters, each removable */}
+        {activeFilterChips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-slate-500 dark:text-slate-400">Filtered by:</span>
+            {activeFilterChips.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                onClick={chip.clear}
+                aria-label={`Remove filter: ${chip.label}`}
+                className="inline-flex items-center gap-1 h-6 pl-2 pr-1.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                {chip.label}
+                <X className="w-3 h-3" aria-hidden="true" />
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="ml-1 font-medium text-indigo-700 dark:text-indigo-400 hover:underline cursor-pointer"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Appraisals Data List */}
@@ -557,11 +716,7 @@ export const AppraisalManagementView: React.FC<AppraisalManagementViewProps> = (
               // Checked against the actual manager/HOD relationship on the appraisal, not the
               // caller's stored account-level role label, so a person holding both capacities
               // for this employee is flagged for both pending stages.
-              const isPendingMyAction =
-                (appr.status === 'PENDING' && (appr.managerId === currentUser?.employeeId || appr.managerId === currentUser?.id)) ||
-                (appr.status === 'MANAGER_RECOMMENDED' && appr.hodId === currentUser?.employeeId) ||
-                (currentUser?.role === 'HR' && appr.status === 'HOD_CALIBRATED') ||
-                (currentUser?.role === 'SUPER_ADMIN' && appr.status === 'HR_APPROVED');
+              const isPendingMyAction = pendingMyAction(appr);
 
               return (
                 <div

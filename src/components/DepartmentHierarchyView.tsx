@@ -3,18 +3,12 @@ import { Employee, Department } from '../types';
 import {
   Building2,
   Users,
-  Briefcase,
-  ChevronDown,
   ChevronRight,
   Search,
-  CheckCircle2,
   Clock,
   AlertCircle,
-  Crown,
   Edit2,
-  Mail,
   ArrowLeft,
-  TrendingUp,
   Plus,
   Upload,
 } from 'lucide-react';
@@ -22,6 +16,7 @@ import { CycleBadge } from './ui/CycleBadge';
 import { PageHeader } from './ui/PageHeader';
 import { Button } from './ui/Button';
 import { EmptyState } from './ui/EmptyState';
+import { m, AnimatePresence, accordionVariants } from '../animations';
 
 interface DepartmentHierarchyViewProps {
   employees: Employee[];
@@ -57,7 +52,8 @@ export const DepartmentHierarchyView: React.FC<DepartmentHierarchyViewProps> = (
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDeptId, setSelectedDeptId] = useState<string>('ALL');
-  const [collapsedDepts, setCollapsedDepts] = useState<Record<string, boolean>>({});
+  // Departments start collapsed (one line each); a manager's team shows once its department is open
+  const [expandedDepts, setExpandedDepts] = useState<Record<string, boolean>>({});
   const [collapsedManagers, setCollapsedManagers] = useState<Record<string, boolean>>({});
 
   // Memoize department hierarchy calculations
@@ -210,42 +206,34 @@ export const DepartmentHierarchyView: React.FC<DepartmentHierarchyViewProps> = (
     return list;
   }, [hierarchyData, selectedDeptId, searchQuery]);
 
-  // Toggle Collapse handlers
-  const toggleDeptCollapse = (deptId: string) => {
-    setCollapsedDepts((prev) => ({
-      ...prev,
-      [deptId]: !prev[deptId],
-    }));
+  const toggleDept = (deptId: string) => {
+    setExpandedDepts((prev) => ({ ...prev, [deptId]: !prev[deptId] }));
   };
 
   const toggleManagerCollapse = (mgrId: string) => {
-    setCollapsedManagers((prev) => ({
-      ...prev,
-      [mgrId]: !prev[mgrId],
-    }));
+    setCollapsedManagers((prev) => ({ ...prev, [mgrId]: !prev[mgrId] }));
   };
 
   const expandAll = () => {
-    setCollapsedDepts({});
+    setExpandedDepts(Object.fromEntries(departments.map((d) => [d.id, true])));
     setCollapsedManagers({});
   };
 
   const collapseAll = () => {
-    const allDeptCollapsed: Record<string, boolean> = {};
-    departments.forEach((d) => {
-      allDeptCollapsed[d.id] = true;
-    });
-    setCollapsedDepts(allDeptCollapsed);
+    setExpandedDepts({});
   };
+
+  // While searching, every matching path is open and the people found are highlighted
+  const query = searchQuery.toLowerCase().trim();
+  const isSearching = query.length > 0;
+  const matchesSearch = (emp: Employee) =>
+    isSearching &&
+    (emp.name.toLowerCase().includes(query) ||
+      emp.employeeCode.toLowerCase().includes(query) ||
+      emp.email.toLowerCase().includes(query));
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'ACTIVE':
-        return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" /> Active
-          </span>
-        );
       case 'PROBATION':
         return (
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
@@ -266,6 +254,57 @@ export const DepartmentHierarchyView: React.FC<DepartmentHierarchyViewProps> = (
         );
     }
   };
+
+  const renderPerson = (
+    emp: Employee,
+    opts: { tag?: string; meta?: string; flag?: string; leading?: React.ReactNode } = {}
+  ) => (
+    <div
+      className={`flex items-center gap-2.5 py-1.5 pr-1 rounded-md ${
+        matchesSearch(emp) ? 'bg-amber-50 dark:bg-amber-950/30 ring-1 ring-amber-200 dark:ring-amber-900/60' : ''
+      }`}
+    >
+      {opts.leading}
+      <span className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold flex items-center justify-center shrink-0">
+        {emp.name.charAt(0)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <span className="text-sm font-medium text-slate-900 dark:text-white" title={emp.email}>
+            {emp.name}
+          </span>
+          {opts.tag && (
+            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              {opts.tag}
+            </span>
+          )}
+          {emp.status !== 'ACTIVE' && getStatusBadge(emp.status)}
+          {opts.flag && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+              <AlertCircle className="w-3 h-3" aria-hidden="true" />
+              {opts.flag}
+            </span>
+          )}
+        </div>
+        <div className="text-xs text-slate-500 dark:text-slate-400 truncate tabular-nums">
+          {emp.designationName || 'Team member'}, {emp.employeeCode}
+        </div>
+      </div>
+      {opts.meta && <span className="hidden sm:block text-xs text-slate-500 dark:text-slate-400 tabular-nums shrink-0">{opts.meta}</span>}
+      <CycleBadge code={emp.cycleCode} color={emp.cycleColor} size="sm" showTooltip />
+      {isHRorAdmin && onEditEmployee && (
+        <button
+          type="button"
+          onClick={() => onEditEmployee(emp)}
+          aria-label={`Edit ${emp.name}`}
+          title="Edit employee and reporting line"
+          className="p-1.5 rounded-md text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+        >
+          <Edit2 className="w-3.5 h-3.5" />
+        </button>
+      )}
+    </div>
+  );
 
   // Back to the employee list (the hierarchy is opened from there)
   const backToDirectory = () => {
@@ -329,91 +368,24 @@ export const DepartmentHierarchyView: React.FC<DepartmentHierarchyViewProps> = (
         }
       />
 
-      {/* 1. EXECUTIVE KPI SUMMARY STRIP */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-        {/* Total Departments Card */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-              Departments
-            </span>
-            <Building2 className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-          </div>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums tracking-tight">
-              {stats.totalDepts}
-            </span>
-            <span className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 px-1.5 py-0.5 rounded">
-              Active units
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-            Organizational structure
-          </p>
-        </div>
-
-        {/* Assigned HODs Card */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-              Department HODs
-            </span>
-            <Crown className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-          </div>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums tracking-tight">
-              {stats.deptsWithHod}
-            </span>
-            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-1.5 py-0.5 rounded">
-              {stats.totalDepts > 0 ? Math.round((stats.deptsWithHod / stats.totalDepts) * 100) : 0}% Assigned
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-            Departmental leadership
-          </p>
-        </div>
-
-        {/* Reporting Managers Card */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-              People managers
-            </span>
-            <Briefcase className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-          </div>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums tracking-tight">
-              {stats.totalManagers}
-            </span>
-            <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 px-1.5 py-0.5 rounded">
-              Active leaders
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-            Reviewing managers with teams
-          </p>
-        </div>
-
-        {/* Average Span of Control Card */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-              Avg. Team span
-            </span>
-            <TrendingUp className="w-4 h-4 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-          </div>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums tracking-tight">
-              {stats.avgSpanOfControl}
-            </span>
-            <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-              Reports / mgr
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-            {stats.totalAssignedDirectReports} managed team members
-          </p>
-        </div>
+      {/* 1. Summary line */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-3.5 py-2.5 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 text-sm text-slate-600 dark:text-slate-400 tabular-nums">
+        <span>
+          <strong className="text-base font-semibold text-indigo-800 dark:text-indigo-300">{stats.totalDepts}</strong> departments
+        </span>
+        <span aria-hidden="true" className="hidden sm:block h-4 w-px bg-indigo-200 dark:bg-indigo-800" />
+        <span>
+          <strong className="text-base font-semibold text-indigo-800 dark:text-indigo-300">{stats.deptsWithHod}</strong> of {stats.totalDepts} have an HOD (
+          {stats.totalDepts > 0 ? Math.round((stats.deptsWithHod / stats.totalDepts) * 100) : 0}%)
+        </span>
+        <span aria-hidden="true" className="hidden sm:block h-4 w-px bg-indigo-200 dark:bg-indigo-800" />
+        <span>
+          <strong className="text-base font-semibold text-indigo-800 dark:text-indigo-300">{stats.totalManagers}</strong> people managers
+        </span>
+        <span aria-hidden="true" className="hidden sm:block h-4 w-px bg-indigo-200 dark:bg-indigo-800" />
+        <span>
+          <strong className="text-base font-semibold text-indigo-800 dark:text-indigo-300">{stats.avgSpanOfControl}</strong> reports per manager ({stats.totalAssignedDirectReports} in teams)
+        </span>
       </div>
 
       {/* 2. SEARCH, FILTER & ACCORDION CONTROLS BAR */}
@@ -465,448 +437,157 @@ export const DepartmentHierarchyView: React.FC<DepartmentHierarchyViewProps> = (
         </div>
       </div>
 
-      {/* 3. DEPARTMENT HIERARCHY CARDS LIST */}
-      <div className="space-y-4">
-        {filteredHierarchy.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
-            No departments or managers match your search criteria.
-          </div>
-        ) : (
-          filteredHierarchy.map((deptData) => {
-            const { department, hod, totalHeadcount, activeHeadcount, managersWithReports, directToHodOrUnassigned } =
-              deptData;
-            const isDeptCollapsed = Boolean(collapsedDepts[department.id]);
+      {/* 3. Reporting tree: department, then HOD, then managers, then their teams */}
+      {filteredHierarchy.length === 0 ? (
+        <div className="p-12 text-center text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+          No departments or people match your search.
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
+          {filteredHierarchy.map((deptData) => {
+            const { department, hod, totalHeadcount, activeHeadcount, managersWithReports, directToHodOrUnassigned } = deptData;
+            const isOpen = isSearching || Boolean(expandedDepts[department.id]);
+            const withoutManager = directToHodOrUnassigned.filter((e) => !e.managerId).length;
 
             return (
-              <div
-                key={department.id}
-                className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl overflow-hidden transition-all"
-              >
-                {/* Department Card Header */}
-                <div
-                  onClick={() => toggleDeptCollapse(department.id)}
-                  className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors border-b border-slate-100 dark:border-slate-800/60"
+              <div key={department.id}>
+                <button
+                  type="button"
+                  onClick={() => toggleDept(department.id)}
+                  aria-expanded={isOpen}
+                  className="w-full flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
                 >
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-700 text-white flex items-center justify-center font-bold text-sm shrink-0">
-                      {department.code?.substring(0, 3) || department.name.substring(0, 3).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
-                          {department.name}
-                        </h2>
-                        <span className="text-[11px] tabular-nums px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700">
-                          {department.code}
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Active
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        {department.budgetCapPercent ? `Appraisal Budget Cap: ${department.budgetCapPercent}%` : 'Standard Budget Allocation'}
-                      </p>
-                    </div>
-                  </div>
+                  <span className="flex items-center gap-2 min-w-0 flex-1">
+                    <ChevronRight
+                      className={`w-4 h-4 shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-90' : ''}`}
+                      aria-hidden="true"
+                    />
+                    <span className="text-sm font-semibold text-slate-900 dark:text-white">{department.name}</span>
+                    <span className="text-[11px] tabular-nums px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      {department.code}
+                    </span>
+                  </span>
+                  <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-400 pl-6 sm:pl-0">
+                    {hod ? (
+                      <span>
+                        HOD <strong className="font-medium text-slate-900 dark:text-white">{hod.name}</strong>
+                      </span>
+                    ) : department.hodName ? (
+                      <span>
+                        HOD <strong className="font-medium text-slate-900 dark:text-white">{department.hodName}</strong>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 font-medium text-amber-700 dark:text-amber-400">
+                        <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                        No HOD
+                      </span>
+                    )}
+                    <span className="tabular-nums">
+                      {managersWithReports.length} {managersWithReports.length === 1 ? 'manager' : 'managers'}
+                    </span>
+                    <span className="tabular-nums">
+                      {totalHeadcount} people ({activeHeadcount} active)
+                    </span>
+                    {withoutManager > 0 && (
+                      <span className="inline-flex items-center gap-1 font-medium text-amber-700 dark:text-amber-400 tabular-nums">
+                        <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                        {withoutManager} without a manager
+                      </span>
+                    )}
+                    {department.budgetCapPercent ? (
+                      <span className="tabular-nums">Budget cap {department.budgetCapPercent}%</span>
+                    ) : null}
+                  </span>
+                </button>
 
-                  {/* Right Header Stats & Badges */}
-                  <div className="flex items-center gap-2.5 flex-wrap self-start sm:self-center">
-                    {/* HOD Pill */}
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 text-amber-800 dark:text-amber-200 text-xs font-medium">
-                      <Crown className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                      <span>HOD:</span>
-                      <strong className="font-semibold text-amber-900 dark:text-amber-100">
-                        {hod?.name || department.hodName || 'Unassigned'}
-                      </strong>
-                    </div>
-
-                    {/* Managers Count Pill */}
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 text-blue-800 dark:text-blue-200 text-xs font-medium">
-                      <Briefcase className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-                      <span>Managers:</span>
-                      <strong className="font-semibold text-blue-900 dark:text-blue-100">
-                        {managersWithReports.length}
-                      </strong>
-                    </div>
-
-                    {/* Total Staff Pill */}
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium">
-                      <Users className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      <span>Staff:</span>
-                      <strong className="font-semibold text-slate-900 dark:text-white">
-                        {totalHeadcount} ({activeHeadcount} Active)
-                      </strong>
-                    </div>
-
-                    {/* Chevron */}
-                    <button
-                      type="button"
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ml-1"
-                    >
-                      {isDeptCollapsed ? (
-                        <ChevronRight className="w-4 h-4" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Department Details (When Expanded) */}
-                {!isDeptCollapsed && (
-                  <div className="p-4 sm:p-6 space-y-6 bg-slate-50/40 dark:bg-slate-900/30">
-                    {/* SECTION A: HOD LEADERSHIP CARD */}
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2.5 flex items-center gap-1.5">
-                        <Crown className="w-3.5 h-3.5 text-amber-500" />
-                        Department leadership (HOD)
-                      </h3>
-
-                      {hod ? (
-                        <div className="bg-amber-50/40 dark:bg-slate-900 border border-amber-200/90 dark:border-amber-900/50 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                          <div className="flex items-center gap-3.5">
-                            <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-300/50 dark:border-amber-800/60 flex items-center justify-center font-bold text-base shrink-0">
-                              {hod.name.charAt(0)}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                                  {hod.name}
-                                </h4>
-                                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
-                                  <Crown className="w-3 h-3 text-amber-600 dark:text-amber-400" /> HOD
-                                </span>
-                                {getStatusBadge(hod.status)}
-                              </div>
-                              <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-1 flex-wrap">
-                                <span className="font-medium text-slate-700 dark:text-slate-300">
-                                  {hod.designationName || 'Department Head'}
-                                </span>
-                                <span>•</span>
-                                <span className="tabular-nums text-slate-500">{hod.employeeCode}</span>
-                                <span>•</span>
-                                <span className="flex items-center gap-1">
-                                  <Mail className="w-3 h-3 text-slate-400" /> {hod.email}
-                                </span>
-                              </div>
-                            </div>
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <m.div key="body" variants={accordionVariants} initial="collapsed" animate="expanded" exit="collapsed">
+                      <div className="pl-10 pr-4 pb-4">
+                        {hod ? (
+                          renderPerson(hod, { tag: 'HOD' })
+                        ) : (
+                          <div className="flex items-center gap-1.5 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                            <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                            No HOD assigned to this department yet.
                           </div>
+                        )}
 
-                          <div className="flex items-center gap-2 self-end sm:self-center">
-                            <CycleBadge
-                              code={hod.cycleCode}
-                              color={hod.cycleColor}
-                              size="sm"
-                              showTooltip
-                            />
-                            {isHRorAdmin && onEditEmployee && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onEditEmployee(hod!);
-                                }}
-                                className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-                                title="Edit HOD Profile"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="p-4 bg-amber-50/30 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/40 rounded-xl flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
-                          <div className="flex items-center gap-2">
-                            <AlertCircle className="w-4 h-4 text-amber-600" />
-                            <span>No HOD assigned to this department yet.</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* SECTION B: MANAGERS AND THEIR ASSIGNED EMPLOYEES */}
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                          <Briefcase className="w-3.5 h-3.5 text-blue-500" />
-                          Department Managers & Teams ({managersWithReports.length})
-                        </h3>
-                        <span className="text-[11px] text-slate-400">
-                          Shows each manager and their assigned direct reports
-                        </span>
-                      </div>
-
-                      {managersWithReports.length === 0 ? (
-                        <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-center text-xs text-slate-500 dark:text-slate-400">
-                          No intermediate managers in this department. All team members report directly to the HOD.
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          {managersWithReports.map(({ manager, directReports }) => {
-                            const isManagerCollapsed = Boolean(collapsedManagers[manager.id]);
-
+                        <ul className="ml-3 pl-4 border-l border-slate-200 dark:border-slate-700 space-y-0.5">
+                          {managersWithReports.map(({ manager, directReports, isCrossDept }) => {
+                            const isTeamOpen = isSearching || !collapsedManagers[manager.id];
                             return (
-                              <div
-                                key={manager.id}
-                                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden"
-                              >
-                                {/* Manager Header Bar */}
-                                <div
-                                  onClick={() => toggleManagerCollapse(manager.id)}
-                                  className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/80 dark:bg-slate-800/50 hover:bg-slate-100/80 dark:hover:bg-slate-800 cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-800"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-lg bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60 flex items-center justify-center font-bold text-xs shrink-0">
-                                      {manager.name.charAt(0)}
-                                    </div>
-                                    <div>
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                                          {manager.name}
-                                        </h4>
-                                        <span className="text-[11px] font-semibold px-2 py-0.2 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-800">
-                                          MANAGER
-                                        </span>
-                                        {getStatusBadge(manager.status)}
-                                      </div>
-                                      <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                                        <span>{manager.designationName || 'Manager'}</span>
-                                        <span>•</span>
-                                        <span className="tabular-nums">{manager.employeeCode}</span>
-                                        <span>•</span>
-                                        <span>{manager.email}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Assigned Employees Count Badge */}
-                                  <div className="flex items-center gap-2.5 self-end sm:self-center">
-                                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
-                                      <Users className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                      <span>{directReports.length} Direct Reports Assigned</span>
-                                    </div>
-
-                                    {isHRorAdmin && onEditEmployee && (
+                              <li key={manager.id}>
+                                {renderPerson(manager, {
+                                  tag: isCrossDept ? 'Manager, other department' : 'Manager',
+                                  meta: `${directReports.length} ${directReports.length === 1 ? 'report' : 'reports'}`,
+                                  flag: directReports.length === 0 ? 'No team' : undefined,
+                                  leading:
+                                    directReports.length > 0 ? (
                                       <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          onEditEmployee(manager);
-                                        }}
-                                        className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
-                                        title="Edit Manager"
+                                        type="button"
+                                        onClick={() => toggleManagerCollapse(manager.id)}
+                                        aria-expanded={isTeamOpen}
+                                        aria-label={`${isTeamOpen ? 'Hide' : 'Show'} ${manager.name}'s team`}
+                                        className="p-0.5 -ml-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                                       >
-                                        <Edit2 className="w-3.5 h-3.5" />
+                                        <ChevronRight
+                                          className={`w-3.5 h-3.5 transition-transform ${isTeamOpen ? 'rotate-90' : ''}`}
+                                          aria-hidden="true"
+                                        />
                                       </button>
-                                    )}
-
-                                    <button
-                                      type="button"
-                                      className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                                    >
-                                      {isManagerCollapsed ? (
-                                        <ChevronRight className="w-4 h-4" />
-                                      ) : (
-                                        <ChevronDown className="w-4 h-4" />
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* Direct Reports Table / List (When Expanded) */}
-                                {!isManagerCollapsed && (
-                                  <div className="p-3 sm:p-4">
-                                    {directReports.length === 0 ? (
-                                      <div className="text-center py-6 text-xs text-slate-400 dark:text-slate-500">
-                                        No employees currently assigned under this manager.
-                                      </div>
                                     ) : (
-                                      <div className="overflow-x-auto">
-                                        <table className="w-full text-left text-xs border-collapse">
-                                          <thead>
-                                            <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 text-[11px]">
-                                              <th className="pb-2 pl-2 font-semibold">Assigned employee</th>
-                                              <th className="pb-2 font-semibold">Designation</th>
-                                              <th className="pb-2 font-semibold">Appraisal cycle</th>
-                                              <th className="pb-2 font-semibold">Status</th>
-                                              <th className="pb-2 font-semibold">Joining date</th>
-                                              {isHRorAdmin && <th className="pb-2 text-right pr-2 font-semibold">Action</th>}
-                                            </tr>
-                                          </thead>
-                                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                            {directReports.map((emp) => (
-                                              <tr
-                                                key={emp.id}
-                                                className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group"
-                                              >
-                                                {/* Employee Name & Code */}
-                                                <td className="py-2.5 pl-2">
-                                                  <div className="flex items-center gap-2.5">
-                                                    <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[11px] flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700">
-                                                      {emp.name.charAt(0)}
-                                                    </div>
-                                                    <div>
-                                                      <span className="font-semibold text-slate-900 dark:text-white block">
-                                                        {emp.name}
-                                                      </span>
-                                                      <span className="text-[11px] text-slate-400 tabular-nums">
-                                                        {emp.employeeCode} • {emp.email}
-                                                      </span>
-                                                    </div>
-                                                  </div>
-                                                </td>
-
-                                                {/* Designation */}
-                                                <td className="py-2.5 text-slate-700 dark:text-slate-300 font-medium">
-                                                  {emp.designationName || 'Team Member'}
-                                                </td>
-
-                                                {/* Cycle */}
-                                                <td className="py-2.5">
-                                                  <CycleBadge
-                                                    code={emp.cycleCode}
-                                                    color={emp.cycleColor}
-                                                    size="sm"
-                                                    showTooltip
-                                                  />
-                                                </td>
-
-                                                {/* Status */}
-                                                <td className="py-2.5">
-                                                  {getStatusBadge(emp.status)}
-                                                </td>
-
-                                                {/* Joining Date */}
-                                                <td className="py-2.5 text-slate-500 dark:text-slate-400 text-[11px]">
-                                                  {emp.joiningDate
-                                                    ? new Date(emp.joiningDate).toLocaleDateString('en-US', {
-                                                        month: 'short',
-                                                        day: 'numeric',
-                                                        year: 'numeric',
-                                                      })
-                                                    : '—'}
-                                                </td>
-
-                                                {/* Action */}
-                                                {isHRorAdmin && (
-                                                  <td className="py-2.5 text-right pr-2">
-                                                    {onEditEmployee && (
-                                                      <button
-                                                        onClick={() => onEditEmployee(emp)}
-                                                        className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors cursor-pointer"
-                                                        title="Edit Employee & Reassign Manager"
-                                                      >
-                                                        <Edit2 className="w-3.5 h-3.5" />
-                                                      </button>
-                                                    )}
-                                                  </td>
-                                                )}
-                                              </tr>
-                                            ))}
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
+                                      <span className="w-3.5 -ml-1" aria-hidden="true" />
+                                    ),
+                                })}
+                                <AnimatePresence initial={false}>
+                                  {isTeamOpen && directReports.length > 0 && (
+                                    <m.ul
+                                      key="team"
+                                      variants={accordionVariants}
+                                      initial="collapsed"
+                                      animate="expanded"
+                                      exit="collapsed"
+                                      className="ml-3 pl-4 border-l border-slate-200 dark:border-slate-700"
+                                    >
+                                      {directReports.map((emp) => (
+                                        <li key={emp.id}>{renderPerson(emp)}</li>
+                                      ))}
+                                    </m.ul>
+                                  )}
+                                </AnimatePresence>
+                              </li>
                             );
                           })}
-                        </div>
-                      )}
-                    </div>
 
-                    {/* SECTION C: DIRECT REPORTS TO HOD OR UNASSIGNED SUB-STAFF */}
-                    {directToHodOrUnassigned.length > 0 && (
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                            <Crown className="w-3.5 h-3.5 text-amber-500" />
-                            Direct Reports to HOD / Staff ({directToHodOrUnassigned.length})
-                          </h3>
-                          <span className="text-[11px] text-slate-400">
-                            Team members without an intermediate sub-manager
-                          </span>
-                        </div>
+                          {directToHodOrUnassigned.length > 0 && (
+                            <li>
+                              <div className="pt-2 pb-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                                {hod ? `Reports directly to ${hod.name}` : 'No reporting manager in this department'}
+                              </div>
+                              <ul className="ml-3 pl-4 border-l border-slate-200 dark:border-slate-700">
+                                {directToHodOrUnassigned.map((emp) => (
+                                  <li key={emp.id}>
+                                    {renderPerson(emp, { flag: !emp.managerId ? 'No manager' : undefined })}
+                                  </li>
+                                ))}
+                              </ul>
+                            </li>
+                          )}
 
-                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto p-3 sm:p-4">
-                          <table className="w-full text-left text-xs border-collapse">
-                            <thead>
-                              <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 text-[11px]">
-                                <th className="pb-2 pl-2 font-semibold">Employee</th>
-                                <th className="pb-2 font-semibold">Designation</th>
-                                <th className="pb-2 font-semibold">Appraisal cycle</th>
-                                <th className="pb-2 font-semibold">Reporting line</th>
-                                <th className="pb-2 font-semibold">Status</th>
-                                {isHRorAdmin && <th className="pb-2 text-right pr-2 font-semibold">Action</th>}
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                              {directToHodOrUnassigned.map((emp) => (
-                                <tr
-                                  key={emp.id}
-                                  className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
-                                >
-                                  <td className="py-2.5 pl-2">
-                                    <div className="flex items-center gap-2.5">
-                                      <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[11px] flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700">
-                                        {emp.name.charAt(0)}
-                                      </div>
-                                      <div>
-                                        <span className="font-semibold text-slate-900 dark:text-white block">
-                                          {emp.name}
-                                        </span>
-                                        <span className="text-[11px] text-slate-400 tabular-nums">
-                                          {emp.employeeCode} • {emp.email}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="py-2.5 text-slate-700 dark:text-slate-300 font-medium">
-                                    {emp.designationName || 'Team Member'}
-                                  </td>
-                                  <td className="py-2.5">
-                                    <CycleBadge
-                                      code={emp.cycleCode}
-                                      color={emp.cycleColor}
-                                      size="sm"
-                                      showTooltip
-                                    />
-                                  </td>
-                                  <td className="py-2.5">
-                                    <span className="inline-flex items-center gap-1 text-[11px] text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-2 py-0.5 rounded-md font-medium">
-                                      <Crown className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                                      {hod?.name || 'Direct to HOD'}
-                                    </span>
-                                  </td>
-                                  <td className="py-2.5">
-                                    {getStatusBadge(emp.status)}
-                                  </td>
-                                  {isHRorAdmin && (
-                                    <td className="py-2.5 text-right pr-2">
-                                      {onEditEmployee && (
-                                        <button
-                                          onClick={() => onEditEmployee(emp)}
-                                          className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors cursor-pointer"
-                                          title="Edit Employee"
-                                        >
-                                          <Edit2 className="w-3.5 h-3.5" />
-                                        </button>
-                                      )}
-                                    </td>
-                                  )}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                          {managersWithReports.length === 0 && directToHodOrUnassigned.length === 0 && (
+                            <li className="py-1.5 text-xs text-slate-500 dark:text-slate-400">No one else in this department yet.</li>
+                          )}
+                        </ul>
                       </div>
-                    )}
-                  </div>
-                )}
+                    </m.div>
+                  )}
+                </AnimatePresence>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Award, FileText, Target } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Award, Calendar, ClipboardList, Clock, FileText, Target } from 'lucide-react';
 import type {
   DashboardAdminOverview,
   DashboardHodOverview,
@@ -7,6 +7,7 @@ import type {
   DashboardMyReview,
   DashboardSummary,
   DashboardTeam,
+  PerformanceImprovementPlan,
 } from '../../types';
 import { cn } from '../../utils/cn';
 import {
@@ -24,7 +25,7 @@ import {
   TodoCard,
   countTodo,
 } from './DashboardKit';
-import { RATING_BAND_LABELS, formatMonthYear } from './format';
+import { RATING_BAND_LABELS, daysUntil, formatMonthYear, formatShortDate } from './format';
 import { CalibrationCard, CoverageCard, DataHealthCard, EmailDeliveryCard, ReviewersBehindCard } from './InsightCards';
 
 const pct = (n: number, d: number) => (d > 0 ? (n / d) * 100 : 0);
@@ -196,7 +197,20 @@ const MyAppraisalCard: React.FC<{ me: DashboardMyReview; onOpenLetter: () => voi
   const a = me.activeAppraisal;
   return (
     <Card title="Annual appraisal" className={className}>
-      {a ? (
+      {me.activePip ? (
+        <div className="flex items-start gap-3">
+          <Award className="w-5 h-5 shrink-0 text-amber-500 mt-0.5" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">Annual appraisal</p>
+            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 font-medium">
+              Paused while your improvement plan is active.
+            </p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+              Annual appraisal processing resumes once your improvement plan concludes.
+            </p>
+          </div>
+        </div>
+      ) : a ? (
         <>
           <div className="flex items-center gap-3">
             <Award className="w-5 h-5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
@@ -260,6 +274,173 @@ const MyKrasCard: React.FC<{ me: DashboardMyReview; onNavigate: Navigate; classN
   </Card>
 );
 
+function getLatestGoalRating(plan: PerformanceImprovementPlan, goalId: string): { label: string; tone: string } {
+  if (plan.checkIns && plan.checkIns.length > 0) {
+    for (let i = plan.checkIns.length - 1; i >= 0; i--) {
+      const ratingEntry = plan.checkIns[i].goalRatings?.find((r) => r.goalId === goalId);
+      if (ratingEntry) {
+        switch (ratingEntry.rating) {
+          case 5:
+            return { label: 'Met', tone: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' };
+          case 4:
+            return { label: 'Ahead', tone: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' };
+          case 3:
+            return { label: 'On track', tone: 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800' };
+          case 2:
+            return { label: 'Behind', tone: 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800' };
+          case 1:
+            return { label: 'Not started', tone: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700' };
+        }
+      }
+    }
+  }
+  const goal = plan.goals.find((g) => g.id === goalId);
+  if (goal?.status === 'MET') {
+    return { label: 'Met', tone: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' };
+  }
+  return { label: 'Pending', tone: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700' };
+}
+
+const ImprovementPlanCard: React.FC<{ plan: PerformanceImprovementPlan; onNavigate: Navigate; className?: string }> = ({
+  plan,
+  onNavigate,
+  className,
+}) => {
+  const isAcknowledged = Boolean(plan.employeeAcknowledgement?.acknowledged);
+  const remainingDays = daysUntil(plan.endDate);
+  const daysLeftText =
+    remainingDays > 1 ? `${remainingDays} days left` : remainingDays === 1 ? '1 day left' : remainingDays === 0 ? 'Due today' : `Overdue ${-remainingDays}d`;
+
+  const startMs = new Date(plan.startDate).getTime();
+  const endMs = new Date(plan.endDate).getTime();
+  const elapsed = Date.now() - startMs;
+  const totalDuration = endMs - startMs;
+  const progressPct = totalDuration > 0 ? Math.max(0, Math.min(100, Math.round((elapsed / totalDuration) * 100))) : 0;
+
+  const lastCheckIn = plan.checkIns && plan.checkIns.length > 0 ? plan.checkIns[plan.checkIns.length - 1] : null;
+  const baseDateStr = lastCheckIn?.date || plan.startDate;
+  const nextCheckInDate = new Date(baseDateStr);
+  nextCheckInDate.setDate(nextCheckInDate.getDate() + 7);
+  const nextCheckInLabel = formatShortDate(nextCheckInDate.toISOString());
+
+  return (
+    <section
+      className={cn(
+        'rounded-xl border border-amber-200/90 dark:border-amber-800/60 bg-amber-50/40 dark:bg-amber-950/20 p-5 flex flex-col min-w-0 shadow-xs',
+        className
+      )}
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+            <ClipboardList className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white">Improvement plan</h2>
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                {plan.status === 'EXTENDED' ? 'Extended' : 'Active'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Performance milestones and structured check-ins
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onNavigate('pip', { pipId: plan.id })}
+          className={cn(
+            'inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer shrink-0 self-start sm:self-auto',
+            isAcknowledged
+              ? 'bg-white dark:bg-slate-800 text-amber-800 dark:text-amber-300 hover:bg-amber-100/60 dark:hover:bg-slate-700 border border-amber-300 dark:border-amber-700 shadow-xs'
+              : 'bg-amber-600 hover:bg-amber-700 text-white shadow-xs'
+          )}
+        >
+          {isAcknowledged ? 'View plan' : 'Acknowledge'}
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Progress & Timeline Bar */}
+      <div className="bg-white/80 dark:bg-slate-900/80 rounded-lg p-3.5 border border-amber-200/50 dark:border-amber-800/40">
+        <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 mb-2">
+          <span className="font-medium flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            {formatShortDate(plan.startDate)} – {formatShortDate(plan.endDate)}
+          </span>
+          <span className="font-semibold text-amber-700 dark:text-amber-300 tabular-nums">
+            {daysLeftText}
+          </span>
+        </div>
+        <div
+          className="h-2 w-full bg-amber-100 dark:bg-amber-950/60 rounded-full overflow-hidden"
+          role="progressbar"
+          aria-valuenow={progressPct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Plan timeline progress"
+        >
+          <div className="h-full bg-amber-500 rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
+        </div>
+        <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-2.5">
+          <span className="flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            Next check-in: <strong className="font-semibold text-slate-800 dark:text-slate-200">{nextCheckInLabel}</strong>
+          </span>
+          {plan.checkIns.length > 0 && (
+            <span className="tabular-nums">
+              {plan.checkIns.length} check-in{plan.checkIns.length !== 1 ? 's' : ''} logged
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Goals list with targets and latest check-in rating */}
+      {plan.goals && plan.goals.length > 0 && (
+        <div className="mt-3.5">
+          <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
+            Goals & latest check-in ratings ({plan.goals.length})
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {plan.goals.map((goal) => {
+              const rating = getLatestGoalRating(plan, goal.id);
+              return (
+                <div
+                  key={goal.id}
+                  className="bg-white/80 dark:bg-slate-900/80 rounded-lg p-3 border border-amber-200/50 dark:border-amber-800/40 flex flex-col justify-between gap-2"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs font-semibold text-slate-900 dark:text-white line-clamp-2" title={goal.description}>
+                        {goal.description}
+                      </p>
+                      <span className={cn('text-[11px] font-semibold px-2 py-0.5 rounded-md shrink-0 border tabular-nums', rating.tone)}>
+                        {rating.label}
+                      </span>
+                    </div>
+                    {goal.targetMetric && (
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 line-clamp-2">
+                        <span className="font-medium text-slate-700 dark:text-slate-300">Target:</span> {goal.targetMetric}
+                      </p>
+                    )}
+                  </div>
+                  {goal.dueDate && (
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 tabular-nums">
+                      Due {formatShortDate(goal.dueDate)}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+};
+
 export const EmployeeDashboard: React.FC<{ data: DashboardSummary; me: DashboardMyReview; onNavigate: Navigate; onOpenLetter: () => void }> = ({
   data,
   me,
@@ -267,6 +448,9 @@ export const EmployeeDashboard: React.FC<{ data: DashboardSummary; me: Dashboard
   onOpenLetter,
 }) => (
   <div className="space-y-4">
+    {me.activePip && (me.activePip.status === 'ACTIVE' || me.activePip.status === 'EXTENDED') && (
+      <ImprovementPlanCard plan={me.activePip} onNavigate={onNavigate} />
+    )}
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
       <MyReviewCard me={me} data={data} onNavigate={onNavigate} className="lg:col-span-2" />
       <MyScoreCard me={me} />
@@ -278,6 +462,95 @@ export const EmployeeDashboard: React.FC<{ data: DashboardSummary; me: Dashboard
     <MyKrasCard me={me} onNavigate={onNavigate} />
   </div>
 );
+
+/* =========================================================================
+   Team / Department PIP Highlight Card
+   ========================================================================= */
+
+export const TeamPipHighlightCard: React.FC<{
+  pips: PerformanceImprovementPlan[];
+  roleTitle: 'Team' | 'Department';
+  onNavigate: Navigate;
+  className?: string;
+}> = ({ pips, roleTitle, onNavigate, className }) => {
+  if (!pips || pips.length === 0) return null;
+
+  const linkClass = 'text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer';
+
+  return (
+    <section
+      aria-label={`${roleTitle} Performance Improvement Plans`}
+      className={cn('bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl', className)}
+    >
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-slate-100 dark:border-slate-800">
+        <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" aria-hidden />
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-white">On improvement plan</h2>
+        <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">{pips.length}</span>
+        <button type="button" onClick={() => onNavigate('pip')} className={cn(linkClass, 'ml-auto inline-flex items-center gap-1')}>
+          View all <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+        {pips.map((plan) => {
+          const remainingDays = daysUntil(plan.endDate);
+          const daysText =
+            remainingDays > 1
+              ? `${remainingDays} days left`
+              : remainingDays === 1
+              ? '1 day left'
+              : remainingDays === 0
+              ? 'Ends today'
+              : `Overdue by ${-remainingDays}d`;
+          const startMs = new Date(plan.startDate).getTime();
+          const endMs = new Date(plan.endDate).getTime();
+          const elapsed = Date.now() - startMs;
+          const totalDuration = endMs - startMs;
+          const progressPct = totalDuration > 0 ? Math.max(0, Math.min(100, Math.round((elapsed / totalDuration) * 100))) : 0;
+          const checkInCount = plan.checkIns?.length || 0;
+          const goalCount = plan.goals?.length || 0;
+          const subtitle = [plan.designationName, roleTitle === 'Department' && plan.managerName ? `Mgr: ${plan.managerName}` : undefined]
+            .filter(Boolean)
+            .join(' · ');
+
+          return (
+            <li key={plan.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 text-xs">
+              <div className="min-w-0 flex-1 basis-40">
+                <span className="font-medium text-slate-900 dark:text-white">{plan.employeeName}</span>
+                {subtitle && <span className="text-slate-500 dark:text-slate-400"> · {subtitle}</span>}
+                {plan.status !== 'ACTIVE' && (
+                  <span className="ml-2 text-[11px] font-medium px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    {plan.status}
+                  </span>
+                )}
+              </div>
+              <div
+                className="hidden sm:block w-24 h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden"
+                title={`${formatShortDate(plan.startDate)} – ${formatShortDate(plan.endDate)}`}
+              >
+                <div className="h-full bg-amber-500 rounded-full" style={{ width: `${progressPct}%` }} />
+              </div>
+              <span className={cn('tabular-nums', remainingDays < 0 ? 'text-rose-600 dark:text-rose-400 font-medium' : 'text-amber-700 dark:text-amber-300')}>
+                {daysText}
+              </span>
+              <span className="hidden md:inline text-slate-500 dark:text-slate-400 tabular-nums">
+                {goalCount} goal{goalCount === 1 ? '' : 's'} · {checkInCount} check-in{checkInCount === 1 ? '' : 's'}
+              </span>
+              <span className="flex items-center gap-3">
+                <button type="button" onClick={() => onNavigate('pip', { pipId: plan.id })} className={linkClass}>
+                  View plan
+                </button>
+                <button type="button" onClick={() => onNavigate('reviews', { employeeId: plan.employeeId })} className={linkClass}>
+                  Reviews
+                </button>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+};
 
 /* =========================================================================
    Manager — "My team"
@@ -295,17 +568,30 @@ function teamPeople(team: DashboardTeam, onNavigate: Navigate): PersonRow[] {
       stage: (m.reviewId ? m.stage || 'MANAGER' : 'NONE') as PersonRow['stage'],
       score: m.lastScore,
       flag: m.onPip ? 'PIP' : undefined,
+      pipId: m.pipId,
+      onPipClick: m.pipId ? () => onNavigate('pip', { pipId: m.pipId! }) : () => onNavigate('pip'),
       onClick: m.reviewId ? () => onNavigate('reviews', { reviewId: m.reviewId! }) : undefined,
     }))
-    .sort((a, b) => (order[a.stage] ?? 9) - (order[b.stage] ?? 9));
+    .sort((a, b) => {
+      // Put team members on PIP first
+      if (a.flag === 'PIP' && b.flag !== 'PIP') return -1;
+      if (b.flag === 'PIP' && a.flag !== 'PIP') return 1;
+      return (order[a.stage] ?? 9) - (order[b.stage] ?? 9);
+    });
 }
 
 export const ManagerDashboard: React.FC<{ data: DashboardSummary; team: DashboardTeam; onNavigate: Navigate }> = ({ data, team, onNavigate }) => {
   const withMe = team.members.filter((m) => m.reviewId && (m.stage || 'MANAGER') === 'MANAGER').length;
   const overdue = data.tasks.filter((t) => t.urgency === 'OVERDUE').length;
   const spread = team.ratingSpread;
+  const pipsInTeam = team.activePips || team.members.filter((m) => m.onPip);
+  const pipCount = pipsInTeam.length;
+
   return (
     <div className="space-y-4">
+      {team.activePips && team.activePips.length > 0 && (
+        <TeamPipHighlightCard pips={team.activePips} roleTitle="Team" onNavigate={onNavigate} />
+      )}
       <StatRow
         stats={[
           {
@@ -331,8 +617,12 @@ export const ManagerDashboard: React.FC<{ data: DashboardSummary; team: Dashboar
             label: 'Team average',
             value: score(team.averageScore),
             suffix: team.averageScore > 0 ? '/ 5' : undefined,
-            hint: overdue ? `${overdue} overdue task${overdue === 1 ? '' : 's'}` : `${team.size} direct report${team.size === 1 ? '' : 's'}`,
-            tone: overdue ? 'bad' : 'default',
+            hint: pipCount > 0
+              ? `${pipCount} on PIP · ${team.size} direct report${team.size === 1 ? '' : 's'}`
+              : overdue
+              ? `${overdue} overdue task${overdue === 1 ? '' : 's'}`
+              : `${team.size} direct report${team.size === 1 ? '' : 's'}`,
+            tone: pipCount > 0 ? 'warn' : overdue ? 'bad' : 'default',
           },
         ]}
       />
@@ -347,7 +637,7 @@ export const ManagerDashboard: React.FC<{ data: DashboardSummary; team: Dashboar
       </div>
       <PeopleCard
         title="My team"
-        subtitle={team.periodName ? `${team.periodName} review status` : undefined}
+        subtitle={team.periodName ? `${team.periodName} review status · Team members on PIP listed first` : undefined}
         people={teamPeople(team, onNavigate)}
         action={{ label: 'All reviews', onClick: () => onNavigate('reviews') }}
       />
@@ -377,13 +667,24 @@ export const HodDashboard: React.FC<{ data: DashboardSummary; hod: DashboardHodO
       stage: (m.stage || 'NONE') as PersonRow['stage'],
       score: m.lastScore,
       flag: m.onPip ? 'PIP' : undefined,
+      pipId: m.pipId,
+      onPipClick: m.pipId ? () => onNavigate('pip', { pipId: m.pipId! }) : () => onNavigate('pip'),
       onClick: () => onNavigate('reviews', { employeeId: m.employeeId }),
     }))
-    .sort((a, b) => (a.stage === 'HOD' ? -1 : 0) - (b.stage === 'HOD' ? -1 : 0));
+    .sort((a, b) => {
+      // Put department members on PIP first
+      if (a.flag === 'PIP' && b.flag !== 'PIP') return -1;
+      if (b.flag === 'PIP' && a.flag !== 'PIP') return 1;
+      return (a.stage === 'HOD' ? -1 : 0) - (b.stage === 'HOD' ? -1 : 0);
+    });
   const spread = hod.ratingSpread;
+  const pipCount = hod.activePips ? hod.activePips.length : hod.departmentMembers.filter((m) => m.onPip).length;
 
   return (
     <div className="space-y-4">
+      {hod.activePips && hod.activePips.length > 0 && (
+        <TeamPipHighlightCard pips={hod.activePips} roleTitle="Department" onNavigate={onNavigate} />
+      )}
       <StatRow
         stats={[
           {
@@ -399,7 +700,13 @@ export const HodDashboard: React.FC<{ data: DashboardSummary; hod: DashboardHodO
             progress: hod.completionRate,
             hint: `${hod.reviewsCompleted} of ${hod.reviewsTotal} reviews done`,
           },
-          { label: 'Department average', value: score(hod.averageScore), suffix: hod.averageScore ? '/ 5' : undefined, hint: `${hod.totalEmployees} employees` },
+          {
+            label: 'Department average',
+            value: score(hod.averageScore),
+            suffix: hod.averageScore ? '/ 5' : undefined,
+            hint: pipCount > 0 ? `${hod.totalEmployees} employees · ${pipCount} on PIP` : `${hod.totalEmployees} employees`,
+            tone: pipCount > 0 ? 'warn' : 'default',
+          },
           { label: 'High performers', value: String(hod.highPerformersCount), hint: 'Rated 4 and above' },
         ]}
       />
@@ -408,7 +715,7 @@ export const HodDashboard: React.FC<{ data: DashboardSummary; hod: DashboardHodO
         <PipelineCard subtitle={hod.departmentName} stages={stages} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
-        <PeopleCard title="Department members" subtitle="Reviews waiting for you are listed first" people={people} className="lg:col-span-2" />
+        <PeopleCard title="Department members" subtitle="Members on PIP and reviews waiting for you are listed first" people={people} className="lg:col-span-2" />
         <RatingCard
           title="Department ratings"
           rows={RATING_ROWS.map((r) => ({ label: r.label, color: r.color, count: spread[r.key] }))}

@@ -496,6 +496,10 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
 
       const succMsg = isDraft
         ? 'Review draft saved successfully.'
+        : review.reviewType === 'PIP_WEEKLY'
+        ? `Weekly PIP review completed for ${review.employeeName}!`
+        : review.reviewType === 'PIP_FINAL'
+        ? `Final PIP review submitted for ${review.employeeName}!`
         : openManagerReturn
         ? `Re-evaluated KRAs resubmitted for ${review.employeeName}.`
         : `Quarterly review submitted for ${review.employeeName}!`;
@@ -772,6 +776,16 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                     <span>Appraisal Due (Cycle {review.cycleCode})</span>
                   </span>
                 )}
+                {review.reviewType === 'PIP_WEEKLY' && (
+                  <span className="inline-flex items-center space-x-1 text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-100 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-800">
+                    <span>PIP Week {review.pipCycleNumber || 1} Review (2-Step Fast Flow)</span>
+                  </span>
+                )}
+                {review.reviewType === 'PIP_FINAL' && (
+                  <span className="inline-flex items-center space-x-1 text-xs px-2.5 py-0.5 rounded-full font-medium bg-purple-100 dark:bg-purple-950/50 text-purple-900 dark:text-purple-200 border border-purple-300 dark:border-purple-800">
+                    <span>PIP Final Evaluation</span>
+                  </span>
+                )}
                 {review.isClosed && (
                   <span className="inline-flex items-center space-x-1 text-xs px-2.5 py-0.5 rounded-full font-medium bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
                     <Lock className="w-3 h-3" />
@@ -1011,53 +1025,61 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
               )}
             </button>
 
-            <span className="text-slate-300 dark:text-slate-600">➔</span>
-
-            {/* Step 3: HOD Scoring */}
-            <button
-              type="button"
-              onClick={() => setWizardStep(3)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                wizardStep === 3
-                  ? 'bg-white dark:bg-slate-750 text-indigo-950 dark:text-white font-bold border border-slate-200 dark:border-slate-700 ring-1 ring-black/5'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                wizardStep === 3 ? 'bg-violet-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-              }`}>
-                3
+            {review.reviewType === 'PIP_WEEKLY' ? (
+              <span className="px-2 py-1 rounded-md text-[11px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                2-Step Fast Flow (Closes on manager submit)
               </span>
-              <span>HOD scoring</span>
-              <span className="text-[11px] tabular-nums font-bold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/50 px-1.5 py-0.2 rounded-md border border-violet-200 dark:border-violet-800">
-                {computedHodScore.toFixed(2)}
-              </span>
-              {missingHodJustifications > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-violet-100 dark:bg-violet-950/60 text-violet-800 dark:text-violet-300 border border-violet-300 dark:border-violet-800 flex items-center gap-1">
-                  <span>{missingHodJustifications} justification{missingHodJustifications > 1 ? 's' : ''} needed</span>
-                </span>
-              )}
-            </button>
+            ) : (
+              <>
+                <span className="text-slate-300 dark:text-slate-600">➔</span>
 
-            <span className="text-slate-300 dark:text-slate-600">➔</span>
+                {/* Step 3: HOD Scoring */}
+                <button
+                  type="button"
+                  onClick={() => setWizardStep(3)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    wizardStep === 3
+                      ? 'bg-white dark:bg-slate-750 text-indigo-950 dark:text-white font-bold border border-slate-200 dark:border-slate-700 ring-1 ring-black/5'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                    wizardStep === 3 ? 'bg-violet-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  }`}>
+                    3
+                  </span>
+                  <span>HOD scoring</span>
+                  <span className="text-[11px] tabular-nums font-bold text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/50 px-1.5 py-0.2 rounded-md border border-violet-200 dark:border-violet-800">
+                    {computedHodScore.toFixed(2)}
+                  </span>
+                  {missingHodJustifications > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-violet-100 dark:bg-violet-950/60 text-violet-800 dark:text-violet-300 border border-violet-300 dark:border-violet-800 flex items-center gap-1">
+                      <span>{missingHodJustifications} justification{missingHodJustifications > 1 ? 's' : ''} needed</span>
+                    </span>
+                  )}
+                </button>
 
-            {/* Step 4 */}
-            <button
-              type="button"
-              onClick={() => setWizardStep(4)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                wizardStep === 4
-                  ? 'bg-white dark:bg-slate-750 text-indigo-950 dark:text-white font-bold border border-slate-200 dark:border-slate-700 ring-1 ring-black/5'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                wizardStep === 4 ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-              }`}>
-                4
-              </span>
-              <span>Final review</span>
-            </button>
+                <span className="text-slate-300 dark:text-slate-600">➔</span>
+
+                {/* Step 4 */}
+                <button
+                  type="button"
+                  onClick={() => setWizardStep(4)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    wizardStep === 4
+                      ? 'bg-white dark:bg-slate-750 text-indigo-950 dark:text-white font-bold border border-slate-200 dark:border-slate-700 ring-1 ring-black/5'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                    wizardStep === 4 ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  }`}>
+                    4
+                  </span>
+                  <span>Final review</span>
+                </button>
+              </>
+            )}
           </div>
 
           {/* Audit trail trigger */}
@@ -1351,6 +1373,8 @@ export const ReviewScoringModal: React.FC<ReviewScoringModalProps> = ({
                     <span>
                       {openManagerReturn
                         ? `Resubmit (${openManagerReturn.kraIds.length - unaddressedManagerKras.length}/${openManagerReturn.kraIds.length} addressed)`
+                        : review.reviewType === 'PIP_WEEKLY'
+                        ? 'Submit & Complete Weekly Check-in'
                         : 'Submit Evaluation'}
                     </span>
                   </button>

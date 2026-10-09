@@ -35,16 +35,12 @@ import {
   Sparkles,
   Search,
   Users,
-  Award,
   Calendar,
-  CheckCircle2,
   RotateCw,
   Building2,
   Download,
   FileCheck,
   AlertCircle,
-  AlertTriangle,
-  Clock,
   Edit3,
   Lock,
   ChevronRight,
@@ -63,10 +59,13 @@ import {
   X,
   Star,
   Eye,
+  ChevronDown,
 } from 'lucide-react';
 import { PageHeader } from './ui/PageHeader';
 import { Button } from './ui/Button';
 import { SELECT_CLASS } from './ui/formStyles';
+import { m, AnimatePresence, accordionVariants } from '../animations';
+import { getOpenReturn } from './reviews/ReviewScoringModal/returnUtils';
 
 export interface ReviewViewConfig {
   status?: string;
@@ -87,6 +86,29 @@ interface QuarterlyReviewViewProps {
   onClearInitialConfig?: () => void;
 }
 
+type QuickView = 'ALL' | 'MINE' | 'OVERDUE' | 'RETURNED' | 'NOT_STARTED' | 'COMPLETED';
+
+const QUICK_VIEWS: { key: QuickView; label: string }[] = [
+  { key: 'ALL', label: 'All' },
+  { key: 'MINE', label: 'Needs my action' },
+  { key: 'OVERDUE', label: 'Overdue' },
+  { key: 'RETURNED', label: 'Returned' },
+  { key: 'NOT_STARTED', label: 'Not started' },
+  { key: 'COMPLETED', label: 'Completed' },
+];
+
+const STATUS_LABELS: Record<string, string> = {
+  MANAGER_PENDING: 'Manager pending',
+  MANAGER_COMPLETED: 'Manager completed',
+  HOD_PENDING: 'HOD pending',
+  HR_PENDING: 'HR calibration',
+  HR_COMPLETED: 'Finalized',
+  ASSIGNED: 'Not started',
+  RETURNED: 'Returned',
+  CLOSED: 'Closed & locked',
+  DRAFT: 'Draft',
+};
+
 export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   currentUser,
   departments,
@@ -98,6 +120,23 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   const [reviews, setReviews] = useState<EmployeeReview[]>([]);
   const [periods, setPeriods] = useState<ReviewPeriod[]>([]);
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const [showInsights, setShowInsights] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('qr_show_insights') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const toggleInsights = () => {
+    setShowInsights((prev) => {
+      try {
+        localStorage.setItem('qr_show_insights', String(!prev));
+      } catch {
+        // storage unavailable: the toggle still works for this visit
+      }
+      return !prev;
+    });
+  };
   const [stats, setStats] = useState<ReviewSummaryStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -106,8 +145,13 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterDepartmentId, setFilterDepartmentId] = useState<string>('ALL');
   const [filterManagerId, setFilterManagerId] = useState<string>('ALL');
-  const [filterStatus, setFilterStatus] = useState<string>(currentUser?.role === 'HOD' ? 'HOD_PENDING' : 'ALL');
+  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  // One-click views over the loaded reviews; reviewers land on their own queue
+  const [quickView, setQuickView] = useState<QuickView>(
+    ['MANAGER', 'REPORTING_MANAGER', 'HOD'].includes(currentUser?.role || '') ? 'MINE' : 'ALL'
+  );
   const [appraisalDueOnly, setAppraisalDueOnly] = useState<boolean>(false);
+  const [filterReviewType, setFilterReviewType] = useState<'ALL' | 'QUARTERLY' | 'PIP'>('ALL');
   const [myReportsOnly, setMyReportsOnly] = useState<boolean>(false);
   const [hideInactive, setHideInactive] = useState<boolean>(false);
   const [showMoreFilters, setShowMoreFilters] = useState<boolean>(false);
@@ -290,11 +334,12 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
   };
 
   // Load Reviews and Stats whenever period or filters change
+  const pipOnly = filterReviewType === 'PIP';
   useEffect(() => {
     if (selectedPeriodId) {
       loadReviewsAndStats(selectedPeriodId);
     }
-  }, [selectedPeriodId, filterDepartmentId, filterStatus, filterManagerId, myReportsOnly]);
+  }, [selectedPeriodId, filterDepartmentId, filterStatus, filterManagerId, myReportsOnly, pipOnly]);
 
   const loadReviewsAndStats = async (periodIdToFetch?: string) => {
     const targetPeriodId = periodIdToFetch || selectedPeriodId;
@@ -307,7 +352,8 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
     try {
       const [reviewsData, statsData] = await Promise.all([
         api.getReviews({
-          periodId: targetPeriodId,
+          // PIP reviews carry their own synthetic period ids, so they never match a quarter
+          periodId: pipOnly ? 'ALL' : targetPeriodId,
           departmentId: filterDepartmentId !== 'ALL' ? filterDepartmentId : undefined,
           managerId: filterManagerId !== 'ALL' ? filterManagerId : undefined,
           status: filterStatus !== 'ALL' ? filterStatus : undefined,
@@ -349,11 +395,43 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [reviews, employees]);
 
+  const isCompletedReview = (r: EmployeeReview) => r.isClosed || r.status === 'CLOSED' || r.status === 'HR_COMPLETED';
+
+  const matchesQuickView = (r: EmployeeReview, view: QuickView): boolean => {
+    switch (view) {
+      case 'MINE': {
+        const role = currentUser?.role;
+        const isMine = (id?: string) => Boolean(id) && (id === currentUser?.employeeId || id === currentUser?.id);
+        if (role === 'EMPLOYEE') return !r.isSelfSubmitted && !isCompletedReview(r);
+        if (role === 'HR' || role === 'SUPER_ADMIN') return r.status === 'HR_PENDING';
+        return (
+          (['MANAGER_PENDING', 'RETURNED'].includes(r.status) && isMine(r.managerId)) ||
+          (r.status === 'HOD_PENDING' && isMine(r.hodId))
+        );
+      }
+      case 'OVERDUE': {
+        if (isCompletedReview(r)) return false;
+        const dueStr = (r as any).dueDate || selectedPeriod?.dueDate || selectedPeriod?.endDate;
+        return Boolean(dueStr) && new Date(dueStr) < new Date();
+      }
+      case 'RETURNED':
+        return r.status === 'RETURNED' || Boolean(getOpenReturn(r));
+      case 'NOT_STARTED':
+        return r.status === 'ASSIGNED';
+      case 'COMPLETED':
+        return isCompletedReview(r);
+      default:
+        return true;
+    }
+  };
+
   // Filtered reviews in memory for search & appraisal due toggle & inactive toggle
-  const displayedReviews = useMemo(() => {
+  const baseFilteredReviews = useMemo(() => {
     return reviews.filter((r) => {
       if (hideInactive && r.employeeStatus === 'INACTIVE') return false;
       if (appraisalDueOnly && !r.isAppraisalMonthDue) return false;
+      if (filterReviewType === 'QUARTERLY' && (r.reviewType === 'PIP_WEEKLY' || r.reviewType === 'PIP_FINAL')) return false;
+      if (filterReviewType === 'PIP' && r.reviewType !== 'PIP_WEEKLY' && r.reviewType !== 'PIP_FINAL') return false;
       if (filterManagerId !== 'ALL' && r.managerId !== filterManagerId) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -366,13 +444,59 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
       }
       return true;
     });
-  }, [reviews, searchQuery, appraisalDueOnly, hideInactive, filterManagerId]);
+  }, [reviews, searchQuery, appraisalDueOnly, hideInactive, filterManagerId, filterReviewType]);
+
+  const quickViewCounts = useMemo(() => {
+    const counts = {} as Record<QuickView, number>;
+    QUICK_VIEWS.forEach(({ key }) => {
+      counts[key] = baseFilteredReviews.filter((r) => matchesQuickView(r, key)).length;
+    });
+    return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseFilteredReviews, currentUser, selectedPeriod]);
+
+  const hasDetailFilters =
+    filterStatus !== 'ALL' || filterDepartmentId !== 'ALL' || filterManagerId !== 'ALL' || appraisalDueOnly || myReportsOnly || hideInactive;
+
+  const clearAllFilters = () => {
+    setFilterStatus('ALL');
+    setFilterDepartmentId('ALL');
+    setFilterManagerId('ALL');
+    setAppraisalDueOnly(false);
+    setMyReportsOnly(false);
+    setHideInactive(false);
+    setSearchQuery('');
+  };
+
+  const activeFilterChips = [
+    searchQuery.trim() && { key: 'search', label: `"${searchQuery.trim()}"`, clear: () => setSearchQuery('') },
+    filterDepartmentId !== 'ALL' && {
+      key: 'dept',
+      label: departments.find((d) => d.id === filterDepartmentId)?.name || 'Department',
+      clear: () => setFilterDepartmentId('ALL'),
+    },
+    filterManagerId !== 'ALL' && {
+      key: 'manager',
+      label: availableManagers.find((m) => m.id === filterManagerId)?.name || 'Manager',
+      clear: () => setFilterManagerId('ALL'),
+    },
+    filterStatus !== 'ALL' && { key: 'status', label: STATUS_LABELS[filterStatus] || filterStatus, clear: () => setFilterStatus('ALL') },
+    appraisalDueOnly && { key: 'due', label: 'Appraisal due only', clear: () => setAppraisalDueOnly(false) },
+    myReportsOnly && { key: 'reports', label: 'My direct reports', clear: () => setMyReportsOnly(false) },
+    hideInactive && { key: 'inactive', label: 'Hide inactive', clear: () => setHideInactive(false) },
+  ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
+
+  const displayedReviews = useMemo(
+    () => baseFilteredReviews.filter((r) => matchesQuickView(r, quickView)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [baseFilteredReviews, quickView, currentUser, selectedPeriod]
+  );
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
     setSelectedReviewIds([]);
-  }, [searchQuery, filterDepartmentId, filterManagerId, filterStatus, appraisalDueOnly, myReportsOnly, hideInactive, selectedPeriodId]);
+  }, [searchQuery, filterDepartmentId, filterManagerId, filterStatus, appraisalDueOnly, myReportsOnly, hideInactive, selectedPeriodId, quickView]);
 
   // Paginated reviews
   const totalPages = Math.max(1, Math.ceil(displayedReviews.length / pageSize));
@@ -914,296 +1038,277 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
         }
       />
 
-      {/* 2. COMPACT 5-CARD KPI STRIP (FITS IN SINGLE TIGHT ROW) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-        {/* Card 1: Total Reviews */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <span className="text-[11px] font-semibold text-slate-400 block truncate">Total reviews</span>
-            <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-xl font-bold text-slate-900 dark:text-white tabular-nums leading-none">{liveMetrics.total}</span>
-              <span className="text-[11px] text-slate-400 font-medium">({liveMetrics.cohortCoveragePct}% cov)</span>
-            </div>
-          </div>
-          <Users className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-        </div>
-
-        {/* Card 2: Completion Rate */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 flex items-center justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <span className="text-[11px] font-semibold text-slate-400 block truncate">Completion</span>
-            <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-xl font-bold text-slate-900 dark:text-white tabular-nums leading-none">{liveMetrics.completionRate}%</span>
-              <span className="text-[11px] text-slate-400">({liveMetrics.completedCount}/{liveMetrics.total})</span>
-            </div>
-            <div className="mt-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1 overflow-hidden">
-              <div className="bg-emerald-500 h-1 rounded-full transition-all duration-500" style={{ width: `${liveMetrics.completionRate}%` }} />
-            </div>
-          </div>
-          <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-        </div>
-
-        {/* Card 3: Pending Reviews */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <span className="text-[11px] font-semibold text-slate-400 block truncate">Pending action</span>
-            <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-xl font-bold text-slate-900 dark:text-white tabular-nums leading-none">{liveMetrics.totalPending}</span>
-              <span className="text-[11px] text-amber-700 dark:text-amber-400 font-semibold">{liveMetrics.pendingRate}%</span>
-            </div>
-          </div>
-          <Clock className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-        </div>
-
-        {/* Card 4: Overdue Reviews */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <span className="text-[11px] font-semibold text-slate-400 block truncate">Overdue</span>
-            <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-xl font-bold text-slate-900 dark:text-white tabular-nums leading-none">{liveMetrics.overdueCount}</span>
-              <span className={`text-[11px] font-semibold ${liveMetrics.overdueCount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                {liveMetrics.overdueCount > 0 ? `${liveMetrics.overdueRate}%` : 'On schedule'}
-              </span>
-            </div>
-          </div>
-          <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-        </div>
-
-        {/* Card 5: Average Score */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3.5 py-2 flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <span className="text-[11px] font-semibold text-slate-400 block truncate">Avg score</span>
-            <div className="flex items-baseline gap-1.5 mt-0.5">
-              <span className="text-xl font-bold text-slate-900 dark:text-white tabular-nums leading-none">
-                {liveMetrics.avgScore > 0 ? liveMetrics.avgScore.toFixed(2) : '—'}
-              </span>
-              <span className="text-[11px] text-slate-400 tabular-nums">/ 5.00</span>
-            </div>
-          </div>
-          <Award className="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500" aria-hidden="true" />
-        </div>
+      {/* 2. Summary line; the charts open from its "Show insights" toggle */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-3.5 py-2.5 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 text-sm text-slate-600 dark:text-slate-400 tabular-nums">
+        <span>
+          <strong className="text-base font-semibold text-indigo-800 dark:text-indigo-300">{liveMetrics.total}</strong> reviews ({liveMetrics.cohortCoveragePct}% coverage)
+        </span>
+        <span aria-hidden="true" className="hidden sm:block h-4 w-px bg-indigo-200 dark:bg-indigo-800" />
+        <span>
+          <strong className="text-base font-semibold text-indigo-800 dark:text-indigo-300">{liveMetrics.completionRate}%</strong> complete ({liveMetrics.completedCount}/{liveMetrics.total})
+        </span>
+        <span aria-hidden="true" className="hidden sm:block h-4 w-px bg-indigo-200 dark:bg-indigo-800" />
+        <span>
+          <strong className="text-base font-semibold text-indigo-800 dark:text-indigo-300">{liveMetrics.totalPending}</strong> pending action
+        </span>
+        <span aria-hidden="true" className="hidden sm:block h-4 w-px bg-indigo-200 dark:bg-indigo-800" />
+        <span>
+          <strong className="text-base font-semibold text-indigo-800 dark:text-indigo-300">{liveMetrics.overdueCount}</strong>{' '}
+          {liveMetrics.overdueCount > 0 ? (
+            <span className="text-rose-700 dark:text-rose-400 font-medium">overdue ({liveMetrics.overdueRate}%)</span>
+          ) : (
+            'overdue'
+          )}
+        </span>
+        <span aria-hidden="true" className="hidden sm:block h-4 w-px bg-indigo-200 dark:bg-indigo-800" />
+        <span>
+          Avg score <strong className="text-base font-semibold text-indigo-800 dark:text-indigo-300">{liveMetrics.avgScore > 0 ? liveMetrics.avgScore.toFixed(2) : '—'}</strong> / 5
+        </span>
+        <button
+          type="button"
+          onClick={toggleInsights}
+          aria-expanded={showInsights}
+          aria-controls="qr-insights"
+          className="sm:ml-auto inline-flex items-center gap-1 text-sm font-medium text-indigo-700 dark:text-indigo-400 hover:underline cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        >
+          {showInsights ? 'Hide insights' : 'Show insights'}
+          <ChevronDown className={`w-4 h-4 transition-transform ${showInsights ? 'rotate-180' : ''}`} aria-hidden="true" />
+        </button>
       </div>
 
-      {/* 3. VISUAL ANALYTICS PANELS (FIXED COMPACT LAYOUT WITH PROMINENT CHARTS) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        {/* Panel 1: Review Stage Progress */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3.5 flex flex-col justify-between space-y-2">
-          <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-            <h3 className="text-xs font-bold text-slate-900 dark:text-white">Stage progress</h3>
-            <span className="text-[11px] text-slate-400 tabular-nums">{liveMetrics.total} total</span>
-          </div>
+      {/* 3. Charts: stage progress, review health, KRA coverage (collapsed by default) */}
+      <AnimatePresence initial={false}>
+        {showInsights && (
+          <m.div
+            id="qr-insights"
+            key="insights"
+            variants={accordionVariants}
+            initial="collapsed"
+            animate="expanded"
+            exit="collapsed"
+          >
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+            {/* Panel 1: Review Stage Progress */}
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3.5 flex flex-col justify-between space-y-2">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white">Stage progress</h3>
+                <span className="text-[11px] text-slate-400 tabular-nums">{liveMetrics.total} total</span>
+              </div>
 
-          <div className="space-y-2 py-0.5">
-            {/* Stage 1: Self Review */}
-            <div className="space-y-0.5">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-600 dark:text-slate-400">Self review</span>
-                <span className="tabular-nums text-slate-500 dark:text-slate-400 text-[11px]">
-                  <strong>{stageProgress.self.count}</strong> / {liveMetrics.total} ({stageProgress.self.pct}%)
-                </span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                <div className="bg-indigo-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${stageProgress.self.pct}%` }} />
-              </div>
-            </div>
-
-            {/* Stage 2: Manager Review */}
-            <div className="space-y-0.5">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-600 dark:text-slate-400">Manager review</span>
-                <span className="tabular-nums text-slate-500 dark:text-slate-400 text-[11px]">
-                  <strong>{stageProgress.manager.count}</strong> / {liveMetrics.total} ({stageProgress.manager.pct}%)
-                </span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                <div className="bg-sky-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${stageProgress.manager.pct}%` }} />
-              </div>
-            </div>
-
-            {/* Stage 3: HR Review */}
-            <div className="space-y-0.5">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-600 dark:text-slate-400">HR calibration</span>
-                <span className="tabular-nums text-slate-500 dark:text-slate-400 text-[11px]">
-                  <strong>{stageProgress.hr.count}</strong> / {liveMetrics.total} ({stageProgress.hr.pct}%)
-                </span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                <div className="bg-violet-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${stageProgress.hr.pct}%` }} />
-              </div>
-            </div>
-
-            {/* Stage 4: Finalized */}
-            <div className="space-y-0.5">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-600 dark:text-slate-400">Finalized & locked</span>
-                <span className="tabular-nums text-slate-500 dark:text-slate-400 text-[11px]">
-                  <strong>{stageProgress.finalized.count}</strong> / {liveMetrics.total} ({stageProgress.finalized.pct}%)
-                </span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${stageProgress.finalized.pct}%` }} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Panel 2: Review Health */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3.5 flex flex-col justify-between">
-          <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-            <h3 className="text-xs font-bold text-slate-900 dark:text-white">Review health</h3>
-            <span className="text-[11px] text-slate-400">Due: {selectedPeriod?.dueDate || '—'}</span>
-          </div>
-
-          <div className="flex items-center gap-4 py-1">
-            <div className="relative w-32 h-32 shrink-0 flex items-center justify-center">
-              {healthData.total === 0 ? (
-                <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-[11px] text-slate-400">
-                  No data
-                </div>
-              ) : (
-                <>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={healthData.chartData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={38}
-                        outerRadius={58}
-                        paddingAngle={3}
-                        stroke="none"
-                      >
-                        {healthData.chartData.map((entry, index) => (
-                          <Cell key={`h-cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <RechartsTooltip formatter={(val: any, name: any) => [`${val} reviews`, name]} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-base font-bold text-slate-900 dark:text-white tabular-nums leading-none">
-                      {healthData.onTrackPct}%
-                    </span>
-                    <span className="text-[11px] text-slate-400 font-medium mt-1 leading-none">
-                      On track
+              <div className="space-y-2 py-0.5">
+                {/* Stage 1: Self Review */}
+                <div className="space-y-0.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-600 dark:text-slate-400">Self review</span>
+                    <span className="tabular-nums text-slate-500 dark:text-slate-400 text-[11px]">
+                      <strong>{stageProgress.self.count}</strong> / {liveMetrics.total} ({stageProgress.self.pct}%)
                     </span>
                   </div>
-                </>
-              )}
-            </div>
-
-            <div className="flex flex-col justify-center gap-2 flex-1 min-w-0 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                  <span>On track</span>
-                </span>
-                <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.onTrack}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                  <span>Due soon</span>
-                </span>
-                <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.dueSoon}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
-                  <span>Overdue</span>
-                </span>
-                <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.overdue}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                  <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
-                  <span>Not started</span>
-                </span>
-                <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.notStarted}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Panel 3: KRA Coverage */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3.5 flex flex-col justify-between">
-          <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
-            <h3 className="text-xs font-bold text-slate-900 dark:text-white">KRA coverage</h3>
-            {isSuperAdminOrHr && kraCoverageData.withoutKra > 0 && (
-              <button
-                onClick={() => handleOpenAssignKra()}
-                className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-              >
-                + Assign
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-4 py-1">
-            <div className="relative w-32 h-32 shrink-0 flex items-center justify-center">
-              {kraCoverageData.total === 0 ? (
-                <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-[11px] text-slate-400">
-                  No data
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-indigo-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${stageProgress.self.pct}%` }} />
+                  </div>
                 </div>
-              ) : (
-                <>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={kraCoverageData.chartData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={38}
-                        outerRadius={58}
-                        paddingAngle={3}
-                        stroke="none"
-                      >
-                        {kraCoverageData.chartData.map((entry, index) => (
-                          <Cell key={`k-cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <RechartsTooltip formatter={(val: any, name: any) => [`${val} reviews`, name]} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-base font-bold text-slate-900 dark:text-white tabular-nums leading-none">
-                      {kraCoverageData.withKraPct}%
-                    </span>
-                    <span className="text-[11px] text-slate-400 font-medium mt-1 leading-none">
-                      Covered
+
+                {/* Stage 2: Manager Review */}
+                <div className="space-y-0.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-600 dark:text-slate-400">Manager review</span>
+                    <span className="tabular-nums text-slate-500 dark:text-slate-400 text-[11px]">
+                      <strong>{stageProgress.manager.count}</strong> / {liveMetrics.total} ({stageProgress.manager.pct}%)
                     </span>
                   </div>
-                </>
-              )}
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-sky-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${stageProgress.manager.pct}%` }} />
+                  </div>
+                </div>
+
+                {/* Stage 3: HR Review */}
+                <div className="space-y-0.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-600 dark:text-slate-400">HR calibration</span>
+                    <span className="tabular-nums text-slate-500 dark:text-slate-400 text-[11px]">
+                      <strong>{stageProgress.hr.count}</strong> / {liveMetrics.total} ({stageProgress.hr.pct}%)
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-violet-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${stageProgress.hr.pct}%` }} />
+                  </div>
+                </div>
+
+                {/* Stage 4: Finalized */}
+                <div className="space-y-0.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-600 dark:text-slate-400">Finalized & locked</span>
+                    <span className="tabular-nums text-slate-500 dark:text-slate-400 text-[11px]">
+                      <strong>{stageProgress.finalized.count}</strong> / {liveMetrics.total} ({stageProgress.finalized.pct}%)
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                    <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${stageProgress.finalized.pct}%` }} />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-col justify-center gap-2.5 flex-1 min-w-0 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                  <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
-                  <span>With KRA</span>
-                </span>
-                <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{kraCoverageData.withKra}</span>
+            {/* Panel 2: Review Health */}
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3.5 flex flex-col justify-between">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white">Review health</h3>
+                <span className="text-[11px] text-slate-400">Due: {selectedPeriod?.dueDate || '—'}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                  <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
-                  <span>Without KRA</span>
-                </span>
-                <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{kraCoverageData.withoutKra}</span>
+
+              <div className="flex items-center gap-4 py-1">
+                <div className="relative w-32 h-32 shrink-0 flex items-center justify-center">
+                  {healthData.total === 0 ? (
+                    <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-[11px] text-slate-400">
+                      No data
+                    </div>
+                  ) : (
+                    <>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={healthData.chartData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={38}
+                            outerRadius={58}
+                            paddingAngle={3}
+                            stroke="none"
+                          >
+                            {healthData.chartData.map((entry, index) => (
+                              <Cell key={`h-cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip formatter={(val: any, name: any) => [`${val} reviews`, name]} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span className="text-base font-bold text-slate-900 dark:text-white tabular-nums leading-none">
+                          {healthData.onTrackPct}%
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium mt-1 leading-none">
+                          On track
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="flex flex-col justify-center gap-2 flex-1 min-w-0 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                      <span>On track</span>
+                    </span>
+                    <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.onTrack}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                      <span>Due soon</span>
+                    </span>
+                    <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.dueSoon}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                      <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                      <span>Overdue</span>
+                    </span>
+                    <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.overdue}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                      <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
+                      <span>Not started</span>
+                    </span>
+                    <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{healthData.notStarted}</span>
+                  </div>
+                </div>
               </div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-md border border-slate-100 dark:border-slate-800 leading-tight">
-                {kraCoverageData.withoutKra === 0 ? '100% scorecards assigned' : `${kraCoverageData.withoutKra} pending scorecard`}
+            </div>
+
+            {/* Panel 3: KRA Coverage */}
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3.5 flex flex-col justify-between">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white">KRA coverage</h3>
+                {isSuperAdminOrHr && kraCoverageData.withoutKra > 0 && (
+                  <button
+                    onClick={() => handleOpenAssignKra()}
+                    className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                  >
+                    + Assign
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4 py-1">
+                <div className="relative w-32 h-32 shrink-0 flex items-center justify-center">
+                  {kraCoverageData.total === 0 ? (
+                    <div className="w-24 h-24 rounded-full border-2 border-dashed border-slate-200 dark:border-slate-700 flex items-center justify-center text-[11px] text-slate-400">
+                      No data
+                    </div>
+                  ) : (
+                    <>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={kraCoverageData.chartData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={38}
+                            outerRadius={58}
+                            paddingAngle={3}
+                            stroke="none"
+                          >
+                            {kraCoverageData.chartData.map((entry, index) => (
+                              <Cell key={`k-cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip formatter={(val: any, name: any) => [`${val} reviews`, name]} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span className="text-base font-bold text-slate-900 dark:text-white tabular-nums leading-none">
+                          {kraCoverageData.withKraPct}%
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium mt-1 leading-none">
+                          Covered
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="flex flex-col justify-center gap-2.5 flex-1 min-w-0 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                      <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                      <span>With KRA</span>
+                    </span>
+                    <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{kraCoverageData.withKra}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                      <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+                      <span>Without KRA</span>
+                    </span>
+                    <span className="tabular-nums text-slate-700 dark:text-slate-300 font-bold text-[11px]">{kraCoverageData.withoutKra}</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/80 px-2 py-1 rounded-md border border-slate-100 dark:border-slate-800 leading-tight">
+                    {kraCoverageData.withoutKra === 0 ? '100% scorecards assigned' : `${kraCoverageData.withoutKra} pending scorecard`}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+          </m.div>
+        )}
+      </AnimatePresence>
 
       {/* 4. COMPACT SEARCH, FILTERS & BATCH OPERATIONS TOOLBAR */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 px-3 py-2 space-y-2">
@@ -1228,66 +1333,11 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
             )}
           </div>
 
-          {/* Department Filter */}
-          <div className="flex items-center space-x-1">
-            <span className="text-[11px] text-slate-400 font-medium">Dept:</span>
-            <select
-              value={filterDepartmentId}
-              onChange={(e) => setFilterDepartmentId(e.target.value)}
-              className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 focus:border-indigo-500 cursor-pointer"
-            >
-              <option value="ALL">All departments</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Dynamic Manager Filter */}
-          <div className="flex items-center space-x-1">
-            <span className="text-[11px] text-slate-400 font-medium">Manager:</span>
-            <select
-              value={filterManagerId}
-              onChange={(e) => setFilterManagerId(e.target.value)}
-              className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 focus:border-indigo-500 cursor-pointer max-w-[130px]"
-            >
-              <option value="ALL">All managers</option>
-              {availableManagers.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Status Filter */}
-          <div className="flex items-center space-x-1">
-            <span className="text-[11px] text-slate-400 font-medium">Status:</span>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 focus:border-indigo-500 cursor-pointer"
-            >
-              <option value="ALL">All statuses</option>
-              <option value="MANAGER_PENDING">Manager pending</option>
-              <option value="MANAGER_COMPLETED">Manager completed</option>
-              <option value="HOD_PENDING">HOD pending</option>
-              <option value="HR_PENDING">HR calibration</option>
-              <option value="HR_COMPLETED">Finalized</option>
-              <option value="ASSIGNED">Not started</option>
-              <option value="RETURNED">Returned</option>
-              <option value="CLOSED">Closed & locked</option>
-              <option value="DRAFT">Draft</option>
-            </select>
-          </div>
-
           {/* Quick Filters Toggle */}
           <button
             onClick={() => setShowMoreFilters(!showMoreFilters)}
             className={`px-2 py-1 text-xs font-semibold rounded-lg border transition-colors flex items-center space-x-1 cursor-pointer ${
-              showMoreFilters || appraisalDueOnly || myReportsOnly || hideInactive
+              showMoreFilters || hasDetailFilters
                 ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
                 : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
             }`}
@@ -1328,6 +1378,75 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
         {/* Expandable Filter Row */}
         {showMoreFilters && (
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center gap-2">
+            {/* Department Filter */}
+            <label className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500 dark:text-slate-400">Dept:</span>
+              <select
+                value={filterDepartmentId}
+                onChange={(e) => setFilterDepartmentId(e.target.value)}
+                className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 focus:border-indigo-500 cursor-pointer"
+              >
+                <option value="ALL">All departments</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {/* Dynamic Manager Filter */}
+            <label className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500 dark:text-slate-400">Manager:</span>
+              <select
+                value={filterManagerId}
+                onChange={(e) => setFilterManagerId(e.target.value)}
+                className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 focus:border-indigo-500 cursor-pointer max-w-[130px]"
+              >
+                <option value="ALL">All managers</option>
+                {availableManagers.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {/* Status Filter */}
+            <label className="flex items-center gap-1.5">
+              <span className="text-xs text-slate-500 dark:text-slate-400">Status:</span>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-lg px-2 py-1 focus:border-indigo-500 cursor-pointer"
+              >
+                <option value="ALL">All statuses</option>
+                <option value="MANAGER_PENDING">Manager pending</option>
+                <option value="MANAGER_COMPLETED">Manager completed</option>
+                <option value="HOD_PENDING">HOD pending</option>
+                <option value="HR_PENDING">HR calibration</option>
+                <option value="HR_COMPLETED">Finalized</option>
+                <option value="ASSIGNED">Not started</option>
+                <option value="RETURNED">Returned</option>
+                <option value="CLOSED">Closed & locked</option>
+                <option value="DRAFT">Draft</option>
+              </select>
+            </label>
+
+            <label className="flex items-center space-x-1 cursor-pointer">
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Type:</span>
+              <select
+                aria-label="Filter by review type"
+                value={filterReviewType}
+                onChange={(e) => setFilterReviewType(e.target.value as 'ALL' | 'QUARTERLY' | 'PIP')}
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg border bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer"
+              >
+                <option value="ALL">All types</option>
+                <option value="QUARTERLY">Quarterly only</option>
+                <option value="PIP">PIP reviews only</option>
+              </select>
+            </label>
+
             <button
               onClick={() => setAppraisalDueOnly(!appraisalDueOnly)}
               className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors flex items-center space-x-1 cursor-pointer ${
@@ -1364,28 +1483,59 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
               <span>Hide inactive</span>
             </button>
 
-            {(filterStatus !== 'ALL' ||
-              filterDepartmentId !== 'ALL' ||
-              filterManagerId !== 'ALL' ||
-              appraisalDueOnly ||
-              searchQuery.trim() ||
-              myReportsOnly ||
-              hideInactive) && (
+          </div>
+        )}
+
+        {/* Quick views: one click per common queue, with live counts */}
+        {!isEmployeeRole && (
+          <div role="group" aria-label="Quick views" className="flex flex-wrap items-center gap-1.5">
+            {QUICK_VIEWS.map(({ key, label }) => {
+              const isActive = quickView === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={() => setQuickView(key)}
+                  className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full border text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                    isActive
+                      ? 'bg-indigo-600 border-indigo-600 text-white'
+                      : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  {label}
+                  <span className={`tabular-nums text-[11px] ${isActive ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'}`}>
+                    {quickViewCounts[key]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Active detailed filters, each removable, so nothing stays hidden in a dropdown */}
+        {activeFilterChips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-slate-500 dark:text-slate-400">Filtered by:</span>
+            {activeFilterChips.map((chip) => (
               <button
-                onClick={() => {
-                  setFilterStatus('ALL');
-                  setFilterDepartmentId('ALL');
-                  setFilterManagerId('ALL');
-                  setAppraisalDueOnly(false);
-                  setMyReportsOnly(false);
-                  setHideInactive(false);
-                  setSearchQuery('');
-                }}
-                className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold ml-2 cursor-pointer"
+                key={chip.key}
+                type="button"
+                onClick={chip.clear}
+                aria-label={`Remove filter: ${chip.label}`}
+                className="inline-flex items-center gap-1 h-6 pl-2 pr-1.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
               >
-                Reset all filters
+                {chip.label}
+                <X className="w-3 h-3" aria-hidden="true" />
               </button>
-            )}
+            ))}
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="ml-1 font-medium text-indigo-700 dark:text-indigo-400 hover:underline cursor-pointer"
+            >
+              Clear all
+            </button>
           </div>
         )}
 
@@ -1438,8 +1588,8 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
             <FileCheck className="w-9 h-9 text-slate-300 dark:text-slate-600" />
             <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">No quarterly reviews found</span>
             <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
-              {filterStatus !== 'ALL' || filterDepartmentId !== 'ALL' || filterManagerId !== 'ALL' || appraisalDueOnly || searchQuery.trim() || myReportsOnly || hideInactive
-                ? 'No review sheets match your current search or filters for this period.'
+              {hasDetailFilters || searchQuery.trim() || quickView !== 'ALL'
+                ? 'No reviews match this view or your filters. Try "All" or clear the filters.'
                 : 'No review sheets exist for this period yet. Initiate a new batch for this period to generate reviews from active employee master data.'}
             </p>
             {isSuperAdminOrHr && !searchQuery && filterStatus === 'ALL' && (
@@ -1494,6 +1644,16 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                               {r.employeeName}
                             </h4>
                             <EmployeeStatusBadge status={r.employeeStatus} />
+                            {r.reviewType === 'PIP_WEEKLY' && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                PIP W{r.pipCycleNumber || 1}
+                              </span>
+                            )}
+                            {r.reviewType === 'PIP_FINAL' && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                PIP Final
+                              </span>
+                            )}
                             <ReturnCountBadge review={r} />
                             {r.isAppraisalMonthDue && (
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Appraisal Due this Quarter" />
@@ -1694,7 +1854,17 @@ export const QuarterlyReviewView: React.FC<QuarterlyReviewViewProps> = ({
                                 {r.employeeName}
                               </span>
                               <EmployeeStatusBadge status={r.employeeStatus} />
-                            <ReturnCountBadge review={r} />
+                              {r.reviewType === 'PIP_WEEKLY' && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                  PIP W{r.pipCycleNumber || 1}
+                                </span>
+                              )}
+                              {r.reviewType === 'PIP_FINAL' && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                  PIP Final
+                                </span>
+                              )}
+                              <ReturnCountBadge review={r} />
                               {r.isAppraisalMonthDue && (
                                 <span title="Appraisal Due this Quarter" className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                               )}

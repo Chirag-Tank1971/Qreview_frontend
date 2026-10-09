@@ -30,6 +30,55 @@ const blankGoal = (): GoalRow => ({
 
 const ACTIVE_STATUSES: PerformanceImprovementPlan['status'][] = ['ACTIVE', 'EXTENDED'];
 
+/** Starting points only — every field stays editable after a template is applied. */
+const PIP_TEMPLATES: { category: string; reason: string; goals: { description: string; targetMetric: string }[] }[] = [
+  {
+    category: 'Quality',
+    reason: 'Work output has repeatedly fallen below the expected quality standard, resulting in rework and defects reaching review or customers.',
+    goals: [
+      { description: 'Reduce defects / rework found in review on assigned work', targetMetric: '≤ 2 issues per deliverable' },
+      { description: 'Follow the team checklist and self-review before every submission', targetMetric: '100% of submissions' },
+      { description: 'Zero critical defects reaching production or customers', targetMetric: '0 critical defects' },
+    ],
+  },
+  {
+    category: 'Delivery',
+    reason: 'Assigned work has consistently been delivered late or incomplete against agreed timelines.',
+    goals: [
+      { description: 'Deliver assigned tasks by the agreed due date', targetMetric: '≥ 90% on time' },
+      { description: 'Flag risks to deadlines at least 2 working days in advance', targetMetric: 'Every at-risk task' },
+      { description: 'Keep task status up to date in the tracker', targetMetric: 'Updated daily' },
+    ],
+  },
+  {
+    category: 'Attendance',
+    reason: 'Attendance and punctuality have not met company policy, affecting team coverage and planning.',
+    goals: [
+      { description: 'Report on time for scheduled working hours and meetings', targetMetric: '≤ 1 late arrival per month' },
+      { description: 'Apply for planned leave in advance through the leave system', targetMetric: '100% of planned leave' },
+      { description: 'No unplanned absences without notifying the manager before shift start', targetMetric: '0 unreported absences' },
+    ],
+  },
+  {
+    category: 'Behaviour',
+    reason: 'Workplace conduct has not been in line with company values and code of conduct, affecting collaboration with colleagues.',
+    goals: [
+      { description: 'Communicate respectfully with colleagues, clients and stakeholders', targetMetric: 'No substantiated complaints' },
+      { description: 'Participate constructively in team meetings and reviews', targetMetric: 'Manager observation each week' },
+      { description: 'Follow agreed team processes and escalation paths', targetMetric: 'No process breaches' },
+    ],
+  },
+  {
+    category: 'Communication',
+    reason: 'Communication on work status, blockers and expectations has been unclear or missing, causing delays and misalignment.',
+    goals: [
+      { description: 'Share a written status update on assigned work', targetMetric: 'Every working day' },
+      { description: 'Respond to messages from team and stakeholders within the agreed time', targetMetric: 'Within 4 working hours' },
+      { description: 'Raise blockers to the manager as soon as they appear', targetMetric: 'Same day' },
+    ],
+  },
+];
+
 export const CreatePipModal: React.FC<CreatePipModalProps> = ({
   isOpen,
   onClose,
@@ -81,6 +130,18 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
     d.setDate(d.getDate() + Number(durationDays));
     return d;
   }, [startDate, durationDays]);
+
+  const applyTemplate = (category: string) => {
+    const t = PIP_TEMPLATES.find((x) => x.category === category);
+    if (!t) return;
+    setCategory(t.category);
+    if (!reason.trim()) setReason(t.reason);
+    // Keep goals the user already typed; replace only the blank rows
+    setGoals((prev) => [
+      ...prev.filter((g) => g.description.trim()),
+      ...t.goals.map((g) => ({ ...blankGoal(), ...g })),
+    ]);
+  };
 
   const handleAddGoal = () => setGoals((prev) => [...prev, blankGoal()]);
   const handleRemoveGoal = (id: string) => setGoals((prev) => prev.filter((g) => g.id !== id));
@@ -217,6 +278,22 @@ export const CreatePipModal: React.FC<CreatePipModalProps> = ({
               </button>
             </div>
           )}
+
+          <div className="space-y-1.5">
+            <label htmlFor="pip-template" className="text-xs font-semibold text-slate-700 dark:text-slate-300">Start from template</label>
+            <select
+              id="pip-template"
+              value=""
+              onChange={(e) => applyTemplate(e.target.value)}
+              className="w-full px-2.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value="">Choose a template (optional)…</option>
+              {PIP_TEMPLATES.map((t) => (
+                <option key={t.category} value={t.category}>{t.category}</option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">Fills category, reason (if empty) and goals. Everything stays editable.</p>
+          </div>
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Reason for plan</label>
